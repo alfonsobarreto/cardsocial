@@ -12,6 +12,7 @@
  */
 
 import { getActiveUserId } from '@/services/authSession';
+import { getPresidentialSecurityEnabled, setPresidentialSecurityEnabled } from '@/services/biometricAuth';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { auth, db } from '@/services/firebaseConfig';
@@ -67,6 +68,7 @@ import {
     Platform,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -201,6 +203,7 @@ export default function MyProfileScreen() {
   const [statsCards, setStatsCards] = useState(0);
   const [statsContacts, setStatsContacts] = useState(0);
   const [creditsBalance, setCreditsBalance] = useState(0);
+  const [presidentialSecEnabled, setPresidentialSecEnabled] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -299,6 +302,13 @@ export default function MyProfileScreen() {
         setCreditsBalance(Math.max(ledgerCs, rootCs));
       } catch {
         setCreditsBalance(Number(data.creditsBalance ?? 0));
+      }
+
+      try {
+        const isPresSecEnabled = await getPresidentialSecurityEnabled();
+        setPresidentialSecEnabled(isPresSecEnabled);
+      } catch {
+        /* best-effort: preferencia local */
       }
     } catch (e: any) {
       Alert.alert(
@@ -807,6 +817,19 @@ export default function MyProfileScreen() {
     }
   };
 
+  const togglePresidentialSecurity = async (value: boolean) => {
+    setPresidentialSecEnabled(value);
+    await setPresidentialSecurityEnabled(value);
+    if (value) {
+      try {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {
+        /* ignore */
+      }
+      Alert.alert(tcx('common_done') || 'Hecho', 'Seguridad Presidencial activada.');
+    }
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   const bg = shell.backgroundSolid;
@@ -1152,6 +1175,32 @@ export default function MyProfileScreen() {
                 <MaterialCommunityIcons name="lifebuoy" size={16} color={shell.emptyCtaText} />
                 <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{t('profile_sec_open_ticket')}</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* ── Seguridad Presidencial ────────────────────────────────────── */}
+            <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
+              <View style={[styles.cardHeader, { justifyContent: 'space-between' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <MaterialCommunityIcons name="shield-lock-outline" size={18} color={accent} />
+                  <Text style={[styles.cardTitle, { color: textPrimary }]}>Seguridad Presidencial</Text>
+                </View>
+                <Switch
+                  value={presidentialSecEnabled}
+                  onValueChange={togglePresidentialSecurity}
+                  trackColor={{ false: border, true: accent }}
+                  thumbColor={
+                    Platform.OS === 'android'
+                      ? presidentialSecEnabled
+                        ? shell.emptyCtaText
+                        : '#f4f3f4'
+                      : undefined
+                  }
+                />
+              </View>
+              <Text style={[styles.hintText, { color: textSecondary }]}>
+                Protege tu cuenta con biometría (FaceID/Huella) al minimizar la aplicación. Evita bloqueos
+                repetitivos mientras navegas dentro de tu cuenta.
+              </Text>
             </View>
 
             {/* ── Contraseña (solo usuarios password) ──────────────────────────── */}

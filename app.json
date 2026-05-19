@@ -2,7 +2,7 @@
   "expo": {
     "name": "card-social",
     "slug": "card-social",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "cardsocial",
@@ -62,7 +62,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",
-      "versionCode": 15,
+      "versionCode": 16
+      ,
       "intentFilters": [
         {
           "action": "VIEW",

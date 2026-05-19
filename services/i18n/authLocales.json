@@ -1351,6 +1351,14 @@
     "fr": "J’accepte les conditions et la politique de confidentialité.",
     "de": "Ich akzeptiere die AGB und die Datenschutzerklärung."
   },
+  "register_presidential_security_label": {
+    "es": "Activar Seguridad presidencial (protege la app con Face ID, huella o PIN del dispositivo).",
+    "en": "Enable Presidential Security (protect the app with Face ID, fingerprint, or device PIN).",
+    "it": "Attiva sicurezza presidenziale (proteggi l’app con Face ID, impronta o PIN del dispositivo).",
+    "pt": "Ativar segurança presidencial (protege o app com Face ID, digital ou PIN do dispositivo).",
+    "fr": "Activer la sécurité présidentielle (protégez l’app avec Face ID, empreinte ou code du téléphone).",
+    "de": "Präsidentielle Sicherheit aktivieren (App mit Face ID, Fingerabdruck oder Geräte-PIN schützen)."
+  },
   "register_go_back": {
     "es": "Volver atrás",
     "en": "Go back",

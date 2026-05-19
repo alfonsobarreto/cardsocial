@@ -1,12 +1,12 @@
 /**
  * relationshipService.ts
- * Client-side relationship management: Mute / Restrict / Block
+ * Client-side relationship management: Mute / Restrict / Block / Hibernating (bunker)
  *
  * - Block goes through backend API (already exists in qrApi.ts)
  * - Mute & Restrict are stored in Firestore subcollection:
  *   users/{uid}/relationships/{targetUid} → { status, updatedAt }
+ * - Hibernating: archived received-card snapshot before removal from main list (local bunker doc)
  */
-
 import {
     collection,
     deleteDoc,
@@ -20,10 +20,11 @@ import {
     where,
 } from 'firebase/firestore';
 import { readUserAvatarUrl } from '@/services/userIdentityFields';
+import { runAirEvaporationDeleteFeedback } from '@/services/airEvaporationDeleteFeedback';
 import { db } from './firebaseConfig';
 import { blockRelationship, unblockRelationship } from './qrApi';
 
-export type RelationshipStatus = 'muted' | 'restricted' | 'blocked';
+export type RelationshipStatus = 'muted' | 'restricted' | 'blocked' | 'hibernating';
 
 export type RelationshipEntry = {
   uid: string;
@@ -31,6 +32,9 @@ export type RelationshipEntry = {
   userAvatarUrl: string | null;
   status: RelationshipStatus;
   updatedAt: string | null;
+  /** Presente en docs `hibernating` (tarjeta archivada). */
+  sid?: string | null;
+  bId?: string | null;
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -93,11 +97,20 @@ export async function blockUser(
 
 // ── Remove relationship (restore) ────────────────────────────────────────
 
+/** `skipSensoryEvaporation`: en `hibernating`, omitir audio (p. ej. restaurar tarjeta desde búnker). */
 export async function removeRelationship(
   uid: string,
   targetUid: string,
   currentStatus: RelationshipStatus,
+  opts?: { skipSensoryEvaporation?: boolean },
 ): Promise<void> {
+  if (currentStatus === 'hibernating') {
+    if (!opts?.skipSensoryEvaporation) {
+      try { await runAirEvaporationDeleteFeedback(); } catch {}
+    }
+    await deleteDoc(relDocRef(uid, targetUid));
+    return;
+  }
   if (currentStatus === 'blocked') {
     await unblockRelationship({ uid, targetUid });
   }
@@ -140,12 +153,16 @@ export async function listRelationshipsByStatus(
   return snap.docs.map((d) => {
     const data = d.data();
     const ts = data.updatedAt as Timestamp | null;
+    const sidRaw = data.sid != null && String(data.sid).trim() ? String(data.sid).trim() : '';
+    const bIdRaw = data.bId != null && String(data.bId).trim() ? String(data.bId).trim() : '';
     return {
       uid: d.id,
       name: String(data.name || ''),
       userAvatarUrl: readUserAvatarUrl(data as Record<string, unknown>) || null,
       status: data.status as RelationshipStatus,
       updatedAt: ts?.toDate?.()?.toISOString?.() ?? null,
+      sid: sidRaw || null,
+      bId: bIdRaw || null,
     };
   });
 }
@@ -159,12 +176,16 @@ export async function listAllRelationships(
   return snap.docs.map((d) => {
     const data = d.data();
     const ts = data.updatedAt as Timestamp | null;
+    const sidRaw = data.sid != null && String(data.sid).trim() ? String(data.sid).trim() : '';
+    const bIdRaw = data.bId != null && String(data.bId).trim() ? String(data.bId).trim() : '';
     return {
       uid: d.id,
       name: String(data.name || ''),
       userAvatarUrl: readUserAvatarUrl(data as Record<string, unknown>) || null,
       status: data.status as RelationshipStatus,
       updatedAt: ts?.toDate?.()?.toISOString?.() ?? null,
+      sid: sidRaw || null,
+      bId: bIdRaw || null,
     };
   });
 }
@@ -193,4 +214,32 @@ export async function isRestricted(uid: string, targetUid: string): Promise<bool
 
 export async function isBlocked(uid: string, targetUid: string): Promise<boolean> {
   return (await getRelationshipStatus(uid, targetUid)) === 'blocked';
+}
+
+/** Persist a received-contact snapshot as `hibernating` before removing the live link via qrApi. */
+export async function archiveContactToBunker(
+  uid: string,
+  contact: {
+    uid: string;
+    userFullName: string;
+    userNickName: string;
+    userAvatarUrl: string | null;
+    sid?: string | null;
+    bId?: string | null;
+    cardType?: string | null;
+    themeId?: string | null;
+  },
+): Promise<void> {
+  await setDoc(relDocRef(uid, contact.uid), {
+    status: 'hibernating',
+    name: contact.userFullName,
+    userNickName: contact.userNickName || '',
+    userAvatarUrl: contact.userAvatarUrl ?? null,
+    sid: contact.sid ?? null,
+    bId: contact.bId ?? null,
+    cardType: contact.cardType ?? 'smart',
+    themeId: contact.themeId ?? 'obsidian',
+    photoUrl: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
 }

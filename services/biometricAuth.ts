@@ -9,6 +9,25 @@ import {
   isAppLanguage,
 } from '@/services/coreI18n';
 
+const PRESIDENTIAL_SECURITY_STORAGE_KEY = '@cs_presidential_security';
+
+export async function getPresidentialSecurityEnabled(): Promise<boolean> {
+  try {
+    const stored = await AsyncStorage.getItem(PRESIDENTIAL_SECURITY_STORAGE_KEY);
+    return stored === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setPresidentialSecurityEnabled(enabled: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PRESIDENTIAL_SECURITY_STORAGE_KEY, String(enabled));
+  } catch (error) {
+    console.warn('Error saving presidential security state:', error);
+  }
+}
+
 async function getStoredAppLanguage(): Promise<AppLanguage> {
   try {
     const stored = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY);

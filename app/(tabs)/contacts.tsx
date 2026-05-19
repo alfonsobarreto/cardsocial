@@ -21,7 +21,6 @@ import {
     listCardSubscribers,
     listReceivedContacts,
     normalizePublicCardSlotFromApi,
-    removeRelationship,
     setSubscriberSelfCardMute,
     type CardSubscriberRow,
     type PublicCardSlotPayload,
@@ -30,6 +29,7 @@ import {
     mergeReceivedContactRows,
     receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
+import { archiveContactToBunker, listAllRelationships } from '@/services/relationshipService';
 import {
   preloadAirEvaporationDeleteSound,
   runAirEvaporationDeleteFeedback,
@@ -213,6 +213,7 @@ function ContactsContent() {
   const [groupPickerVisible, setGroupPickerVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
+  const [hibernatingUids, setHibernatingUids] = useState<Set<string>>(new Set());
 
   /* Receptor modal state */
   const [receptorModalVisible, setReceptorModalVisible] = useState(false);
@@ -473,13 +474,64 @@ function ContactsContent() {
         void preloadAirEvaporationDeleteSound();
       });
       void loadContacts(true);
+      void (async () => {
+        try {
+          const viewerUid = await getActiveUserId();
+          if (!viewerUid) {
+            setHibernatingUids(new Set());
+            return;
+          }
+          const rows = await listAllRelationships(viewerUid);
+          setHibernatingUids(
+            new Set(rows.filter((r) => r.status === 'hibernating').map((r) => r.uid)),
+          );
+        } catch {
+          setHibernatingUids(new Set());
+        }
+      })();
     }, [])
   );
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('cardSocialHibernatingUidsRefresh', () => {
+      void (async () => {
+        try {
+          const viewerUid = await getActiveUserId();
+          if (!viewerUid) {
+            setHibernatingUids(new Set());
+            return;
+          }
+          const rows = await listAllRelationships(viewerUid);
+          setHibernatingUids(
+            new Set(rows.filter((r) => r.status === 'hibernating').map((r) => r.uid)),
+          );
+        } catch {
+          setHibernatingUids(new Set());
+        }
+      })();
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void loadContacts(true);
+        void (async () => {
+          try {
+            const viewerUid = await getActiveUserId();
+            if (!viewerUid) {
+              setHibernatingUids(new Set());
+              return;
+            }
+            const rows = await listAllRelationships(viewerUid);
+            setHibernatingUids(
+              new Set(rows.filter((r) => r.status === 'hibernating').map((r) => r.uid)),
+            );
+          } catch {
+            setHibernatingUids(new Set());
+          }
+        })();
       }
     });
 
@@ -554,7 +606,9 @@ function ContactsContent() {
   const normalizedContacts = useMemo(() => {
     const qRaw = searchValue.trim();
 
-    const withMeta = contacts.map((contact) => {
+    const visibleContacts = contacts.filter((contact) => !hibernatingUids.has(contact.uid));
+
+    const withMeta = visibleContacts.map((contact) => {
       const linkKey = receivedContactMergeKey(contact);
       const meta =
         metaMap[linkKey] ||
@@ -606,7 +660,7 @@ function ContactsContent() {
         row.meta.icons,
       ),
     );
-  }, [contacts, metaMap, searchValue]);
+  }, [contacts, metaMap, searchValue, hibernatingUids]);
 
   const sortedContacts = useMemo(() => {
     const rows = [...normalizedContacts];
@@ -826,16 +880,23 @@ function ContactsContent() {
       if (!viewerUid) {
         return;
       }
-      const sid = contact.sid != null && String(contact.sid).trim() ? String(contact.sid).trim() : '';
-      const bId = contact.bId != null && String(contact.bId).trim() ? String(contact.bId).trim() : '';
-      await removeRelationship({
-        uid: viewerUid,
-        targetUid: contact.uid,
-        ...(sid ? { sid } : {}),
-        ...(bId ? { bId } : {}),
+      await archiveContactToBunker(viewerUid, {
+        uid: contact.uid,
+        userFullName: contact.userFullName,
+        userNickName: contact.userNickName,
+        userAvatarUrl: contact.userAvatarUrl,
+        sid: contact.sid ?? null,
+        bId: contact.bId ?? null,
+        cardType:
+          contact.cardType ??
+          (contact.bId != null && String(contact.bId).trim() ? ('business' as const) : ('smart' as const)),
+        themeId: contact.themeId ?? null,
       });
+      setHibernatingUids((prev) => new Set(prev).add(contact.uid));
+      try {
+        await runAirEvaporationDeleteFeedback();
+      } catch {}
       await purgeReceivedCardLinkFromUi(contact);
-      await runAirEvaporationDeleteFeedback();
       Toast.show({
         type: 'info',
         text1: t('contacts_card_removed_title'),
@@ -851,21 +912,12 @@ function ContactsContent() {
     }
   };
 
-  const promptDeleteContact = (contact: Contact) => {
-    Alert.alert(
-      t('contacts_remove_card_title'),
-      t('contacts_remove_card_body'),
-      [
-        { text: t('common_cancel'), style: 'cancel' },
-        {
-          text: t('common_delete'),
-          style: 'destructive',
-          onPress: () => {
-            void handleDeleteContact(contact);
-          },
-        },
-      ],
-    );
+  const promptDeleteContact = async (contact: Contact) => {
+    const authenticated = await hardLockCheck(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
+    if (!authenticated) {
+      return;
+    }
+    void handleDeleteContact(contact);
   };
 
   const handleBlockContact = async (uid: string) => {
@@ -1154,7 +1206,7 @@ function ContactsContent() {
                             style={[styles.swipeActionCol, styles.swipeActionColDanger]}
                             onPress={() => {
                               closeRowSwipe();
-                              promptDeleteContact(row);
+                              void promptDeleteContact(row);
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={t('common_delete')}
@@ -1549,7 +1601,7 @@ function ContactsContent() {
                 }
                 setLongPressVisible(false);
                 setLongPressContact(null);
-                promptDeleteContact(c);
+                void promptDeleteContact(c);
               }}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={18} color={shell.iconColor} />

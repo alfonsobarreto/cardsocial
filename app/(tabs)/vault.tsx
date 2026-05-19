@@ -143,7 +143,7 @@ const VaultScreen = () => {
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
   const [limitMaxItems, setLimitMaxItems] = useState<number>(0);
-  const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
+  const [isVaultUnlocked] = useState(true);
   const [isDullMode, setIsDullMode] = useState(false);
   const [dullModeLockVisible, setDullModeLockVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -356,26 +356,22 @@ const VaultScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        const authenticated = await hardLockCheck(t('vault_biometric_access_vault'));
-        setIsVaultUnlocked(authenticated);
-        if (authenticated) {
-          InteractionManager.runAfterInteractions(() => {
-            void preloadMagneticVaultClosureSound();
-            void preloadAirEvaporationDeleteSound();
-            void (async () => {
-              const uid = await getActiveUserId();
-              if (uid) {
-                const ek = await getVaultE2eDerivedKey(uid);
-                setVaultE2eSessionActive(!!ek);
-              } else {
-                setVaultE2eSessionActive(false);
-              }
-              await evaluateDullMode();
-              loadVaultData();
-              loadProfileMeta();
-            })();
-          });
-        }
+        InteractionManager.runAfterInteractions(() => {
+          void preloadMagneticVaultClosureSound();
+          void preloadAirEvaporationDeleteSound();
+          void (async () => {
+            const uid = await getActiveUserId();
+            if (uid) {
+              const ek = await getVaultE2eDerivedKey(uid);
+              setVaultE2eSessionActive(!!ek);
+            } else {
+              setVaultE2eSessionActive(false);
+            }
+            await evaluateDullMode();
+            loadVaultData();
+            loadProfileMeta();
+          })();
+        });
       };
       verifyAccess();
     }, [t]),

@@ -726,6 +726,14 @@ const dict = {
     'J’accepte les conditions et la politique de confidentialité.',
     'Ich akzeptiere die AGB und die Datenschutzerklärung.',
   ),
+  register_presidential_security_label: L(
+    'Activar Seguridad presidencial (protege la app con Face ID, huella o PIN del dispositivo).',
+    'Enable Presidential Security (protect the app with Face ID, fingerprint, or device PIN).',
+    'Attiva sicurezza presidenziale (proteggi l’app con Face ID, impronta o PIN del dispositivo).',
+    'Ativar segurança presidencial (protege o app com Face ID, digital ou PIN do dispositivo).',
+    'Activer la sécurité présidentielle (protégez l’app avec Face ID, empreinte ou code du téléphone).',
+    'Präsidentielle Sicherheit aktivieren (App mit Face ID, Fingerabdruck oder Geräte-PIN schützen).',
+  ),
   register_go_back: L('Volver atrás', 'Go back', 'Indietro', 'Voltar', 'Retour', 'Zurück'),
   register_android_photo_title: L('Confirmar foto de perfil', 'Confirm profile photo', 'Conferma foto profilo', 'Confirmar foto de perfil', 'Confirmer la photo de profil', 'Profilfoto bestätigen'),
   register_android_photo_hint: L(

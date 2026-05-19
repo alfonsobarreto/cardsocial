@@ -37,20 +37,29 @@ function parseEmailsFromResolveUsernameJson(j: unknown): string[] {
 
 async function resolveUsernameViaHttp(username: string, origin: string): Promise<string[] | null> {
   const base = normalizeOrigin(origin);
-  const r = await fetch(`${base}/api/studio/resolve-username`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username }),
-  });
-  const j: unknown = await r.json().catch(() => null);
-  if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
-    const list = parseEmailsFromResolveUsernameJson(j);
-    if (list.length) return list;
-  }
-  if (r.status === 404) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const r = await fetch(`${base}/api/studio/resolve-username`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ username }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const j: unknown = await r.json().catch(() => null);
+    if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+      const list = parseEmailsFromResolveUsernameJson(j);
+      if (list.length) return list;
+    }
+    if (r.status === 404) {
+      return null;
+    }
     return null;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  return null;
 }
 
 function collectResolveUsernameOrigins(): string[] {
@@ -185,28 +194,37 @@ export async function fetchSignupFieldAvailability(params: {
   for (const base of collectSignupAvailabilityOrigins()) {
     try {
       const uid = auth.currentUser?.uid;
-      const r = await fetch(`${base}/api/studio/signup-availability`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          nickname: params.nickname,
-          emailLower: params.emailLower,
-          phoneNormalized: params.phoneNormalized,
-          ignoreUid: params.ignoreUid ?? uid,
-        }),
-      });
-      const j: unknown = await r.json().catch(() => null);
-      if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
-        const rec = j as {
-          nickname?: 'available' | 'taken';
-          email?: 'available' | 'taken';
-          phone?: 'available' | 'taken';
-        };
-        const out: SignupFieldAvailabilityMap = {};
-        if (rec.nickname === 'available' || rec.nickname === 'taken') out.nickname = rec.nickname;
-        if (rec.email === 'available' || rec.email === 'taken') out.email = rec.email;
-        if (rec.phone === 'available' || rec.phone === 'taken') out.phone = rec.phone;
-        if (Object.keys(out).length) return out;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      try {
+        const r = await fetch(`${base}/api/studio/signup-availability`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            nickname: params.nickname,
+            emailLower: params.emailLower,
+            phoneNormalized: params.phoneNormalized,
+            ignoreUid: params.ignoreUid ?? uid,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const j: unknown = await r.json().catch(() => null);
+        if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+          const rec = j as {
+            nickname?: 'available' | 'taken';
+            email?: 'available' | 'taken';
+            phone?: 'available' | 'taken';
+          };
+          const out: SignupFieldAvailabilityMap = {};
+          if (rec.nickname === 'available' || rec.nickname === 'taken') out.nickname = rec.nickname;
+          if (rec.email === 'available' || rec.email === 'taken') out.email = rec.email;
+          if (rec.phone === 'available' || rec.phone === 'taken') out.phone = rec.phone;
+          if (Object.keys(out).length) return out;
+        }
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
       }
     } catch (e) {
       console.warn('[studioAuthPublicApi] signup-availability HTTP failed', base, e);

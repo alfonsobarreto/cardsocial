@@ -24,6 +24,7 @@ import {
     type ThemeTier,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { runAirEvaporationDeleteFeedback } from '@/services/airEvaporationDeleteFeedback';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
   ExportBusinessQR,
@@ -142,6 +143,7 @@ import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { runVaultMagneticSaveFeedback } from '@/services/magneticVaultSaveFeedback';
 import { SOCIAL_MEDALS } from '@/services/medalService';
 import { newEntityId } from '@/services/newEntityId';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
@@ -174,6 +176,7 @@ import {
     businessCardsFeedStorageKey,
 } from '@/services/userScopedStorage';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
+import { viewerQualifiesVaultFerrariSensory } from '@/services/vaultSensoryTierGate';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -540,7 +543,7 @@ export default function CardsFactoryScreen() {
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitCardCount, setLimitCardCount] = useState(0);
   const [limitMaxCards, setLimitMaxCards] = useState(5);
-  const [isCardsUnlocked, setIsCardsUnlocked] = useState(false);
+  const [isCardsUnlocked, setIsCardsUnlocked] = useState(true);
   const [dataSelectorVisible, setDataSelectorVisible] = useState(false);
   const [dataSelectorLimitReached, setDataSelectorLimitReached] = useState(false);
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
@@ -681,14 +684,6 @@ export default function CardsFactoryScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        const authenticated = await hardLockCheck(t('biometric_reason_cards_access'));
-        setIsCardsUnlocked(authenticated);
-        if (!authenticated) {
-          setSessionUid(null);
-          setCardSlotCaps(null);
-          return;
-        }
-
         const uid = await getActiveUserId();
         setSessionUid(uid ?? null);
         if (uid) {
@@ -1365,6 +1360,12 @@ export default function CardsFactoryScreen() {
             : card
         );
         await persistCards(nextCards as SmartCard[], [selectedCard.sid]);
+        try {
+          const uidForSensory = await getActiveUserId();
+          await runVaultMagneticSaveFeedback(
+            uidForSensory ? await viewerQualifiesVaultFerrariSensory(uidForSensory) : false,
+          );
+        } catch {}
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({
           type: 'success',
@@ -1408,6 +1409,12 @@ export default function CardsFactoryScreen() {
       };
 
       await persistCards([newCard, ...smartCards], [newCard.sid]);
+      try {
+        const uidForSensory = await getActiveUserId();
+        await runVaultMagneticSaveFeedback(
+          uidForSensory ? await viewerQualifiesVaultFerrariSensory(uidForSensory) : false,
+        );
+      } catch {}
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
@@ -1423,8 +1430,14 @@ export default function CardsFactoryScreen() {
   };
 
   const deleteCard = async (card: SmartCard) => {
+    const biometricOk = await hardLockCheck(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
+    if (!biometricOk) return;
+
     const nextCards = smartCards.filter((item) => item.sid !== card.sid);
     await persistCards(nextCards);
+
+    // Inyección de feedback auditivo:
+    try { await runAirEvaporationDeleteFeedback(); } catch {}
 
     try {
       const uid = await getActiveUserId();
@@ -2164,6 +2177,9 @@ export default function CardsFactoryScreen() {
   };
 
   const deleteBusinessCardEntry = async (row: BusinessCardListRow) => {
+    const biometricOk = await hardLockCheck(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
+    if (!biometricOk) return;
+
     const uid = await getActiveUserId();
     if (!uid) {
       return;
@@ -2173,6 +2189,10 @@ export default function CardsFactoryScreen() {
       previous = p;
       return p.filter((c) => c.bId !== row.bId);
     });
+
+    // Inyección de feedback auditivo:
+    try { await runAirEvaporationDeleteFeedback(); } catch {}
+
     try {
       await deleteBusinessCardViaApi(uid, row.bId);
       notifyMyBusinessCardsInventoryChanged();

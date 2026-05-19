@@ -22,6 +22,7 @@ import { upsertSuccessfulReferralAttribution } from '@/services/referralsFiresto
 import { fetchSignupFieldAvailability } from '@/services/studioAuthPublicApi';
 import { firestoreFirstUserDocByNickLower, firestoreUserAvatarUrlWrite } from '@/services/userIdentityFields';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
+import { setPresidentialSecurityEnabled } from '@/services/biometricAuth';
 import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -143,6 +144,7 @@ export default function RegisterScreen() {
   const [successTransitionVisible, setSuccessTransitionVisible] = useState(false);
   const [socialProviderId, setSocialProviderId] = useState<SocialProviderId | null>(null);
   const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [presidentialSecurity, setPresidentialSecurity] = useState(false);
   const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [phoneStatus, setPhoneStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
@@ -978,6 +980,7 @@ export default function RegisterScreen() {
         await signOut(auth);
         setUploadModalVisible(false);
         setIsSubmitting(false);
+        await setPresidentialSecurityEnabled(presidentialSecurity);
         Alert.alert(
           t('register_alert_verify_email_title'),
           t('register_alert_verify_email_body')
@@ -985,6 +988,8 @@ export default function RegisterScreen() {
         router.replace('/signin' as never);
         return;
       }
+
+      await setPresidentialSecurityEnabled(presidentialSecurity);
 
       if (studentPackResult.granted) {
         Alert.alert(
@@ -1326,6 +1331,28 @@ export default function RegisterScreen() {
               {acceptedLegal ? <Text style={styles.legalCheckmark}>✓</Text> : null}
             </View>
             <Text style={[styles.legalText, { color: look.legalText }]}>{t('register_legal_checkbox')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.legalRow}
+            onPress={() => setPresidentialSecurity((prev) => !prev)}
+            activeOpacity={0.85}
+          >
+            <View
+              style={[
+                styles.legalCheckbox,
+                { backgroundColor: look.legalCheckboxBg, borderColor: look.legalBorder },
+                presidentialSecurity && {
+                  backgroundColor: look.legalCheckedBg,
+                  borderColor: look.legalCheckedBorder,
+                },
+              ]}
+            >
+              {presidentialSecurity ? <Text style={styles.legalCheckmark}>✓</Text> : null}
+            </View>
+            <Text style={[styles.legalText, { color: look.legalText }]}>
+              {t('register_presidential_security_label')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>

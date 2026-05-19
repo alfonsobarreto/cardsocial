@@ -27,8 +27,13 @@ import { userFacingAlertMessage, userFacingAlertMessageFromHttp } from '@/servic
 import { intlLocaleTagForAppLanguage, useLanguage } from '@/services/language';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
-import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
+import {
+  listBlockedRelations,
+  removeRelationship as removeRelationshipBackend,
+  unblockRelationship,
+} from '@/services/qrApi';
 import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
+import { getPresidentialSecurityEnabled, hardLockCheck } from '@/services/biometricAuth';
 import { removeAppLockEnabled } from '@/services/appLockSecureStorage';
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
@@ -73,6 +78,7 @@ import {
     ActivityIndicator,
     Alert,
     AppState,
+    DeviceEventEmitter,
     Image,
     Keyboard,
     KeyboardAvoidingView,
@@ -90,6 +96,7 @@ import {
 } from 'react-native';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import palette from '../theme';
 
 type BlockedUser = {
@@ -160,7 +167,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'blocked_users'>('menu');
+  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'blocked_users' | 'bunker'>('menu');
   const [subscriptionScrollSection, setSubscriptionScrollSection] = useState<SubscriptionScrollSection | null>(null);
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
@@ -181,6 +188,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [relTab, setRelTab] = useState<RelTab>('blocked');
   const [relEntries, setRelEntries] = useState<RelationshipEntry[]>([]);
   const [loadingRel, setLoadingRel] = useState(false);
+  const [bunkerEntries, setBunkerEntries] = useState<RelationshipEntry[]>([]);
+  const [loadingBunker, setLoadingBunker] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -204,6 +213,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
   const headerAvatarFsUnsubRef = useRef<(() => void) | undefined>(undefined);
+  const [presidentialLockActive, setPresidentialLockActive] = useState(false);
+  const appStateRef = useRef(AppState.currentState);
 
   const refreshHeaderAvatar = useCallback(async () => {
     const user = auth.currentUser;
@@ -257,16 +268,32 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         }
       })();
     });
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        void refreshHeaderAvatar();
-        const user = auth.currentUser;
-        if (user) {
-          void listMyBusinessCards(user.uid)
-            .then((cards) => setUserHasBusinessCardWithBId(cards.some((card) => String(card?.bId || '').trim().length > 0)))
-            .catch(() => undefined);
-        }
+    const sub = AppState.addEventListener('change', (nextAppState) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        void (async () => {
+          const isPresEnabled = await getPresidentialSecurityEnabled();
+          if (isPresEnabled) {
+            setPresidentialLockActive(true);
+            const unlocked = await hardLockCheck(tr('Desbloquea Card-Social', 'Unlock Card-Social'));
+            if (unlocked) {
+              setPresidentialLockActive(false);
+            }
+          }
+          void refreshHeaderAvatar();
+          const user = auth.currentUser;
+          if (user) {
+            void listMyBusinessCards(user.uid)
+              .then((cards) =>
+                setUserHasBusinessCardWithBId(cards.some((card) => String(card?.bId || '').trim().length > 0)),
+              )
+              .catch(() => undefined);
+          }
+        })();
       }
+      appStateRef.current = nextAppState;
     });
     return () => {
       sub.remove();
@@ -274,7 +301,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       headerAvatarFsUnsubRef.current?.();
       headerAvatarFsUnsubRef.current = undefined;
     };
-  }, [refreshHeaderAvatar]);
+  }, [refreshHeaderAvatar, tr]);
 
   /** Evita escrituras AsyncStorage en cada micro-cambio de navegación (reduce I/O y contienda en el hilo JS). */
   const lastNavSessionTouchRef = useRef(0);
@@ -338,6 +365,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'privacy') return tr('Cumplimiento de datos Zero-Party y soberanía', 'Zero-Party Data Compliance & Sovereignty');
     if (activePanel === 'subscription') return tr('Suscripción', 'Subscription');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
+    if (activePanel === 'bunker') return tr('Búnker de Hibernación', 'Hibernation Bunker');
     return tr('Menú', 'Menu');
   }, [activePanel, language]);
 
@@ -464,6 +492,23 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loadBunkerEntries = async () => {
+    try {
+      setLoadingBunker(true);
+      const uid = await getActiveUserId();
+      if (!uid) {
+        setBunkerEntries([]);
+        return;
+      }
+      const entries = await listRelationshipsByStatus(uid, 'hibernating');
+      setBunkerEntries(entries);
+    } catch {
+      setBunkerEntries([]);
+    } finally {
+      setLoadingBunker(false);
+    }
+  };
+
   const handleRelRemove = async (entry: RelationshipEntry) => {
     Alert.alert(
       tr('Restaurar usuario', 'Restore user'),
@@ -491,6 +536,77 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           },
         },
       ]
+    );
+  };
+
+  const handleBunkerRestore = async (entry: RelationshipEntry) => {
+    try {
+      const actorUid = await getActiveUserId();
+      if (!actorUid) return;
+      await removeRelEntry(actorUid, entry.uid, 'hibernating', { skipSensoryEvaporation: true });
+      setBunkerEntries((prev) => prev.filter((e) => e.uid !== entry.uid));
+      DeviceEventEmitter.emit('cardSocialHibernatingUidsRefresh');
+      setDrawerVisible(false);
+      setActivePanel('menu');
+    } catch (err: any) {
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(err, language, tr('No se pudo restaurar.', 'Could not restore.')),
+      );
+    }
+  };
+
+  const handleBunkerPermanentDelete = (entry: RelationshipEntry) => {
+    Alert.alert(
+      tr('Eliminar definitivamente', 'Permanently Delete'),
+      tr(
+        'Vas a eliminar definitivamente esta tarjeta. Esta acción no se puede deshacer.',
+        'You are about to permanently delete this card. This action cannot be undone.',
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Aceptar', 'Accept'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const actorUid = await getActiveUserId();
+              if (!actorUid) return;
+
+              const biometricPassed = await hardLockCheck(
+                tr('Confirmar eliminación permanente', 'Confirm permanent deletion'),
+              );
+              if (!biometricPassed) return;
+
+              const sid = entry.sid != null && String(entry.sid).trim() ? String(entry.sid).trim() : '';
+              const bId = entry.bId != null && String(entry.bId).trim() ? String(entry.bId).trim() : '';
+              await removeRelationshipBackend({
+                uid: actorUid,
+                targetUid: entry.uid,
+                ...(sid ? { sid } : {}),
+                ...(bId ? { bId } : {}),
+              });
+              await removeRelEntry(actorUid, entry.uid, 'hibernating');
+
+              await loadBunkerEntries();
+              DeviceEventEmitter.emit('cardSocialHibernatingUidsRefresh');
+
+              Toast.show({
+                type: 'success',
+                text1: tr('Tarjeta eliminada permanentemente', 'Card permanently deleted'),
+                position: 'bottom',
+                visibilityTime: 2500,
+              });
+            } catch (error: any) {
+              console.error('Error en borrado permanente del búnker:', error);
+              Alert.alert(
+                tr('Error', 'Error'),
+                userFacingAlertMessage(error, language, tr('No se pudo eliminar.', 'Could not delete.')),
+              );
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -1150,6 +1266,19 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={[styles.drawerItemText, { color: shell.danger }]}>{tr('Gestión de Relaciones', 'Relationship Manager')}</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity
+                      style={styles.drawerItem}
+                      onPress={() => {
+                        setActivePanel('bunker');
+                        void loadBunkerEntries();
+                      }}
+                    >
+                      <MaterialCommunityIcons name="archive-lock-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>
+                        {tr('Tarjetas Archivadas', 'Archived Cards')}
+                      </Text>
+                    </TouchableOpacity>
+
                     <View style={[styles.lookModeSection, { borderTopColor: shell.modalBorder }]}>
                       <View style={styles.lookModeHeaderRow}>
                         <MaterialCommunityIcons name="theme-light-dark" size={20} color={shell.ctaAccent} />
@@ -1502,6 +1631,69 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       )}
                     </ScrollView>
                   </View>
+                ) : activePanel === 'bunker' ? (
+                  <View style={styles.legalScroll}>
+                    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+                      {loadingBunker ? (
+                        <Text style={{ color: shell.textSecondary, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
+                          {tr('Cargando…', 'Loading…')}
+                        </Text>
+                      ) : bunkerEntries.length === 0 ? (
+                        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                          <MaterialCommunityIcons name="archive-lock-outline" size={48} color={shell.ctaAccent} />
+                          <Text style={{ color: shell.text, fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
+                            {tr('No hay tarjetas en el búnker.', 'No cards in the bunker.')}
+                          </Text>
+                        </View>
+                      ) : (
+                        bunkerEntries.map((entry) => (
+                          <View
+                            key={entry.uid}
+                            style={[styles.blockedRow, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}
+                          >
+                            <View style={styles.blockedIdentity}>
+                              {entry.userAvatarUrl ? (
+                                <Image
+                                  source={{
+                                    uri: resolveVaultMediaUrlForApp(entry.userAvatarUrl) ?? entry.userAvatarUrl,
+                                  }}
+                                  style={styles.blockedAvatar}
+                                />
+                              ) : (
+                                <View style={[styles.blockedAvatarFallback, { backgroundColor: shell.inputBg, borderColor: shell.modalBorder }]}>
+                                  <MaterialCommunityIcons name="account" size={15} color={shell.ctaAccent} />
+                                </View>
+                              )}
+                              <View style={styles.blockedTextCol}>
+                                <Text style={[styles.blockedName, { color: shell.text }]}>{entry.name}</Text>
+                                <Text style={[styles.blockedDateText, { color: shell.textSecondary }]}>
+                                  {tr('Hibernando', 'Hibernating')}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <TouchableOpacity
+                                style={[styles.unblockBtn, { backgroundColor: shell.ctaAccent }]}
+                                onPress={() => void handleBunkerRestore(entry)}
+                              >
+                                <Text style={[styles.unblockBtnText, { color: shell.emptyCtaText }]}>
+                                  {tr('Restaurar', 'Restore')}
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => handleBunkerPermanentDelete(entry)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={tr('Eliminar definitivamente', 'Permanently delete')}
+                              >
+                                <MaterialCommunityIcons name="trash-can-outline" size={24} color={shell.danger} />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
                 ) : (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                     {legalContent.map((line, index) => (
@@ -1597,6 +1789,41 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Escudo de Seguridad Presidencial */}
+      <Modal
+        visible={presidentialLockActive}
+        transparent={false}
+        animationType="none"
+        onRequestClose={() => {}}
+      >
+        <View
+          style={[
+            styles.tabRootShell,
+            { backgroundColor: shell.backgroundSolid, alignItems: 'center', justifyContent: 'center' },
+          ]}
+        >
+          <MaterialCommunityIcons name="shield-lock-outline" size={64} color={shell.ctaAccent} />
+          <Text style={{ marginTop: 24, fontSize: 18, fontWeight: '700', color: shell.text }}>
+            {tr('Seguridad Presidencial', 'Presidential Security')}
+          </Text>
+          <TouchableOpacity
+            style={{
+              marginTop: 32,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              backgroundColor: shell.ctaAccent,
+              borderRadius: 12,
+            }}
+            onPress={async () => {
+              const unlocked = await hardLockCheck(tr('Desbloquea Card-Social', 'Unlock Card-Social'));
+              if (unlocked) setPresidentialLockActive(false);
+            }}
+          >
+            <Text style={{ color: shell.emptyCtaText, fontWeight: '700' }}>{tr('Desbloquear', 'Unlock')}</Text>
+          </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
