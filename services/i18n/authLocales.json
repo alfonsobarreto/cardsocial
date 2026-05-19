@@ -1223,6 +1223,222 @@
     "fr": "Saisissez votre numéro pour vérifier la disponibilité.",
     "de": "Geben Sie Ihre Nummer zur Prüfung ein."
   },
+  "register_validation_network_nickname": {
+    "es": "No pudimos verificar este alias. Revisa tu conexión e inténtalo de nuevo.",
+    "en": "We couldn’t verify this nickname. Check your connection and try again.",
+    "it": "Impossibile verificare questo nickname. Controlla la connessione e riprova.",
+    "pt": "Não foi possível verificar este apelido. Verifique a conexão e tente novamente.",
+    "fr": "Impossible de vérifier ce pseudo. Vérifiez votre connexion et réessayez.",
+    "de": "Dieser Alias konnte nicht geprüft werden. Verbindung prüfen und erneut versuchen."
+  },
+  "register_validation_network_email": {
+    "es": "No pudimos verificar este correo. Revisa tu conexión e inténtalo de nuevo.",
+    "en": "We couldn’t verify this email. Check your connection and try again.",
+    "it": "Impossibile verificare questa email. Controlla la connessione e riprova.",
+    "pt": "Não foi possível verificar este e-mail. Verifique a conexão e tente novamente.",
+    "fr": "Impossible de vérifier cet e-mail. Vérifiez votre connexion et réessayez.",
+    "de": "Diese E-Mail konnte nicht geprüft werden. Verbindung prüfen und erneut versuchen."
+  },
+  "register_validation_network_phone": {
+    "es": "No pudimos verificar este número. Revisa tu conexión e inténtalo de nuevo.",
+    "en": "We couldn’t verify this phone number. Check your connection and try again.",
+    "it": "Impossibile verificare questo numero. Controlla la connessione e riprova.",
+    "pt": "Não foi possível verificar este número. Verifique a conexão e tente novamente.",
+    "fr": "Impossible de vérifier ce numéro. Vérifiez votre connexion et réessayez.",
+    "de": "Diese Nummer konnte nicht geprüft werden. Verbindung prüfen und erneut versuchen."
+  },
+  "register_field_error_required_first_name": {
+    "es": "Indica tu nombre.",
+    "en": "Please enter your first name.",
+    "it": "Inserisci il nome.",
+    "pt": "Informe o nome.",
+    "fr": "Indiquez votre prénom.",
+    "de": "Bitte Vornamen angeben."
+  },
+  "register_field_error_required_last_name": {
+    "es": "Indica tu apellido.",
+    "en": "Please enter your last name.",
+    "it": "Inserisci il cognome.",
+    "pt": "Informe o sobrenome.",
+    "fr": "Indiquez votre nom de famille.",
+    "de": "Bitte Nachnamen angeben."
+  },
+  "register_field_error_required_nickname": {
+    "es": "Indica un alias.",
+    "en": "Please enter a nickname.",
+    "it": "Inserisci un nickname.",
+    "pt": "Informe um apelido.",
+    "fr": "Indiquez un pseudo.",
+    "de": "Bitte einen Alias eingeben."
+  },
+  "register_field_error_nickname_format": {
+    "es": "El alias debe tener 3–24 caracteres (letras, números, . _ -).",
+    "en": "Nickname must be 3–24 characters (letters, numbers, . _ -).",
+    "it": "Il nickname deve avere 3–24 caratteri (lettere, numeri, . _ -).",
+    "pt": "O apelido deve ter 3–24 caracteres (letras, números, . _ -).",
+    "fr": "Le pseudo doit faire 3–24 caractères (lettres, chiffres, . _ -).",
+    "de": "Alias: 3–24 Zeichen (Buchstaben, Ziffern, . _ -)."
+  },
+  "register_field_error_required_email": {
+    "es": "Indica tu correo electrónico.",
+    "en": "Please enter your email.",
+    "it": "Inserisci l’email.",
+    "pt": "Informe seu e-mail.",
+    "fr": "Indiquez votre e-mail.",
+    "de": "Bitte E-Mail eingeben."
+  },
+  "register_field_error_email_format": {
+    "es": "El formato del correo no es válido.",
+    "en": "This email format isn’t valid.",
+    "it": "Formato email non valido.",
+    "pt": "Formato de e-mail inválido.",
+    "fr": "Format d’e-mail invalide.",
+    "de": "Ungültiges E-Mail-Format."
+  },
+  "register_field_error_required_phone": {
+    "es": "Indica tu número de teléfono.",
+    "en": "Please enter your phone number.",
+    "it": "Inserisci il numero di telefono.",
+    "pt": "Informe o número de telefone.",
+    "fr": "Indiquez votre numéro de téléphone.",
+    "de": "Bitte Telefonnummer eingeben."
+  },
+  "register_field_error_phone_length": {
+    "es": "El número debe tener entre {{min}} y {{max}} dígitos para este país.",
+    "en": "The number must have {{min}}–{{max}} digits for this country.",
+    "it": "Il numero deve avere {{min}}–{{max}} cifre per questo paese.",
+    "pt": "O número deve ter entre {{min}} e {{max}} dígitos para este país.",
+    "fr": "Le numéro doit comporter {{min}} à {{max}} chiffres pour ce pays.",
+    "de": "Die Nummer braucht {{min}}–{{max}} Ziffern für dieses Land."
+  },
+  "register_field_error_nickname_taken": {
+    "es": "Este alias ya está registrado. Elige otro.",
+    "en": "This nickname is already taken. Choose another.",
+    "it": "Questo nickname è già in uso. Scegline un altro.",
+    "pt": "Este apelido já está em uso. Escolha outro.",
+    "fr": "Ce pseudo est déjà utilisé. Choisissez-en un autre.",
+    "de": "Dieser Alias ist bereits vergeben. Bitte einen anderen wählen."
+  },
+  "register_field_error_email_taken": {
+    "es": "Este correo ya está registrado. Usa otro.",
+    "en": "This email is already registered. Use another.",
+    "it": "Questa email è già registrata. Usane un’altra.",
+    "pt": "Este e-mail já está cadastrado. Use outro.",
+    "fr": "Cet e-mail est déjà enregistré. Utilisez-en un autre.",
+    "de": "Diese E-Mail ist bereits registriert. Bitte eine andere nutzen."
+  },
+  "register_field_error_phone_taken": {
+    "es": "Este número ya está registrado. Usa otro.",
+    "en": "This phone number is already registered. Use another.",
+    "it": "Questo numero è già registrato. Usane un altro.",
+    "pt": "Este número já está cadastrado. Use outro.",
+    "fr": "Ce numéro est déjà enregistré. Utilisez-en un autre.",
+    "de": "Diese Nummer ist bereits registriert. Bitte eine andere nutzen."
+  },
+  "register_field_error_password_required": {
+    "es": "Indica una contraseña.",
+    "en": "Please enter a password.",
+    "it": "Inserisci una password.",
+    "pt": "Informe uma senha.",
+    "fr": "Indiquez un mot de passe.",
+    "de": "Bitte ein Passwort eingeben."
+  },
+  "register_field_error_password_short": {
+    "es": "La contraseña debe tener al menos 8 caracteres.",
+    "en": "Password must be at least 8 characters.",
+    "it": "La password deve avere almeno 8 caratteri.",
+    "pt": "A senha deve ter pelo menos 8 caracteres.",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères.",
+    "de": "Passwort mindestens 8 Zeichen."
+  },
+  "register_field_error_birth_required": {
+    "es": "Indica tu fecha de nacimiento.",
+    "en": "Please enter your birth date.",
+    "it": "Inserisci la data di nascita.",
+    "pt": "Informe a data de nascimento.",
+    "fr": "Indiquez votre date de naissance.",
+    "de": "Bitte Geburtsdatum eingeben."
+  },
+  "register_field_error_birth_invalid": {
+    "es": "La fecha no es válida. Usa MM-DD-AAAA.",
+    "en": "Invalid date. Use MM-DD-YYYY.",
+    "it": "Data non valida. Usa MM-GG-AAAA.",
+    "pt": "Data inválida. Use MM-DD-AAAA.",
+    "fr": "Date invalide. Utilisez MM-JJ-AAAA.",
+    "de": "Ungültiges Datum. MM-TT-JJJJ verwenden."
+  },
+  "register_field_error_age": {
+    "es": "Debes tener al menos 18 años.",
+    "en": "You must be at least 18 years old.",
+    "it": "Devi avere almeno 18 anni.",
+    "pt": "Você deve ter pelo menos 18 anos.",
+    "fr": "Vous devez avoir au moins 18 ans.",
+    "de": "Sie müssen mindestens 18 Jahre alt sein."
+  },
+  "register_field_error_city": {
+    "es": "Indica tu ciudad.",
+    "en": "Please enter your city.",
+    "it": "Indica la città.",
+    "pt": "Informe a cidade.",
+    "fr": "Indiquez votre ville.",
+    "de": "Bitte Ort angeben."
+  },
+  "register_field_error_state": {
+    "es": "Indica estado o provincia.",
+    "en": "Please enter your state or region.",
+    "it": "Indica stato o provincia.",
+    "pt": "Informe estado ou região.",
+    "fr": "Indiquez votre région.",
+    "de": "Bitte Bundesland/Region angeben."
+  },
+  "register_field_error_country": {
+    "es": "Indica tu país.",
+    "en": "Please enter your country.",
+    "it": "Indica il paese.",
+    "pt": "Informe o país.",
+    "fr": "Indiquez votre pays.",
+    "de": "Bitte Land angeben."
+  },
+  "register_field_error_photo": {
+    "es": "Añade una foto de perfil.",
+    "en": "Add a profile photo.",
+    "it": "Aggiungi una foto profilo.",
+    "pt": "Adicione uma foto de perfil.",
+    "fr": "Ajoutez une photo de profil.",
+    "de": "Bitte ein Profilfoto hinzufügen."
+  },
+  "register_field_error_legal": {
+    "es": "Debes aceptar los términos y la política de privacidad.",
+    "en": "You must accept the terms and privacy policy.",
+    "it": "Devi accettare termini e privacy.",
+    "pt": "Você deve aceitar os termos e a política de privacidade.",
+    "fr": "Vous devez accepter les conditions et la politique de confidentialité.",
+    "de": "Bitte AGB und Datenschutz akzeptieren."
+  },
+  "register_nick_error_network": {
+    "es": "No se pudo comprobar el alias. Revisa tu conexión.",
+    "en": "Couldn’t verify the nickname. Check your connection.",
+    "it": "Impossibile verificare il nickname. Controlla la connessione.",
+    "pt": "Não foi possível verificar o apelido. Verifique a conexão.",
+    "fr": "Vérification du pseudo impossible. Vérifiez la connexion.",
+    "de": "Alias konnte nicht geprüft werden. Verbindung prüfen."
+  },
+  "register_email_error_network": {
+    "es": "No se pudo comprobar el correo. Revisa tu conexión.",
+    "en": "Couldn’t verify the email. Check your connection.",
+    "it": "Impossibile verificare l’email. Controlla la connessione.",
+    "pt": "Não foi possível verificar o e-mail. Verifique a conexão.",
+    "fr": "Vérification de l’e-mail impossible. Vérifiez la connexion.",
+    "de": "E-Mail konnte nicht geprüft werden. Verbindung prüfen."
+  },
+  "register_phone_error_network": {
+    "es": "No se pudo comprobar el número. Revisa tu conexión.",
+    "en": "Couldn’t verify the phone number. Check your connection.",
+    "it": "Impossibile verificare il numero. Controlla la connessione.",
+    "pt": "Não foi possível verificar o número. Verifique a conexão.",
+    "fr": "Vérification du numéro impossible. Vérifiez la connexion.",
+    "de": "Nummer konnte nicht geprüft werden. Verbindung prüfen."
+  },
   "register_label_birth": {
     "es": "Fecha de nacimiento",
     "en": "Birth Date",

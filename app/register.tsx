@@ -27,6 +27,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -34,7 +35,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     Image,
@@ -58,6 +59,25 @@ import PremiumSuccessTransition from './components/PremiumSuccessTransition';
 
 // ─── Photo optimization helpers (porta misma lógica que NewInfoForm/Vault) ────
 const MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+
+const REGISTER_FIELD_ERROR_BORDER = '#E53935';
+const REGISTER_FIELD_ERROR_TEXT = '#E53935';
+
+type AvailabilityUiStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error_network';
+
+type RegisterFieldKey =
+  | 'firstName'
+  | 'lastName'
+  | 'nickname'
+  | 'email'
+  | 'phone'
+  | 'password'
+  | 'birthDate'
+  | 'city'
+  | 'stateRegion'
+  | 'country'
+  | 'photo'
+  | 'legal';
 
 async function getFileSizeForPhoto(uri: string): Promise<number> {
   try {
@@ -145,9 +165,98 @@ export default function RegisterScreen() {
   const [socialProviderId, setSocialProviderId] = useState<SocialProviderId | null>(null);
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [presidentialSecurity, setPresidentialSecurity] = useState(false);
-  const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
-  const [phoneStatus, setPhoneStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [nicknameStatus, setNicknameStatus] = useState<AvailabilityUiStatus>('idle');
+  const [emailStatus, setEmailStatus] = useState<AvailabilityUiStatus>('idle');
+  const [phoneStatus, setPhoneStatus] = useState<AvailabilityUiStatus>('idle');
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<RegisterFieldKey, string>>>({});
+  const scrollViewRef = useRef<ScrollView>(null);
+  const firstNameRef = useRef<TextInput>(null);
+  const lastNameRef = useRef<TextInput>(null);
+  const nicknameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const phoneNationalRef = useRef<TextInput>(null);
+  const birthDateRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const stateRegionRef = useRef<TextInput>(null);
+  const countryRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+
+  const clearFieldError = (key: RegisterFieldKey) => {
+    setFieldErrors((prev) => {
+      if (prev[key] == null) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const focusFirstRegisterError = (next: Partial<Record<RegisterFieldKey, string>>) => {
+    const order: RegisterFieldKey[] = [
+      'firstName',
+      'lastName',
+      'nickname',
+      'email',
+      'phone',
+      'birthDate',
+      'password',
+      'city',
+      'stateRegion',
+      'country',
+      'photo',
+      'legal',
+    ];
+    for (const k of order) {
+      if (!next[k]) continue;
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => {
+          switch (k) {
+            case 'firstName':
+              firstNameRef.current?.focus();
+              break;
+            case 'lastName':
+              lastNameRef.current?.focus();
+              break;
+            case 'nickname':
+              nicknameRef.current?.focus();
+              break;
+            case 'email':
+              emailRef.current?.focus();
+              break;
+            case 'phone':
+              phoneNationalRef.current?.focus();
+              break;
+            case 'birthDate':
+              birthDateRef.current?.focus();
+              break;
+            case 'password':
+              passwordRef.current?.focus();
+              break;
+            case 'city':
+              cityRef.current?.focus();
+              break;
+            case 'stateRegion':
+              stateRegionRef.current?.focus();
+              break;
+            case 'country':
+              countryRef.current?.focus();
+              break;
+            case 'photo':
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+              Keyboard.dismiss();
+              break;
+            case 'legal':
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+              Keyboard.dismiss();
+              break;
+            default:
+              break;
+          }
+        });
+      });
+      break;
+    }
+  };
+
   const [birthPickerVisible, setBirthPickerVisible] = useState(false);
   const [pickerYear, setPickerYear] = useState(2000);
   const [pickerMonth, setPickerMonth] = useState(1);
@@ -222,6 +331,7 @@ export default function RegisterScreen() {
 
     setBirthDate(formatBirthDateUs(pickerMonth, pickerDay, pickerYear));
     setBirthPickerVisible(false);
+    clearFieldError('birthDate');
   };
 
   const autofillLocationFromDevice = async () => {
@@ -257,6 +367,39 @@ export default function RegisterScreen() {
   };
 
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
+
+  const canPressRegister = useMemo(() => {
+    if (isRetryLocked) return false;
+    const phoneBounds = getNationalDigitBounds(phoneDialCode);
+    const national = sanitizeNationalDigits(phoneNational);
+    const phoneLenOk = national.length >= phoneBounds.min && national.length <= phoneBounds.max;
+    return (
+      firstName.trim().length > 0 &&
+      lastName.trim().length > 0 &&
+      nickname.trim().length > 0 &&
+      email.trim().length > 0 &&
+      phoneLenOk &&
+      birthDate.trim().length > 0 &&
+      city.trim().length > 0 &&
+      stateRegion.trim().length > 0 &&
+      country.trim().length > 0 &&
+      (socialProviderId != null || password.trim().length > 0)
+    );
+  }, [
+    isRetryLocked,
+    firstName,
+    lastName,
+    nickname,
+    email,
+    phoneDialCode,
+    phoneNational,
+    birthDate,
+    city,
+    stateRegion,
+    country,
+    socialProviderId,
+    password,
+  ]);
 
   useEffect(() => {
     if (!retryLockedUntil) {
@@ -320,12 +463,12 @@ export default function RegisterScreen() {
             ignoreUid: auth.currentUser?.uid,
           });
           if (!map?.nickname) {
-            setNicknameStatus('idle');
+            setNicknameStatus('error_network');
             return;
           }
           setNicknameStatus(map.nickname === 'taken' ? 'taken' : 'available');
         } catch {
-          setNicknameStatus('idle');
+          setNicknameStatus('error_network');
         }
       })();
     }, 450);
@@ -356,12 +499,12 @@ export default function RegisterScreen() {
             ignoreUid: auth.currentUser?.uid,
           });
           if (!map?.email) {
-            setEmailStatus('idle');
+            setEmailStatus('error_network');
             return;
           }
           setEmailStatus(map.email === 'taken' ? 'taken' : 'available');
         } catch {
-          setEmailStatus('idle');
+          setEmailStatus('error_network');
         }
       })();
     }, 450);
@@ -393,12 +536,12 @@ export default function RegisterScreen() {
             ignoreUid: auth.currentUser?.uid,
           });
           if (!map?.phone) {
-            setPhoneStatus('idle');
+            setPhoneStatus('error_network');
             return;
           }
           setPhoneStatus(map.phone === 'taken' ? 'taken' : 'available');
         } catch {
-          setPhoneStatus('idle');
+          setPhoneStatus('error_network');
         }
       })();
     }, 450);
@@ -487,6 +630,7 @@ export default function RegisterScreen() {
         setAndroidPhotoPending({ kind: 'profile', uri });
       } else {
         setPhotoUri(uri);
+        clearFieldError('photo');
       }
     }
   };
@@ -514,6 +658,7 @@ export default function RegisterScreen() {
         setAndroidPhotoPending({ kind: 'profile', uri });
       } else {
         setPhotoUri(uri);
+        clearFieldError('photo');
       }
     }
   };
@@ -527,6 +672,7 @@ export default function RegisterScreen() {
     if (!pending || pending.kind !== 'profile') return;
     setPhotoUri(pending.uri);
     cancelAndroidPhotoPending();
+    clearFieldError('photo');
   };
 
   const inferMimeType = (uri: string, fallbackName?: string) => {
@@ -709,11 +855,11 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-        if (isRetryLocked) {
-          setModerationAlertMessage(retryLockMessage);
-          setModerationAlertVisible(true);
-          return;
-        }
+    if (isRetryLocked) {
+      setModerationAlertMessage(retryLockMessage);
+      setModerationAlertVisible(true);
+      return;
+    }
 
     const normalizedFirstName = firstName.trim();
     const normalizedLastName = lastName.trim();
@@ -721,7 +867,6 @@ export default function RegisterScreen() {
     const normalizedCity = city.trim();
     const normalizedStateRegion = stateRegion.trim();
     const normalizedCountry = country.trim();
-    const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
     const nicknameLower = normalizedNickname.toLowerCase();
     const emailLower = email.trim().toLowerCase();
     const phoneNationalClean = sanitizeNationalDigits(phoneNational);
@@ -731,7 +876,6 @@ export default function RegisterScreen() {
     const phoneNormalized = normalizePhone(phoneNumber);
     const parsedBirthDate = parseBirthDate(birthDate);
 
-    // Keep form state clean from trailing spaces before proceeding.
     if (firstName !== normalizedFirstName) setFirstName(normalizedFirstName);
     if (lastName !== normalizedLastName) setLastName(normalizedLastName);
     if (nickname !== normalizedNickname) setNickname(normalizedNickname);
@@ -739,79 +883,102 @@ export default function RegisterScreen() {
     if (stateRegion !== normalizedStateRegion) setStateRegion(normalizedStateRegion);
     if (country !== normalizedCountry) setCountry(normalizedCountry);
 
-    if (
-      !normalizedFirstName ||
-      !normalizedLastName ||
-      !normalizedNickname ||
-      !email.trim() ||
-      !phoneComplete ||
-      !birthDate.trim() ||
-      !normalizedCity ||
-      !normalizedStateRegion ||
-      !normalizedCountry ||
-      !photoUri
-    ) {
-      Alert.alert(
-        t('register_alert_incomplete_title'),
-        t('register_alert_incomplete_all')
-      );
+    const next: Partial<Record<RegisterFieldKey, string>> = {};
+
+    if (!normalizedFirstName) next.firstName = t('register_field_error_required_first_name');
+    if (!normalizedLastName) next.lastName = t('register_field_error_required_last_name');
+    if (!normalizedNickname) {
+      next.nickname = t('register_field_error_required_nickname');
+    } else if (!/^[a-z0-9._-]{3,24}$/i.test(normalizedNickname)) {
+      next.nickname = t('register_field_error_nickname_format');
+    }
+
+    if (!email.trim()) {
+      next.email = t('register_field_error_required_email');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      next.email = t('register_field_error_email_format');
+    }
+
+    if (!phoneNationalClean) {
+      next.phone = t('register_field_error_required_phone');
+    } else if (!phoneComplete) {
+      next.phone = t('register_field_error_phone_length', { min: phoneBounds.min, max: phoneBounds.max });
+    }
+
+    if (!birthDate.trim()) {
+      next.birthDate = t('register_field_error_birth_required');
+    } else if (!parsedBirthDate) {
+      next.birthDate = t('register_field_error_birth_invalid');
+    } else if (getAge(parsedBirthDate) < 18) {
+      next.birthDate = t('register_field_error_age');
+    }
+
+    if (!socialProviderId) {
+      if (!password) {
+        next.password = t('register_field_error_password_required');
+      } else if (password.length < 8) {
+        next.password = t('register_field_error_password_short');
+      }
+    }
+
+    if (!normalizedCity) next.city = t('register_field_error_city');
+    if (!normalizedStateRegion) next.stateRegion = t('register_field_error_state');
+    if (!normalizedCountry) next.country = t('register_field_error_country');
+    if (!photoUri) next.photo = t('register_field_error_photo');
+    if (!acceptedLegal) next.legal = t('register_field_error_legal');
+
+    const nickFormatOk = /^[a-z0-9._-]{3,24}$/i.test(normalizedNickname);
+    const emailFormatOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower);
+
+    if (!next.nickname && !next.email && !next.phone && nickFormatOk && emailFormatOk && phoneComplete) {
+      try {
+        const map = await fetchSignupFieldAvailability({
+          nickname: normalizedNickname,
+          emailLower,
+          phoneNormalized,
+          ignoreUid: auth.currentUser?.uid,
+        });
+        if (!map) {
+          next.nickname = t('register_validation_network_nickname');
+          next.email = t('register_validation_network_email');
+          next.phone = t('register_validation_network_phone');
+        } else {
+          if (map.nickname === 'taken') {
+            next.nickname = t('register_field_error_nickname_taken');
+          } else if (map.nickname !== 'available') {
+            next.nickname = t('register_validation_network_nickname');
+          }
+          if (map.email === 'taken') {
+            next.email = t('register_field_error_email_taken');
+          } else if (map.email !== 'available') {
+            next.email = t('register_validation_network_email');
+          }
+          if (map.phone === 'taken') {
+            next.phone = t('register_field_error_phone_taken');
+          } else if (map.phone !== 'available') {
+            next.phone = t('register_validation_network_phone');
+          }
+        }
+      } catch {
+        if (!next.nickname) next.nickname = t('register_validation_network_nickname');
+        if (!next.email) next.email = t('register_validation_network_email');
+        if (!next.phone) next.phone = t('register_validation_network_phone');
+      }
+    }
+
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
+      try {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } catch {
+        /* haptics opcional */
+      }
+      focusFirstRegisterError(next);
       return;
     }
 
-    if (!socialProviderId && !password) {
-      Alert.alert(
-        t('register_alert_incomplete_title'),
-        t('register_alert_incomplete_password')
-      );
-      return;
-    }
-
-    if (!parsedBirthDate) {
-      Alert.alert(
-        t('register_alert_invalid_date_title'),
-        t('register_alert_birth_format')
-      );
-      return;
-    }
-
-    if (getAge(parsedBirthDate) < 18) {
-      Alert.alert(
-        t('register_alert_age_restriction_title'),
-        t('register_alert_age_restriction_body')
-      );
-      return;
-    }
-
-    if (!socialProviderId && password.length < 8) {
-      Alert.alert(
-        t('register_alert_weak_password_title'),
-        t('register_alert_weak_password_body')
-      );
-      return;
-    }
-
-    if (nicknameStatus !== 'available') {
-      Alert.alert(t('register_alert_nickname_unavailable_title'), t('register_alert_nickname_unavailable_body'));
-      return;
-    }
-
-    if (emailStatus !== 'available') {
-      Alert.alert(t('register_alert_email_unavailable_title'), t('register_alert_email_unavailable_body'));
-      return;
-    }
-
-    if (phoneStatus !== 'available') {
-      Alert.alert(t('register_alert_phone_unavailable_title'), t('register_alert_phone_unavailable_body'));
-      return;
-    }
-
-    if (!acceptedLegal) {
-      Alert.alert(
-        t('register_alert_legal_required_title'),
-        t('register_alert_legal_required_body')
-      );
-      return;
-    }
+    setFieldErrors({});
+    const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
 
     setIsSubmitting(true);
     setUploadModalVisible(false);
@@ -898,7 +1065,7 @@ export default function RegisterScreen() {
             emailLower,
             phone: phoneNumber.trim(),
             phoneNormalized,
-            birthDate: parsedBirthDate.toISOString(),
+            birthDate: parsedBirthDate!.toISOString(),
             isAdult: true,
             city: normalizedCity,
             stateRegion: normalizedStateRegion,
@@ -1034,6 +1201,7 @@ export default function RegisterScreen() {
           style={styles.gradientBg}
         >
           <ScrollView
+            ref={scrollViewRef}
             contentContainerStyle={styles.inner}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
@@ -1052,15 +1220,22 @@ export default function RegisterScreen() {
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_profile_photo')}</Text>
           <Text style={[styles.helperText, { color: look.helper }]}>{t('register_helper_profile_photo')}</Text>
-          <View style={styles.photoRow}>
-            <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestCameraPhoto}>
-              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_open_camera')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestGalleryPhoto}>
-              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_choose_image')}</Text>
-            </TouchableOpacity>
+          <View
+            style={fieldErrors.photo ? { borderWidth: 1, borderColor: REGISTER_FIELD_ERROR_BORDER, borderRadius: 12, padding: 8, marginBottom: 8 } : null}
+          >
+            <View style={styles.photoRow}>
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestCameraPhoto}>
+                <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_open_camera')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestGalleryPhoto}>
+                <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_choose_image')}</Text>
+              </TouchableOpacity>
+            </View>
+            {photoUri ? <Image source={{ uri: photoUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
           </View>
-          {photoUri ? <Image source={{ uri: photoUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
+          {fieldErrors.photo ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.photo}</Text>
+          ) : null}
 
           {/* Circular photo cropper */}
           <CircularPhotoCropper
@@ -1071,6 +1246,7 @@ export default function RegisterScreen() {
             onConfirm={(croppedUri) => {
               setPhotoUri(croppedUri);
               setCropperVisible(false);
+              clearFieldError('photo');
             }}
             onChooseAgain={() => {
               setCropperVisible(false);
@@ -1081,53 +1257,111 @@ export default function RegisterScreen() {
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_first_name')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={firstNameRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.firstName ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_first_name')}
             placeholderTextColor={look.placeholderColor}
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={(v) => {
+              setFirstName(v);
+              clearFieldError('firstName');
+            }}
           />
+          {fieldErrors.firstName ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.firstName}</Text>
+          ) : null}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_last_name')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={lastNameRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.lastName ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_last_name')}
             placeholderTextColor={look.placeholderColor}
             value={lastName}
-            onChangeText={setLastName}
+            onChangeText={(v) => {
+              setLastName(v);
+              clearFieldError('lastName');
+            }}
           />
+          {fieldErrors.lastName ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.lastName}</Text>
+          ) : null}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_nickname')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={nicknameRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.nickname ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_nickname')}
             placeholderTextColor={look.placeholderColor}
             autoCapitalize="none"
             value={nickname}
-            onChangeText={setNickname}
+            onChangeText={(v) => {
+              setNickname(v);
+              clearFieldError('nickname');
+            }}
           />
-          <Text
-            style={[
-              styles.validationText,
-              { color: look.validationMuted },
-              nicknameStatus === 'available' && styles.validationOk,
-              (nicknameStatus === 'taken' || nicknameStatus === 'invalid') && styles.validationError,
-            ]}
-          >
-            {nicknameStatus === 'available'
-              ? t('register_nick_available')
-              : nicknameStatus === 'checking'
-                ? t('register_nick_checking')
-                : nicknameStatus === 'taken'
-                  ? t('register_nick_taken')
-                  : nicknameStatus === 'invalid'
-                    ? t('register_nick_invalid')
-                    : t('register_nick_hint')}
-          </Text>
+          {fieldErrors.nickname ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.nickname}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.validationText,
+                { color: look.validationMuted },
+                nicknameStatus === 'available' && styles.validationOk,
+                (nicknameStatus === 'taken' || nicknameStatus === 'invalid' || nicknameStatus === 'error_network') &&
+                  styles.validationError,
+              ]}
+            >
+              {nicknameStatus === 'available'
+                ? t('register_nick_available')
+                : nicknameStatus === 'checking'
+                  ? t('register_nick_checking')
+                  : nicknameStatus === 'taken'
+                    ? t('register_nick_taken')
+                    : nicknameStatus === 'invalid'
+                      ? t('register_nick_invalid')
+                      : nicknameStatus === 'error_network'
+                        ? t('register_nick_error_network')
+                        : t('register_nick_hint')}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_email')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={emailRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.email ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_email')}
             placeholderTextColor={look.placeholderColor}
             keyboardType="email-address"
@@ -1136,30 +1370,45 @@ export default function RegisterScreen() {
             textContentType="none"
             importantForAutofill="no"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(v) => {
+              setEmail(v);
+              clearFieldError('email');
+            }}
             editable={!socialProviderId}
           />
-          <Text
-            style={[
-              styles.validationText,
-              { color: look.validationMuted },
-              emailStatus === 'available' && styles.validationOk,
-              (emailStatus === 'taken' || emailStatus === 'invalid') && styles.validationError,
-            ]}
-          >
-            {emailStatus === 'available'
-              ? t('register_email_available')
-              : emailStatus === 'checking'
-                ? t('register_email_checking')
-                : emailStatus === 'taken'
-                  ? t('register_email_taken')
-                  : emailStatus === 'invalid'
-                    ? t('register_email_invalid')
-                    : t('register_email_hint')}
-          </Text>
+          {fieldErrors.email ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.email}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.validationText,
+                { color: look.validationMuted },
+                emailStatus === 'available' && styles.validationOk,
+                (emailStatus === 'taken' || emailStatus === 'invalid' || emailStatus === 'error_network') &&
+                  styles.validationError,
+              ]}
+            >
+              {emailStatus === 'available'
+                ? t('register_email_available')
+                : emailStatus === 'checking'
+                  ? t('register_email_checking')
+                  : emailStatus === 'taken'
+                    ? t('register_email_taken')
+                    : emailStatus === 'invalid'
+                      ? t('register_email_invalid')
+                      : emailStatus === 'error_network'
+                        ? t('register_email_error_network')
+                        : t('register_email_hint')}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_phone')}</Text>
-          <View style={styles.phoneRow}>
+          <View
+            style={[
+              styles.phoneRow,
+              fieldErrors.phone ? { borderWidth: 1, borderColor: REGISTER_FIELD_ERROR_BORDER, borderRadius: 12, padding: 6 } : null,
+            ]}
+          >
             <TouchableOpacity
               style={[styles.phoneDialButton, { backgroundColor: look.phoneDialBg, borderColor: look.phoneDialBorder }]}
               onPress={() => {
@@ -1174,7 +1423,17 @@ export default function RegisterScreen() {
               <Text style={[styles.phoneDialChevron, { color: look.phoneChevron }]}>▼</Text>
             </TouchableOpacity>
             <TextInput
-              style={[styles.input, styles.phoneNationalInput, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+              ref={phoneNationalRef}
+              style={[
+                styles.input,
+                styles.phoneNationalInput,
+                {
+                  backgroundColor: look.inputBg,
+                  borderColor: fieldErrors.phone ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                  borderWidth: 1,
+                  color: look.inputText,
+                },
+              ]}
               placeholder={(() => {
                 const { min, max } = getNationalDigitBounds(phoneDialCode);
                 return t('register_phone_digits_range', { min, max });
@@ -1182,76 +1441,154 @@ export default function RegisterScreen() {
               placeholderTextColor={look.placeholderColor}
               keyboardType="phone-pad"
               value={phoneNational}
-              onChangeText={(t) =>
-                setPhoneNational(sanitizeNationalDigits(t).slice(0, getNationalDigitBounds(phoneDialCode).max))
-              }
+              onChangeText={(txt) => {
+                setPhoneNational(sanitizeNationalDigits(txt).slice(0, getNationalDigitBounds(phoneDialCode).max));
+                clearFieldError('phone');
+              }}
               maxLength={getNationalDigitBounds(phoneDialCode).max}
               autoComplete="off"
               textContentType="none"
               importantForAutofill="no"
             />
           </View>
-          <Text
-            style={[
-              styles.validationText,
-              { color: look.validationMuted },
-              phoneStatus === 'available' && styles.validationOk,
-              (phoneStatus === 'taken' || phoneStatus === 'invalid') && styles.validationError,
-            ]}
-          >
-            {phoneStatus === 'available'
-              ? t('register_phone_available')
-              : phoneStatus === 'checking'
-                ? t('register_phone_checking')
-                : phoneStatus === 'taken'
-                  ? t('register_phone_taken')
-                  : phoneStatus === 'invalid'
-                    ? t('register_phone_invalid_prefix')
-                    : t('register_phone_hint')}
-          </Text>
+          {fieldErrors.phone ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.phone}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.validationText,
+                { color: look.validationMuted },
+                phoneStatus === 'available' && styles.validationOk,
+                (phoneStatus === 'taken' || phoneStatus === 'invalid' || phoneStatus === 'error_network') &&
+                  styles.validationError,
+              ]}
+            >
+              {phoneStatus === 'available'
+                ? t('register_phone_available')
+                : phoneStatus === 'checking'
+                  ? t('register_phone_checking')
+                  : phoneStatus === 'taken'
+                    ? t('register_phone_taken')
+                    : phoneStatus === 'invalid'
+                      ? t('register_phone_invalid_prefix')
+                      : phoneStatus === 'error_network'
+                        ? t('register_phone_error_network')
+                        : t('register_phone_hint')}
+            </Text>
+          )}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_birth')}</Text>
           <View style={styles.dateInputRow}>
             <TextInput
-              style={[styles.input, styles.dateInput, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+              ref={birthDateRef}
+              style={[
+                styles.input,
+                styles.dateInput,
+                {
+                  backgroundColor: look.inputBg,
+                  borderColor: fieldErrors.birthDate ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                  borderWidth: 1,
+                  color: look.inputText,
+                },
+              ]}
               placeholder={t('register_placeholder_birth')}
               placeholderTextColor={look.placeholderColor}
               keyboardType="number-pad"
               maxLength={10}
               value={birthDate}
-              onChangeText={(value) => setBirthDate(formatBirthDateInput(value))}
+              onChangeText={(value) => {
+                setBirthDate(formatBirthDateInput(value));
+                clearFieldError('birthDate');
+              }}
             />
-            <TouchableOpacity style={[styles.calendarButton, { backgroundColor: look.calendarBg, borderColor: look.calendarBorder }]} onPress={openBirthPicker}>
+            <TouchableOpacity
+              style={[
+                styles.calendarButton,
+                {
+                  backgroundColor: look.calendarBg,
+                  borderColor: fieldErrors.birthDate ? REGISTER_FIELD_ERROR_BORDER : look.calendarBorder,
+                },
+              ]}
+              onPress={openBirthPicker}
+            >
               <Text style={styles.calendarButtonIcon}>📅</Text>
             </TouchableOpacity>
           </View>
+          {fieldErrors.birthDate ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.birthDate}</Text>
+          ) : null}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_city')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={cityRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.city ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_city')}
             placeholderTextColor={look.placeholderColor}
             value={city}
-            onChangeText={setCity}
+            onChangeText={(v) => {
+              setCity(v);
+              clearFieldError('city');
+            }}
           />
+          {fieldErrors.city ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.city}</Text>
+          ) : null}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_state')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={stateRegionRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.stateRegion ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_state')}
             placeholderTextColor={look.placeholderColor}
             value={stateRegion}
-            onChangeText={setStateRegion}
+            onChangeText={(v) => {
+              setStateRegion(v);
+              clearFieldError('stateRegion');
+            }}
           />
+          {fieldErrors.stateRegion ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.stateRegion}</Text>
+          ) : null}
 
           <Text style={[styles.label, { color: look.label }]}>{t('register_label_country')}</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
+            ref={countryRef}
+            style={[
+              styles.input,
+              {
+                backgroundColor: look.inputBg,
+                borderColor: fieldErrors.country ? REGISTER_FIELD_ERROR_BORDER : look.inputBorder,
+                borderWidth: 1,
+                color: look.inputText,
+              },
+            ]}
             placeholder={t('register_placeholder_country')}
             placeholderTextColor={look.placeholderColor}
             value={country}
-            onChangeText={setCountry}
+            onChangeText={(v) => {
+              setCountry(v);
+              clearFieldError('country');
+            }}
           />
+          {fieldErrors.country ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.country}</Text>
+          ) : null}
 
           <TouchableOpacity style={[styles.geoButton, { backgroundColor: look.geoBtnBg, borderColor: look.geoBtnBorder }]} onPress={() => void autofillLocationFromDevice()} disabled={isAutofillingLocation}>
             {isAutofillingLocation ? (
@@ -1269,8 +1606,15 @@ export default function RegisterScreen() {
           {!socialProviderId ? (
             <>
               <Text style={[styles.label, { color: look.label }]}>{t('register_label_password')}</Text>
-              <View style={[styles.passwordRow, { backgroundColor: look.passwordRowBg, borderColor: look.passwordRowBorder, borderWidth: 1 }]}>
+              <View
+                style={[
+                  styles.passwordRow,
+                  { backgroundColor: look.passwordRowBg, borderWidth: 1 },
+                  { borderColor: fieldErrors.password ? REGISTER_FIELD_ERROR_BORDER : look.passwordRowBorder },
+                ]}
+              >
                 <TextInput
+                  ref={passwordRef}
                   style={[styles.passwordInput, { color: look.inputText }]}
                   placeholder={t('register_placeholder_password')}
                   placeholderTextColor={look.placeholderColor}
@@ -1279,7 +1623,10 @@ export default function RegisterScreen() {
                   textContentType="none"
                   importantForAutofill="no"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(v) => {
+                    setPassword(v);
+                    clearFieldError('password');
+                  }}
                 />
                 <TouchableOpacity
                   style={styles.passwordToggle}
@@ -1299,28 +1646,23 @@ export default function RegisterScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {fieldErrors.password ? (
+                <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.password}</Text>
+              ) : null}
             </>
           ) : null}
 
           <TouchableOpacity
             style={[
-              styles.registerButton,
-              { backgroundColor: look.registerBtnBg },
-              (!acceptedLegal || isSubmitting || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available') && styles.registerButtonDisabled,
+              styles.legalRow,
+              fieldErrors.legal ? { borderWidth: 1, borderColor: REGISTER_FIELD_ERROR_BORDER, borderRadius: 10, padding: 8 } : null,
             ]}
-            onPress={handleRegister}
-            disabled={isSubmitting || !acceptedLegal || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available'}
+            onPress={() => {
+              setAcceptedLegal((prev) => !prev);
+              clearFieldError('legal');
+            }}
+            activeOpacity={0.85}
           >
-            {isSubmitting ? (
-              <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="cta">
-                <ActivityIndicator color={look.spinnerColor} />
-              </AuthSpinnerWell>
-            ) : (
-              <Text style={[styles.registerButtonText, { color: look.registerBtnText }]}>{t('register_cta_confirm')}</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.legalRow} onPress={() => setAcceptedLegal((prev) => !prev)} activeOpacity={0.85}>
             <View
               style={[
                 styles.legalCheckbox,
@@ -1332,6 +1674,9 @@ export default function RegisterScreen() {
             </View>
             <Text style={[styles.legalText, { color: look.legalText }]}>{t('register_legal_checkbox')}</Text>
           </TouchableOpacity>
+          {fieldErrors.legal ? (
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.legal}</Text>
+          ) : null}
 
           <TouchableOpacity
             style={styles.legalRow}
@@ -1353,6 +1698,24 @@ export default function RegisterScreen() {
             <Text style={[styles.legalText, { color: look.legalText }]}>
               {t('register_presidential_security_label')}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.registerButton,
+              { backgroundColor: look.registerBtnBg },
+              (!canPressRegister || isSubmitting || isRetryLocked) && styles.registerButtonDisabled,
+            ]}
+            onPress={handleRegister}
+            disabled={!canPressRegister || isSubmitting || isRetryLocked}
+          >
+            {isSubmitting ? (
+              <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="cta">
+                <ActivityIndicator color={look.spinnerColor} />
+              </AuthSpinnerWell>
+            ) : (
+              <Text style={[styles.registerButtonText, { color: look.registerBtnText }]}>{t('register_cta_confirm')}</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
@@ -1450,6 +1813,7 @@ export default function RegisterScreen() {
           onSelect={(entry) => {
             setPhoneDialCode(entry.code);
             setPhoneNational((prev) => sanitizeNationalDigits(prev).slice(0, entry.maxDigits));
+            clearFieldError('phone');
           }}
           title={t('register_country_picker_title')}
           topSectionTitle={t('register_country_picker_top')}
@@ -1712,6 +2076,14 @@ const styles = StyleSheet.create({
   },
   validationError: {
     color: '#C0392B',
+  },
+  fieldErrorText: {
+    marginTop: -14,
+    marginBottom: 14,
+    marginLeft: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
   },
   input: {
     width: '100%',

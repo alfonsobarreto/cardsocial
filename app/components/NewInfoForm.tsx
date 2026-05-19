@@ -2131,18 +2131,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
       const qualifiesPremiumSensory = await viewerQualifiesVaultFerrariSensory(userId);
       await runVaultMagneticSaveFeedback(qualifiesPremiumSensory);
-      emitVaultLinkSaved({
-        uid: userId,
-        linkId: String(uniqueId || ''),
-        premiumSensory: !editingData?.id && qualifiesPremiumSensory,
-      });
-      void (async () => {
-        try {
-          await syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!);
-        } catch (err) {
-          console.warn('[Vault] mongo publicCardSlots sync:', err);
-        }
-      })();
       Toast.show({
         type: 'success',
         text1: tcx('form_saved_title'),
@@ -2152,38 +2140,50 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         autoHide: true,
       });
 
-      // Sync cloud in background so UI never blocks the first/next creation flow.
       if (userId) {
-        void (async () => {
+        try {
+          console.log('[Vault] handleCreate: Cloud sync start (await before close)');
+          const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId!);
+          const aesKey = await getVaultE2eDerivedKey(userId);
+          const encoded = await encodeVaultLink(dataPayload as VaultLinkLogical, aesKey);
+          await withTimeout(
+            setDoc(cloudDocRef, encoded),
+            CLOUD_SYNC_TIMEOUT_MS,
+            'Cloud sync timeout',
+          );
+          console.log('[Vault] handleCreate: Cloud sync done');
           try {
-            console.log('[Vault] handleCreate: Background cloud sync start');
-            const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId!);
-            const aesKey = await getVaultE2eDerivedKey(userId);
-            const encoded = await encodeVaultLink(dataPayload as VaultLinkLogical, aesKey);
-            await withTimeout(
-              setDoc(cloudDocRef, encoded),
-              CLOUD_SYNC_TIMEOUT_MS,
-              'Cloud sync timeout'
-            );
-            console.log('[Vault] handleCreate: Background cloud sync done');
-            try {
-              await syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!);
-            } catch (mongoSyncErr) {
-              console.warn('[Vault] mongo sync after cloud failed:', mongoSyncErr);
-            }
-            Toast.show({
-              type: 'success',
-              text1: tcx('form_cloud_done_title'),
-              text2: tcx('form_cloud_done_sub'),
-              position: 'bottom',
-              visibilityTime: 2200,
-              autoHide: true,
-            });
-          } catch (cloudError) {
-            console.warn('[Vault] Background cloud sync failed, local data kept:', cloudError);
+            await syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!);
+          } catch (mongoSyncErr) {
+            console.warn('[Vault] mongo sync after cloud failed:', mongoSyncErr);
           }
-        })();
+          Toast.show({
+            type: 'success',
+            text1: tcx('form_cloud_done_title'),
+            text2: tcx('form_cloud_done_sub'),
+            position: 'bottom',
+            visibilityTime: 2200,
+            autoHide: true,
+          });
+        } catch (cloudError) {
+          console.warn('[Vault] Cloud sync failed, local data kept:', cloudError);
+          Alert.alert(
+            tcx('form_upload_err'),
+            userFacingAlertMessage(cloudError, language, tcx('form_save_retry_q')),
+            [
+              { text: tcx('form_cancel'), style: 'cancel' },
+              { text: tcx('form_retry'), onPress: () => void handleCreate() },
+            ],
+          );
+          return;
+        }
       }
+
+      emitVaultLinkSaved({
+        uid: userId,
+        linkId: String(uniqueId || ''),
+        premiumSensory: !editingData?.id && qualifiesPremiumSensory,
+      });
       console.log('[Vault] handleCreate: Antes de handleClose');
       handleClose();
       console.log('[Vault] handleCreate: Después de handleClose');
