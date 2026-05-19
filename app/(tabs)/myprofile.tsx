@@ -62,11 +62,9 @@ import {
     Alert,
     InteractionManager,
     Keyboard,
-    KeyboardAvoidingView,
     Linking,
     Modal,
     Platform,
-    ScrollView,
     StyleSheet,
     Switch,
     Text,
@@ -74,6 +72,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import palette from '../theme';
 import { PartnerBadge } from '@/components/PartnerBadge';
 import { VoipAirTimeBadge } from '@/components/VoipAirTimeBadge';
@@ -205,7 +204,7 @@ export default function MyProfileScreen() {
   const [creditsBalance, setCreditsBalance] = useState(0);
   const [presidentialSecEnabled, setPresidentialSecEnabled] = useState(false);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof KeyboardAwareScrollView>>(null);
 
   // ── Load profile ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -858,12 +857,25 @@ export default function MyProfileScreen() {
 
   return (
     <>
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollView
+        ref={scrollRef}
         style={{ flex: 1, backgroundColor: bg }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            flexGrow: 1,
+            backgroundColor: bg,
+            paddingBottom: 56,
+          },
+        ]}
+        bottomOffset={42}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
       >
-        <LinearGradient colors={[...shell.tabShellGradient]} style={{ flex: 1 }}>
-          {/* Header */}
+        <LinearGradient colors={[...shell.tabShellGradient]} style={{ flexGrow: 1, backgroundColor: bg }}>
           <View style={[styles.header, { borderBottomColor: border }]}>
             <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tcx('scan_back')}>
               <MaterialCommunityIcons name="arrow-left" size={24} color={accent} />
@@ -871,25 +883,6 @@ export default function MyProfileScreen() {
             <Text style={[styles.headerTitle, { color: textPrimary }]}>{tcx('profile_screen_title')}</Text>
             <View style={{ width: 24 }} />
           </View>
-
-          <ScrollView
-            ref={scrollRef}
-            style={{ flex: 1, backgroundColor: bg }}
-            contentContainerStyle={[
-              styles.scroll,
-              {
-                flexGrow: 1,
-                backgroundColor: bg,
-                // Separación cómoda entre "Eliminar cuenta" y el tab bar.
-                paddingBottom: 56,
-              },
-            ]}
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            overScrollMode="never"
-          >
 
             {/* ── Avatar ─────────────────────────────────────────────────────── */}
             <View style={styles.avatarSection}>
@@ -1337,9 +1330,8 @@ export default function MyProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
         </LinearGradient>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
 
     {Platform.OS === 'android' && (
       <Modal

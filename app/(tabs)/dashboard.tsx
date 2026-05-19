@@ -23,8 +23,13 @@ import { auth, db } from '@/services/firebaseConfig';
 import { useLegacyPathEngine, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
+import { MarketRadarWebView } from '@/components/MarketRadarWebView';
+import { startSearchLocationSession } from '@/services/searchLocationSession';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
-import { getMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
+import {
+  getMarketRadarRemoteConfig,
+  subscribeMarketRadarRemoteConfig,
+} from '@/services/marketRadarConfigService';
 import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { userHasMarketRadarProAccess } from '@/services/marketRadarEntitlement';
 import { requestSubscriptionMarketRadarSection, requestSubscriptionPanel } from '@/services/subscriptionNavigationIntent';
@@ -54,8 +59,6 @@ import { doc, getDoc } from 'firebase/firestore';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SHELL_ACCENT_GOLD } from '@/styles/_premiumTheme';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -927,6 +930,7 @@ export default function DashboardScreen() {
   const [seoLocationQuery, setSeoLocationQuery] = useState('');
   const [seoLocationApplied, setSeoLocationApplied] = useState('');
   const [launchingRadar, setLaunchingRadar] = useState(false);
+  const [radarWebViewUrl, setRadarWebViewUrl] = useState<string | null>(null);
   const [seoExpanded, setSeoExpanded] = useState(false);
   const [showTopNicheKeyword, setShowTopNicheKeyword] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1110,9 +1114,23 @@ export default function DashboardScreen() {
     return s.length > 0 ? s : null;
   }, []);
 
+  useEffect(() => {
+    if (!sessionUid.trim()) return undefined;
+    return subscribeMarketRadarRemoteConfig((cfg) => {
+      setRadarTrialEnabled(cfg.radarTrialEnabled);
+      setMarketRadarProPrice(cfg.proPriceUsd);
+      setMarketRadarProCs(cfg.proEquivalentCs);
+      if (opsAdmin || cfg.radarTrialEnabled) {
+        setMarketRadarProOk(true);
+      }
+    });
+  }, [sessionUid, opsAdmin]);
+
+  const canOpenMarketRadar = marketRadarProOk || opsAdmin || radarTrialEnabled || getRadarTrialEnabledSync();
+
   const launchCommandCenter = useCallback(async () => {
     if (!studioWebBase || launchingRadar) return;
-    if (!marketRadarProOk && !opsAdmin) {
+    if (!canOpenMarketRadar) {
       const priceLine =
         marketRadarProPrice > 0 || marketRadarProCs > 0
           ? [
@@ -1156,12 +1174,15 @@ export default function DashboardScreen() {
         );
         return;
       }
-      const url = minted.url.trim();
-      try {
-        await Linking.openURL(url);
-      } catch {
-        await WebBrowser.openBrowserAsync(url);
+      let url = minted.url.trim();
+      const locSession = await startSearchLocationSession();
+      if (locSession.ok) {
+        const parsed = new URL(url);
+        parsed.searchParams.set('lat', String(locSession.latitude));
+        parsed.searchParams.set('lng', String(locSession.longitude));
+        url = parsed.toString();
       }
+      setRadarWebViewUrl(url);
     } catch (e) {
       Alert.alert(
         tcx('dashboard_browser_open_failed'),
@@ -1175,13 +1196,12 @@ export default function DashboardScreen() {
     launchingRadar,
     language,
     tcx,
-    marketRadarProOk,
-    opsAdmin,
+    canOpenMarketRadar,
     marketRadarProPrice,
     marketRadarProCs,
   ]);
 
-  const radarLaunchBlockedByPro = Boolean(studioWebBase && !marketRadarProOk && !opsAdmin);
+  const radarLaunchBlockedByPro = Boolean(studioWebBase && !canOpenMarketRadar);
 
   const handleChangePeriod = (mode: PeriodMode) => {
     setPeriodMode(mode);
@@ -1858,6 +1878,11 @@ export default function DashboardScreen() {
           />
         </CollapsibleSection>
       </ScrollView>
+      <MarketRadarWebView
+        url={radarWebViewUrl ?? ''}
+        visible={Boolean(radarWebViewUrl)}
+        onClose={() => setRadarWebViewUrl(null)}
+      />
     </View>
   );
 }

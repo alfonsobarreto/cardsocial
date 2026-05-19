@@ -7,6 +7,7 @@
  * Tema: dÃ­a/noche desde premiumTheme Â· BilingÃ¼e (es/en)
  */
 
+import { MedalBadgeSelectionGrid } from '@/components/MedalBadgeSelectionGrid';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
@@ -33,19 +34,22 @@ import {
   ActivityIndicator,
   Image,
   Animated,
-    BackHandler,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  BackHandler,
+  InteractionManager,
+  Keyboard,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  KeyboardAwareScrollView,
+} from 'react-native-keyboard-controller';
 import { FullWindowOverlay } from 'react-native-screens';
 import Toast from 'react-native-toast-message';
 
@@ -87,8 +91,41 @@ export function MedalRatingModal({
   const isDark = resolvedMode === 'noche';
   const P = isDark ? PT.dark : PT.light;
   const modalFooterBottomPad = useModalFooterBottomPad();
+  /** Colchón sobre el teclado + altura del botón CONFIRMAR para que el input no quede tapado. */
+  const reportKeyboardBottomOffset = 42 + 56;
+  const scrollRef = useRef<React.ComponentRef<typeof KeyboardAwareScrollView>>(null);
+  /** Evita doble apertura del picker y mantiene el modal oculto hasta que termine la galería. */
+  const pickerActiveRef = useRef(false);
+  const [pickingEvidence, setPickingEvidence] = useState(false);
 
   const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
+
+  const restoreModalAfterPicker = useCallback(() => {
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        pickerActiveRef.current = false;
+        setPickingEvidence(false);
+      }, Platform.OS === 'android' ? 320 : 160);
+    });
+  }, []);
+
+  const waitForModalDismissBeforePicker = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, Platform.OS === 'android' ? 300 : 140);
+        });
+      }),
+    [],
+  );
+
+  const scrollReportIntoView = useCallback(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'android' ? 120 : 80);
+    });
+  }, []);
 
   // â”€â”€ estado â”€â”€
   const [myUid, setMyUid]         = useState<string | null>(null);
@@ -137,6 +174,13 @@ export function MedalRatingModal({
     })();
   }, [visible, sidOrBId, cardType, issuerUid]);
 
+  useEffect(() => {
+    if (!visible) {
+      pickerActiveRef.current = false;
+      setPickingEvidence(false);
+    }
+  }, [visible]);
+
   // â”€â”€ cerrar â”€â”€
   const handleClose = useCallback(() => {
     setReportText('');
@@ -165,8 +209,14 @@ export function MedalRatingModal({
   );
 
   const pickEvidenceScreenshot = useCallback(async () => {
-    if (sending) return;
+    if (sending || pickerActiveRef.current) return;
+    pickerActiveRef.current = true;
+    setPickingEvidence(true);
+
+    let pickedDataUri: string | null = null;
     try {
+      await waitForModalDismissBeforePicker();
+
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Toast.show({
@@ -206,15 +256,20 @@ export function MedalRatingModal({
         });
         return;
       }
-      setEvidenceImageDataUri(dataUri);
+      pickedDataUri = dataUri;
     } catch {
       Toast.show({
         type: 'error',
         text1: tr('No se pudo abrir la galería.', 'Could not open the photo library.'),
         visibilityTime: 2000,
       });
+    } finally {
+      if (pickedDataUri) {
+        setEvidenceImageDataUri(pickedDataUri);
+      }
+      restoreModalAfterPicker();
     }
-  }, [sending, tr, maxEvidenceDataUriChars]);
+  }, [sending, tr, maxEvidenceDataUriChars, waitForModalDismissBeforePicker, restoreModalAfterPicker]);
 
   // â”€â”€ enviar reporte incÃ³gnito â”€â”€
   const handleSendReport = useCallback(async () => {
@@ -344,53 +399,7 @@ export function MedalRatingModal({
   const borderColor = P.border;
   const mutedColor  = isDark ? '#F5F0E1' : P.muted;
 
-  // â”€â”€â”€ render de una insignia/medalla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const renderItem = (item: typeof medals[number]) => {
-    const isSelected = myVote === item.key;
-    const isLoading  = votingKey === item.key;
-    const count      = counts[item.key] ?? 0;
-    const onTap      = () => void handleBusinessMedalTap(item.key);
-
-    return (
-      <TouchableOpacity
-        key={item.key}
-        style={[
-          styles.medalBtn,
-          {
-            backgroundColor: isSelected ? `${accent}22` : surfaceBg,
-            borderColor: isSelected ? accent : borderColor,
-          },
-        ]}
-        onPress={onTap}
-        activeOpacity={0.75}
-        disabled={!!votingKey}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={language === 'en' || language === 'de' ? item.labelEn : item.labelEs}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color={accent} />
-        ) : (
-          <MaterialCommunityIcons
-            name={item.icon as any}
-            size={36}
-            color={isSelected ? accent : mutedColor}
-          />
-        )}
-        <Text
-          style={[styles.medalLabel, { color: isSelected ? accent : textPrimary }]}
-          numberOfLines={2}
-        >
-          {language === 'en' || language === 'de' ? item.labelEn : item.labelEs}
-        </Text>
-        {count > 0 && (
-          <View style={[styles.medalCountBadge, { backgroundColor: isSelected ? accent : mutedColor }]}>
-            <Text style={styles.medalCountText}>{count}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const medalLabel = (item: (typeof medals)[number]) => tr(item.labelEs, item.labelEn);
 
   // â”€â”€â”€ tÃ­tulo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const displayName = ownerProfileName || cardOwnerName;
@@ -406,25 +415,28 @@ export function MedalRatingModal({
   // -- slide animation --
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  const presentationVisible = visible && !pickingEvidence;
+
   useEffect(() => {
-    if (visible) {
+    if (presentationVisible) {
       Animated.spring(slideAnim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 11 }).start();
     } else {
       Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     }
-  }, [visible, slideAnim]);
+  }, [presentationVisible, slideAnim]);
 
   // -- Android back button --
   useEffect(() => {
-    if (!visible) return;
+    if (!presentationVisible) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       handleClose();
       return true;
     });
     return () => sub.remove();
-  }, [visible, handleClose]);
+  }, [presentationVisible, handleClose]);
 
   if (!visible) return null;
+  if (!presentationVisible) return null;
 
   const translateY = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [600, 0] });
 
@@ -433,12 +445,12 @@ export function MedalRatingModal({
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={StyleSheet.absoluteFill} />
       </TouchableWithoutFeedback>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.kavWrapper}
-        pointerEvents="box-none"
-      >
         <Animated.View style={[styles.sheet, { backgroundColor: P.background, transform: [{ translateY }] }]}>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoiding}
+            behavior="padding"
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+          >
               {/* Handle + Close */}
               <View style={styles.topRow}>
                 <View style={[styles.handle, { backgroundColor: accent }]} />
@@ -463,15 +475,38 @@ export function MedalRatingModal({
                   <ActivityIndicator size="large" color={accent} />
                 </View>
               ) : (
-                <ScrollView
-                  contentContainerStyle={styles.scrollContent}
+                <KeyboardAwareScrollView
+                  ref={scrollRef}
+                  style={styles.scroll}
+                  contentContainerStyle={[
+                    styles.scrollContent,
+                    {
+                      flexGrow: 1,
+                      paddingBottom: modalFooterBottomPad + 16,
+                    },
+                  ]}
+                  bottomOffset={reportKeyboardBottomOffset}
+                  extraKeyboardSpace={modalFooterBottomPad}
                   keyboardDismissMode="on-drag"
+                  keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
                 >
-                  {/* Insignias / Medallas */}
-                  <View style={styles.medalGrid}>
-                    {medals.map(renderItem)}
-                  </View>
+                  {/* Insignias / Medallas — cuadrícula 2×3 (business + smart) */}
+                  <MedalBadgeSelectionGrid
+                    medals={medals}
+                    selectedKey={myVote}
+                    counts={counts}
+                    votingKey={votingKey}
+                    onSelect={(key) => void handleBusinessMedalTap(key)}
+                    resolveLabel={medalLabel}
+                    accent={accent}
+                    surfaceBg={surfaceBg}
+                    borderColor={borderColor}
+                    textPrimary={textPrimary}
+                    mutedColor={mutedColor}
+                    variant={cardType === 'business' ? 'business' : 'social'}
+                  />
 
                   {/* Separador */}
                   <View style={[styles.separator, { backgroundColor: borderColor }]} />
@@ -511,6 +546,7 @@ export function MedalRatingModal({
                       maxLength={500}
                       returnKeyType="done"
                       blurOnSubmit
+                      onFocus={scrollReportIntoView}
                     />
                     <TouchableOpacity
                       style={[
@@ -544,26 +580,25 @@ export function MedalRatingModal({
                       </View>
                     ) : null}
                   </View>
-                </ScrollView>
-              )}
 
-              {/* BotÃ³n Confirmar */}
-              <TouchableOpacity
-                style={[styles.confirmBtn, { backgroundColor: accent, opacity: sending ? 0.6 : 1, marginBottom: modalFooterBottomPad }]}
-                onPress={() => void handleConfirm()}
-                disabled={sending}
-                activeOpacity={0.85}
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color={P.onAccent} />
-                ) : (
-                  <Text style={[styles.confirmBtnText, { color: P.onAccent }]}>
-                    {tr('CONFIRMAR', 'CONFIRM')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
+                  <TouchableOpacity
+                    style={[styles.confirmBtn, { backgroundColor: accent, opacity: sending ? 0.6 : 1 }]}
+                    onPress={() => void handleConfirm()}
+                    disabled={sending}
+                    activeOpacity={0.85}
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={P.onAccent} />
+                    ) : (
+                      <Text style={[styles.confirmBtnText, { color: P.onAccent }]}>
+                        {tr('CONFIRMAR', 'CONFIRM')}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </KeyboardAwareScrollView>
+              )}
           </KeyboardAvoidingView>
+            </Animated.View>
         </View>
   );
 
@@ -574,7 +609,7 @@ export function MedalRatingModal({
   if (Platform.OS === 'android' && useNativeModalOnAndroid) {
     return (
       <Modal
-        visible={visible}
+        visible={presentationVisible}
         transparent
         animationType="none"
         onRequestClose={handleClose}
@@ -597,7 +632,10 @@ const styles = StyleSheet.create({
     zIndex: 99999,
     elevation: 99999,
   },
-  kavWrapper: {
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   sheet: {
@@ -646,43 +684,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 10,
     gap: 16,
-  },
-  medalGrid: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  medalBtn: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    gap: 6,
-    position: 'relative',
-  },
-  medalLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  medalCountBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 6,
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    minWidth: 18,
-    alignItems: 'center',
-  },
-  medalCountText: {
-    color: '#000000',
-    fontSize: 10,
-    fontWeight: '700',
   },
   separator: {
     height: 1,
@@ -751,7 +752,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   confirmBtn: {
-    marginHorizontal: 16,
     marginTop: 14,
     borderRadius: 14,
     height: 50,

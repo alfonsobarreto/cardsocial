@@ -29,10 +29,8 @@ import {
     Alert,
     Image,
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -40,6 +38,7 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -438,10 +437,11 @@ export default function SignInScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={styles.container}>
         <LinearGradient colors={[...look.gradient]} style={styles.gradient}>
-          <ScrollView
+          <KeyboardAwareScrollView
             contentContainerStyle={styles.content}
+            bottomOffset={42}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -570,7 +570,7 @@ export default function SignInScreen() {
             <TouchableOpacity onPress={() => router.push('/register')} style={styles.footerLinkWrap}>
               <Text style={[styles.footerLink, { color: look.footerLink }]}>{t('signin_footer_signup')}</Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </LinearGradient>
 
         <Modal
@@ -601,7 +601,13 @@ export default function SignInScreen() {
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={[styles.submitOverlay, { backgroundColor: look.submitOverlay }]}>
-              <View style={[styles.recoveryCard, { backgroundColor: look.recoveryCardBg, borderColor: look.recoveryCardBorder }]}>
+              <KeyboardAwareScrollView
+                contentContainerStyle={[styles.recoveryCard, { backgroundColor: look.recoveryCardBg, borderColor: look.recoveryCardBorder }]}
+                bottomOffset={42}
+                keyboardDismissMode="on-drag"
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
                 <Text style={[styles.recoveryTitle, { color: look.recoveryTitle }]}>
                   {recoveryMode === 'password'
                     ? t('signin_recovery_title_password')
@@ -643,11 +649,11 @@ export default function SignInScreen() {
                 <TouchableOpacity style={styles.secondaryLinkWrap} onPress={() => setRecoveryMode(null)}>
                   <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{t('common_cancel')}</Text>
                 </TouchableOpacity>
-              </View>
+              </KeyboardAwareScrollView>
             </View>
           </TouchableWithoutFeedback>
         </Modal>
-      </KeyboardAvoidingView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }

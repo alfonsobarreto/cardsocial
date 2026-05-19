@@ -10,9 +10,8 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  ScrollView,
-  KeyboardAvoidingView,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { initiateAccountRecovery, checkRecoveryRequestStatus } from '@/services/accountRecoveryService';
@@ -212,8 +211,14 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
   const chevronColor = shell.textPrimary;
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <KeyboardAwareScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      bottomOffset={42}
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <MaterialCommunityIcons name="close" size={28} color={chevronColor} />
@@ -335,7 +340,6 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
             ) : null}
           </View>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }

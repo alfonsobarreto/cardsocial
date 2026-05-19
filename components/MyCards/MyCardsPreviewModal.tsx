@@ -59,7 +59,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     Alert,
     Animated,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
@@ -71,6 +70,7 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
@@ -820,7 +820,12 @@ export function MyCardsPreviewModal({
                 {t('bunker_group_sheet_title')}
               </Text>
               {isAddingIncomingGroup ? (
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <KeyboardAwareScrollView
+                  bottomOffset={42}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  keyboardDismissMode="on-drag"
+                >
                   <View style={incomingStyles.inlineAddContainer}>
                     <TextInput
                       style={[
@@ -852,7 +857,7 @@ export function MyCardsPreviewModal({
                       </TouchableOpacity>
                     </View>
                   </View>
-                </KeyboardAvoidingView>
+                </KeyboardAwareScrollView>
               ) : (
                 <>
                   <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
@@ -939,7 +944,12 @@ export function MyCardsPreviewModal({
                 {t('bunker_group_sheet_title')}
               </Text>
               {isAddingReceiverGroup ? (
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <KeyboardAwareScrollView
+                  bottomOffset={42}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  keyboardDismissMode="on-drag"
+                >
                   <View style={incomingStyles.inlineAddContainer}>
                     <TextInput
                       style={[
@@ -971,7 +981,7 @@ export function MyCardsPreviewModal({
                       </TouchableOpacity>
                     </View>
                   </View>
-                </KeyboardAvoidingView>
+                </KeyboardAwareScrollView>
               ) : (
                 <>
                   <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">

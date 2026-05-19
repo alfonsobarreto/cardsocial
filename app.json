@@ -55,7 +55,13 @@
         }
       }
     },
+    "androidNavigationBar": {
+      "visible": "immersive",
+      "backgroundColor": "#00000000",
+      "barStyle": "light-content"
+    },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/adaptive-icon.png"
@@ -157,7 +163,8 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-navigation-bar"
     ],
     "experiments": {
       "typedRoutes": true

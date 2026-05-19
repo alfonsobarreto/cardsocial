@@ -11,7 +11,11 @@ import { getCommerceConfig } from '@/services/commerceConfigService';
 import { useCoreT } from '@/services/coreI18n';
 import { intlLocaleTagForAppLanguage, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { getMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
+import {
+  getMarketRadarRemoteConfig,
+  subscribeMarketRadarRemoteConfig,
+} from '@/services/marketRadarConfigService';
+import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiersConfigService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -105,6 +109,8 @@ const Subscription: React.FC<SubscriptionProps> = ({
   const [commerceIssue, setCommerceIssue] = useState<'none' | 'no_document' | 'read_error'>('none');
   const [radarProPriceUsd, setRadarProPriceUsd] = useState(0);
   const [radarProEquivalentCs, setRadarProEquivalentCs] = useState(0);
+  /** Alineado con `system_config/market_radar.radar_trial_enabled` para la lista de beneficios por tier. */
+  const [radarTrialBenefitListed, setRadarTrialBenefitListed] = useState(() => getRadarTrialEnabledSync());
 
   useEffect(() => {
     let mounted = true;
@@ -178,11 +184,19 @@ const Subscription: React.FC<SubscriptionProps> = ({
       if (m) {
         setRadarProPriceUsd(r.proPriceUsd);
         setRadarProEquivalentCs(r.proEquivalentCs);
+        setRadarTrialBenefitListed(r.radarTrialEnabled);
       }
     })();
     return () => {
       m = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeMarketRadarRemoteConfig((cfg) => {
+      setRadarTrialBenefitListed(cfg.radarTrialEnabled);
+    });
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -415,15 +429,21 @@ const Subscription: React.FC<SubscriptionProps> = ({
     return t('sub_tier_business');
   };
 
-  const tierSummary = (key: TierKey, tiersCfg: TiersConfig) => {
-    const lim = tiersCfg[key];
-    const bits = [
-      `${lim.iconDataLimit} IconData · ${lim.smartCardsLimit} Smart`,
-      `${lim.businessCardsLimit} ${t('core_word_business')}`,
-      `${lim.voipMinutesIncluded} ${t('sub_min_per_month')}${lim.premiumThemes ? ' · ' + t('sub_themes_plus') : ''}`,
-    ];
-    return bits.join('\n');
-  };
+  const tierSummary = useCallback(
+    (key: TierKey, tiersCfg: TiersConfig) => {
+      const lim = tiersCfg[key];
+      const bits = [
+        `${lim.iconDataLimit} IconData · ${lim.smartCardsLimit} Smart`,
+        `${lim.businessCardsLimit} ${t('core_word_business')}`,
+        `${lim.voipMinutesIncluded} ${t('sub_min_per_month')}${lim.premiumThemes ? ' · ' + t('sub_themes_plus') : ''}`,
+      ];
+      if (radarTrialBenefitListed) {
+        bits.push(t('sub_tier_market_radar_pro_included'));
+      }
+      return bits.join('\n');
+    },
+    [t, radarTrialBenefitListed],
+  );
 
   const onRadarProInfo = useCallback(() => {
     Alert.alert(t('sub_market_radar_pro_title'), t('sub_radar_full_access_body'));

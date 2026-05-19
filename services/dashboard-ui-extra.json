@@ -508,5 +508,65 @@
     "fr": "Ce navigateur a bloqué le HTML enrichi dans le presse-papiers. Nous n’avons copié que du texte brut ; réessayez depuis Chrome sur le bureau dans ce même tableau de bord pour coller une signature mise en forme.",
     "it": "Questo browser ha bloccato l’HTML ricco negli appunti. Abbiamo copiato solo testo normale; riprova da Chrome sul desktop in questa stessa Dashboard per incollare una firma formattata.",
     "pt": "Este browser bloqueou HTML rico na área de transferência. Copiámos apenas texto simples; tente no Chrome no desktop neste mesmo Dashboard para colar uma assinatura formatada."
+  },
+  "e533c30f": {
+    "de": "Stratege",
+    "fr": "Stratège",
+    "it": "Stratega",
+    "pt": "Estratega"
+  },
+  "60536f85": {
+    "de": "Teamplay",
+    "fr": "Équipier",
+    "it": "Squadra",
+    "pt": "Equipe"
+  },
+  "2edbeefa": {
+    "de": "Visionär",
+    "fr": "Visionnaire",
+    "it": "Visionario",
+    "pt": "Visionário"
+  },
+  "b949ee5b": {
+    "de": "Alpha-Lead",
+    "fr": "Lead Alpha",
+    "it": "Lead Alpha",
+    "pt": "Líder Alpha"
+  },
+  "ce180645": {
+    "de": "Influencer",
+    "fr": "Influenceur",
+    "it": "Influencer",
+    "pt": "Influencer"
+  },
+  "9c0ac112": {
+    "de": "Engagement",
+    "fr": "Engagement",
+    "it": "Impegno",
+    "pt": "Compromisso"
+  },
+  "39b7ac26": {
+    "de": "Service",
+    "fr": "Service",
+    "it": "Servizio",
+    "pt": "Serviço"
+  },
+  "3d19e5c8": {
+    "de": "Vertrauen",
+    "fr": "Confiance",
+    "it": "Fiducia",
+    "pt": "Confiança"
+  },
+  "1b707bc6": {
+    "de": "Prestige",
+    "fr": "Prestige",
+    "it": "Prestigio",
+    "pt": "Prestígio"
+  },
+  "8b246b84": {
+    "de": "Exzellenz",
+    "fr": "Excellence",
+    "it": "Eccellenza",
+    "pt": "Excelência"
   }
 }

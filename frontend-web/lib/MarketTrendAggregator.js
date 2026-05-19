@@ -214,10 +214,21 @@ export class ExternalSource {
         });
         if (resp.ok) {
           const json = await resp.json();
-          return normalizeExternalPayload(json, niche);
+          const normalized = normalizeExternalPayload(json, niche);
+          if (normalized.length === 0) {
+            console.warn(
+              '[MarketTrendAggregator] GLOBAL_DEMAND proxy returned OK but JSON shape had no usable points (expected `points[]` or `interest_by_region[]`). Using mock fallback.',
+            );
+          } else {
+            return normalized;
+          }
+        } else {
+          console.warn(
+            `[MarketTrendAggregator] GLOBAL_DEMAND proxy HTTP ${resp.status} ${resp.statusText}; using mock fallback.`,
+          );
         }
-      } catch {
-        /* fall through to mock so the heatmap never goes dark */
+      } catch (err) {
+        console.warn('[MarketTrendAggregator] GLOBAL_DEMAND proxy fetch error; using mock fallback:', err);
       }
     }
 

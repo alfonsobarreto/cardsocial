@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import Toast from 'react-native-toast-message';
 import { useLookMode } from '@/services/lookMode';
 import palette from './theme';
@@ -30,13 +31,15 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <LanguageProvider>
-          <LookModeProvider>
-            <NetworkProvider>
-              <RootNavigator />
-            </NetworkProvider>
-          </LookModeProvider>
-        </LanguageProvider>
+        <KeyboardProvider>
+          <LanguageProvider>
+            <LookModeProvider>
+              <NetworkProvider>
+                <RootNavigator />
+              </NetworkProvider>
+            </LookModeProvider>
+          </LanguageProvider>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );

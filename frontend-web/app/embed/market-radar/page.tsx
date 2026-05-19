@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signInWithCustomToken, type User } from 'firebase/auth';
 import MarketRadar from '@/components/MarketRadar.jsx';
 import { StudioLocaleDropdown } from '@/components/studio/StudioLocaleDropdown';
@@ -41,6 +41,13 @@ function EmbedMarketRadarContent() {
   const searchParams = useSearchParams();
   const langParam = searchParams.get('lang');
   const etParam = searchParams.get('et');
+  const seedLocation = useMemo(() => {
+    const lat = Number.parseFloat(searchParams.get('lat') ?? '');
+    const lng = Number.parseFloat(searchParams.get('lng') ?? '');
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return { lat, lng };
+  }, [searchParams]);
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [locale, setLocale] = useState<StudioLocale>('en');
   const [phase, setPhase] = useState<HandshakePhase>('busy');
@@ -83,6 +90,10 @@ function EmbedMarketRadarContent() {
 
         const l = studioLocaleFromQuery(langParam) ?? readStoredLocale() ?? readBrowserLocale();
         const usp = new URLSearchParams({ lang: l });
+        if (seedLocation) {
+          usp.set('lat', String(seedLocation.lat));
+          usp.set('lng', String(seedLocation.lng));
+        }
         if (typeof window !== 'undefined') {
           const embedPath = `${window.location.origin}/embed/market-radar?${usp.toString()}`;
           window.history.replaceState({}, '', embedPath);
@@ -99,7 +110,7 @@ function EmbedMarketRadarContent() {
     return () => {
       cancelled = true;
     };
-  }, [etParam, langParam]);
+  }, [etParam, langParam, seedLocation]);
 
   useEffect(() => {
     if (etParam) return;
@@ -186,7 +197,7 @@ function EmbedMarketRadarContent() {
 
       <main style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 12 }}>
         <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto' }}>
-          <MarketRadar t={t} />
+          <MarketRadar t={t} seedLocation={seedLocation} />
         </div>
       </main>
     </div>

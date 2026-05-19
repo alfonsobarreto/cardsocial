@@ -10,6 +10,7 @@ import {
   filterEventsByNiche,
   filterEventsByIntentKeyword,
   computeZipSeoMetrics,
+  findZipFeatureForPoint,
   buildDensityGrid,
   sampleDensity,
 } from '@/lib/mockIntelligenceService';
@@ -19,7 +20,10 @@ import {
   eventsToGeoJSON,
   heatmapPaintForSource,
 } from '@/lib/MarketTrendAggregator';
-import { marketRadarRequiresIntentBeforeData } from '@/lib/marketRadarBootstrap';
+import {
+  requestMarketRadarLocationAccess,
+  tryIpFallbackForGeolocationCodes,
+} from '@/lib/marketRadarGeolocation';
 import { studioTheme } from '@/lib/studioTheme';
 import {
   isGlobalDemoModeEnv,
@@ -29,6 +33,29 @@ import {
 import { mdiTrashCanOutline } from '@mdi/js';
 
 const STYLE_URL = 'mapbox://styles/mapbox/dark-v11';
+
+/** @param {object} feature GeoJSON Polygon feature */
+function bboxFromPolygonFeature(feature) {
+  const ring = feature?.geometry?.coordinates?.[0];
+  if (!ring?.length) return null;
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const coord of ring) {
+    const lng = coord[0];
+    const lat = coord[1];
+    if (lng < minLng) minLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lng > maxLng) maxLng = lng;
+    if (lat > maxLat) maxLat = lat;
+  }
+  if (!Number.isFinite(minLng)) return null;
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}
 
 function readMapboxToken() {
   if (typeof process === 'undefined' || !process.env) return '';
@@ -73,17 +100,21 @@ function IconClearIntent({ color = 'currentColor' }) {
 
 /**
  * Hyper-Local Market Intent heatmap (Mapbox GL). Renders proprietary / internal points only.
- * @param {{ t: TFn }} props
+ * @param {{ t: TFn, seedLocation?: { lat: number, lng: number } | null }} props
  */
-export default function MarketRadar({ t }) {
+export default function MarketRadar({ t, seedLocation = null }) {
   const wrapRef = useRef(null);
   const mapRef = useRef(null);
   const hoverRef = useRef(null);
   const densityRef = useRef(buildDensityGrid([], 0.04));
   const nicheRef = useRef('all');
   const intentAppliedRef = useRef('');
-  const pendingFlyRef = useRef(null);
-
+  const pendingUserLocRef = useRef(null);
+  const pendingFitBoundsRef = useRef(null);
+  const seedAppliedRef = useRef(false);
+  const applyLocatedRef = useRef(null);
+  /** @type {'pending' | 'granted' | 'denied'} */
+  const [geoAccess, setGeoAccess] = useState('pending');
   const [mapReady, setMapReady] = useState(false);
   const [niche, setNiche] = useState('all');
   const [appliedIntentKeyword, setAppliedIntentKeyword] = useState('');
@@ -91,6 +122,7 @@ export default function MarketRadar({ t }) {
   const [locatedPos, setLocatedPos] = useState(null);
   const [locating, setLocating] = useState(false);
   const [locateAvailable, setLocateAvailable] = useState(false);
+  const [locateFeedback, setLocateFeedback] = useState(null);
 
   const [dataSource, setDataSource] = useState(() =>
     typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GLOBAL_DEMO_MODE === '1'
@@ -128,40 +160,38 @@ export default function MarketRadar({ t }) {
     setDemoHeatmapOn(isGlobalDemoHeatmapEnabledClient());
   }, []);
 
-  /** Show locate control only when the browser / WebView can realistically use geolocation. */
   useEffect(() => {
-    function compute() {
-      if (typeof window === 'undefined') return false;
-      const bridge = window.__CS_NATIVE_GEO__;
-      const hasApi = typeof navigator !== 'undefined' && !!navigator.geolocation;
-      if (!hasApi) return false;
-      if (bridge === 'denied') return false;
-      const hostname = window.location.hostname;
-      const secureOk = window.isSecureContext || hostname === 'localhost' || hostname === '127.0.0.1';
-      return secureOk || bridge === 'granted';
-    }
-    setLocateAvailable(compute());
-    if (typeof window === 'undefined') return undefined;
-    const id = window.setInterval(() => {
-      const next = compute();
-      setLocateAvailable((prev) => (prev === next ? prev : next));
-    }, 400);
-    const to = window.setTimeout(() => window.clearInterval(id), 12_000);
-    return () => {
-      window.clearInterval(id);
-      window.clearTimeout(to);
-    };
+    if (typeof window === 'undefined') return;
+    setLocateAvailable(typeof navigator !== 'undefined' && !!navigator.geolocation);
   }, []);
 
-  /** Pull the active feed when source / niche / applied keyword / demo toggle change. */
+  function locateMessageForAccessReason(result, tFn) {
+    if (result?.reason === 'denied') return tFn('marketRadar.locateErrorDenied');
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      const host = window.location.hostname;
+      if (host !== 'localhost' && host !== '127.0.0.1') {
+        return tFn('marketRadar.locateErrorInsecure');
+      }
+    }
+    return tFn('marketRadar.locateErrorDesktop');
+  }
+
+  function applyLocationFromGps(latitude, longitude, tFn) {
+    const lng = longitude;
+    const lat = latitude;
+    applyLocatedRef.current?.(lng, lat);
+    const zipFeature = findZipFeatureForPoint(zipBoundaries, lng, lat);
+    if (!zipFeature) {
+      setLocateFeedback(tFn('marketRadar.locateOutsideZip'));
+    } else {
+      setLocateFeedback(null);
+    }
+  }
+
+  /** Heatmap: carga al montar (no depende del GPS; la ubicación solo mueve el mapa al ZIP). */
   useEffect(() => {
     let cancelled = false;
     const keyword = appliedIntentKeyword.trim();
-    if (marketRadarRequiresIntentBeforeData() && keyword.length < 2) {
-      setActiveEvents([]);
-      setSourceLoading(false);
-      return;
-    }
 
     setSourceLoading(true);
     aggregatorRef.current
@@ -170,8 +200,9 @@ export default function MarketRadar({ t }) {
         if (cancelled) return;
         setActiveEvents(events);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
+        console.error('[MarketRadar] Aggregator fetch failed:', err);
         setActiveEvents([]);
       })
       .finally(() => {
@@ -217,15 +248,6 @@ export default function MarketRadar({ t }) {
   }, [appliedIntentKeyword]);
 
   const nicheOptions = useMemo(() => [{ value: 'all', labelKey: 'marketRadar.nicheAll' }, ...NICHE_CATEGORIES.map((c) => ({ value: c, labelKey: `marketRadar.niche.${c}` }))], []);
-
-  /** Deferred fly-to if geolocation resolves before Mapbox `load`. */
-  useEffect(() => {
-    const map = mapRef.current;
-    const pending = pendingFlyRef.current;
-    if (!mapReady || !map || !pending) return;
-    map.flyTo({ center: [pending.lng, pending.lat], zoom: 11, essential: true });
-    pendingFlyRef.current = null;
-  }, [mapReady]);
 
   useEffect(() => {
     let map = mapRef.current;
@@ -273,7 +295,13 @@ export default function MarketRadar({ t }) {
 
   useEffect(() => {
     const el = wrapRef.current;
-    if (!el || !token) return;
+    if (!el) return;
+    if (!token) {
+      console.warn(
+        '[MarketRadar] Mapbox not initialized: NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN (or REACT_APP_MAPBOX_ACCESS_TOKEN) is empty in this build.',
+      );
+      return;
+    }
 
     mapboxgl.accessToken = token;
 
@@ -283,9 +311,9 @@ export default function MarketRadar({ t }) {
     const map = new mapboxgl.Map({
       container: el,
       style: STYLE_URL,
-      center: [-97.74, 30.32],
-      zoom: 9,
-      minZoom: 6,
+      center: [0, 20],
+      zoom: 1.5,
+      minZoom: 1,
       maxZoom: 17,
       pitch: 0,
       attributionControl: true,
@@ -295,6 +323,10 @@ export default function MarketRadar({ t }) {
     });
 
     mapRef.current = map;
+
+    map.on('error', (e) => {
+      console.error('[MarketRadar] Mapbox runtime error:', e?.error ?? e);
+    });
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new mapboxgl.ScaleControl({ maxWidth: 100, unit: 'imperial' }), 'bottom-left');
@@ -361,6 +393,17 @@ export default function MarketRadar({ t }) {
 
       setMapReady(true);
 
+      const pendingLoc = pendingUserLocRef.current;
+      if (pendingLoc) {
+        applyUserLocationMarker(pendingLoc.lng, pendingLoc.lat);
+        pendingUserLocRef.current = null;
+      }
+      const pendingZip = pendingFitBoundsRef.current;
+      if (pendingZip) {
+        fitMapToZipFeature(pendingZip);
+        pendingFitBoundsRef.current = null;
+      }
+
       resizeObserver = new ResizeObserver(() => {
         map.resize();
       });
@@ -408,56 +451,168 @@ export default function MarketRadar({ t }) {
     }
   }, [dataSource, mapReady]);
 
-  function flyTo(coords) {
+  function fitMapToZipFeature(feature) {
     const map = mapRef.current;
-    if (map && mapReady) {
-      map.flyTo({ center: [coords.lng, coords.lat], zoom: Math.max(map.getZoom(), 11), essential: true });
-    } else {
-      pendingFlyRef.current = coords;
+    const bbox = bboxFromPolygonFeature(feature);
+    if (!bbox || !map) return false;
+    const bounds = new mapboxgl.LngLatBounds(bbox[0], bbox[1]);
+    if (map.isStyleLoaded()) {
+      map.fitBounds(bounds, { padding: 20 });
+      pendingFitBoundsRef.current = null;
+      return true;
+    }
+    pendingFitBoundsRef.current = feature;
+    return false;
+  }
+
+  function applyLocatedPosition(lng, lat) {
+    setLocatedPos({ lng, lat });
+    const zipFeature = findZipFeatureForPoint(zipBoundaries, lng, lat);
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) {
+      pendingUserLocRef.current = { lng, lat };
+      pendingFitBoundsRef.current = zipFeature ?? null;
+      return;
+    }
+    applyUserLocationMarker(lng, lat);
+    if (zipFeature) {
+      fitMapToZipFeature(zipFeature);
     }
   }
 
-  function readNativeGeoBridge() {
-    if (typeof window === 'undefined') return 'unset';
-    const v = window.__CS_NATIVE_GEO__;
-    if (v === 'granted' || v === 'denied') return v;
-    return 'unset';
+  function userLocationFeatureCollection(lng, lat) {
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lng, lat] },
+          properties: {},
+        },
+      ],
+    };
   }
 
-  /** Safari/Chrome block geolocation on http://LAN (non-secure). Localhost is an exception. WebView may still work if native injected `granted`. */
-  function isBrowserGeoBlockedOnHttp() {
-    if (typeof window === 'undefined') return false;
-    if (window.isSecureContext) return false;
-    const h = window.location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1') return false;
-    return true;
+  function applyUserLocationMarker(lng, lat) {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) {
+      pendingUserLocRef.current = { lng, lat };
+      return;
+    }
+    const data = userLocationFeatureCollection(lng, lat);
+    try {
+      const existing = map.getSource('user-location');
+      if (existing && typeof existing.setData === 'function') {
+        existing.setData(data);
+        return;
+      }
+      map.addSource('user-location', { type: 'geojson', data });
+      map.addLayer({
+        id: 'user-location-halo',
+        type: 'circle',
+        source: 'user-location',
+        paint: {
+          'circle-radius': 16,
+          'circle-color': '#E9C349',
+          'circle-opacity': 0.28,
+          'circle-blur': 0.2,
+        },
+      });
+      map.addLayer({
+        id: 'user-location-dot',
+        type: 'circle',
+        source: 'user-location',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#FFD700',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#1B1205',
+        },
+      });
+    } catch (e) {
+      console.warn('[MarketRadar] user-location layer:', e);
+    }
   }
 
-  function handleLocateMe() {
-    const nativeGeo = readNativeGeoBridge();
-    if (nativeGeo === 'denied') return;
-    if (nativeGeo === 'unset' && isBrowserGeoBlockedOnHttp()) return;
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+  applyLocatedRef.current = applyLocatedPosition;
+
+  /** Misma secuencia que Social Market: permiso en primer plano antes de datos del mapa. */
+  useEffect(() => {
+    let cancelled = false;
+    setGeoAccess('pending');
+    setLocateFeedback(null);
+
+    void (async () => {
+      const result = await requestMarketRadarLocationAccess();
+      if (cancelled) return;
+      if (result.ok) {
+        setGeoAccess('granted');
+        applyLocationFromGps(result.latitude, result.longitude, t);
+        if (result.source === 'ipapi') {
+          setLocateFeedback(t('marketRadar.locateIpApprox'));
+        }
+        return;
+      }
+      console.error('[MarketRadar] initial location access failed:', {
+        reason: result.reason,
+        code: result.code,
+        message: result.message,
+      });
+      setGeoAccess('denied');
+      setLocateFeedback(locateMessageForAccessReason(result, t));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  /** Tras permiso concedido: refuerzo con `?lat=&lng=` si la app nativa los envió. */
+  useEffect(() => {
+    if (geoAccess !== 'granted' || !seedLocation || seedAppliedRef.current) return;
+    const { lat, lng } = seedLocation;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+    if (locatedPos) return;
+    seedAppliedRef.current = true;
+    applyLocatedPosition(lng, lat);
+    const zipFeature = findZipFeatureForPoint(zipBoundaries, lng, lat);
+    if (!zipFeature) {
+      setLocateFeedback(t('marketRadar.locateOutsideZip'));
+    }
+  }, [geoAccess, seedLocation, locatedPos, t]);
+
+  async function handleLocateMe() {
+    setLocateFeedback(null);
     setLocating(true);
     try {
-      if (navigator.permissions?.query) {
-        void navigator.permissions.query({ name: 'geolocation' }).catch(() => {});
+      let result =
+        typeof navigator !== 'undefined' && navigator.geolocation
+          ? await requestMarketRadarLocationAccess()
+          : { ok: false, reason: 'unavailable', code: 2, message: 'geolocation_api_missing' };
+
+      if (!result.ok && (result.code === 1 || result.code === 2)) {
+        result = await tryIpFallbackForGeolocationCodes(result);
       }
-    } catch {
-      /* ignore */
+
+      if (result.ok) {
+        setGeoAccess('granted');
+        applyLocationFromGps(result.latitude, result.longitude, t);
+        if (result.source === 'ipapi') {
+          setLocateFeedback(t('marketRadar.locateIpApprox'));
+        }
+        return;
+      }
+
+      console.error('[MarketRadar] geolocation failed:', {
+        code: result.code ?? (result.reason === 'denied' ? 1 : 2),
+        message: result.message ?? result.reason,
+      });
+      setGeoAccess('denied');
+      setLocateFeedback(locateMessageForAccessReason(result, t));
+    } finally {
+      setLocating(false);
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { longitude: lng, latitude: lat } = pos.coords;
-        setLocatedPos({ lng, lat });
-        flyTo({ lng, lat });
-        setLocating(false);
-      },
-      () => {
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 },
-    );
   }
 
   function submitIntent(ev) {
@@ -652,11 +807,41 @@ export default function MarketRadar({ t }) {
           height: 'min(56vh, 560px)',
         }}
       >
+        {token && geoAccess === 'pending' ? (
+          <div
+            aria-live="polite"
+            style={{
+              position: 'absolute',
+              left: 12,
+              right: 12,
+              top: 64,
+              zIndex: 8,
+              padding: '8px 12px',
+              textAlign: 'center',
+              borderRadius: 10,
+              border: `1px solid ${studioTheme.borderStrong}`,
+              background: 'rgba(12,12,12,0.88)',
+              pointerEvents: 'none',
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: 11,
+                fontWeight: 800,
+                lineHeight: 1.45,
+                color: studioTheme.goldLight,
+              }}
+            >
+              {t('marketRadar.awaitingLocationPermission')}
+            </p>
+          </div>
+        ) : null}
         {token && locateAvailable ? (
           <button
             type="button"
             onClick={handleLocateMe}
-            disabled={!mapReady || locating}
+            disabled={!mapReady || locating || geoAccess === 'pending'}
             title={t('marketRadar.locateCurrentZone')}
             aria-label={t('marketRadar.locateCurrentZone')}
             style={{
@@ -669,12 +854,13 @@ export default function MarketRadar({ t }) {
               display: 'grid',
               placeItems: 'center',
               padding: 0,
-              cursor: mapReady && !locating ? 'pointer' : 'not-allowed',
-              opacity: mapReady ? 1 : 0.55,
+              cursor: mapReady && !locating && geoAccess !== 'pending' ? 'pointer' : 'not-allowed',
+              opacity: mapReady && geoAccess !== 'pending' ? 1 : 0.55,
               borderRadius: 12,
-              border: `1px solid ${studioTheme.borderStrong}`,
-              background: 'rgba(12,12,12,0.85)',
-              color: studioTheme.gold,
+              border: `1px solid ${geoAccess === 'denied' ? studioTheme.error : studioTheme.borderStrong}`,
+              background:
+                geoAccess === 'denied' ? 'rgba(80,20,20,0.55)' : 'rgba(12,12,12,0.85)',
+              color: geoAccess === 'denied' ? studioTheme.error : studioTheme.gold,
               boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
               backdropFilter: 'blur(8px)',
               touchAction: 'manipulation',
@@ -776,21 +962,38 @@ export default function MarketRadar({ t }) {
           }}
         />
       </div>
-      {locatedPos && zipMetrics?.zip ? (
+      {locatedPos ? (
         <p
           style={{
             fontSize: 10,
-            color: studioTheme.textMuted,
+            color: studioTheme.goldLight,
             margin: '6px 0 0',
             textAlign: 'center',
             fontWeight: 700,
+            lineHeight: 1.45,
           }}
         >
-          {t('marketRadar.zipSummary', {
-            zip: String(zipMetrics.zip),
-            signals: String(zipMetrics.modeledSignals),
-            intents: String(zipMetrics.uniqueIntents),
-          })}
+          {zipMetrics?.zip
+            ? t('marketRadar.zipSummary', {
+                zip: String(zipMetrics.zip),
+                signals: String(zipMetrics.modeledSignals),
+                intents: String(zipMetrics.uniqueIntents),
+              })
+            : t('marketRadar.locateOutsideZip')}
+        </p>
+      ) : null}
+      {locateFeedback ? (
+        <p
+          style={{
+            fontSize: 10,
+            color: studioTheme.error,
+            margin: '6px 0 0',
+            textAlign: 'center',
+            fontWeight: 700,
+            lineHeight: 1.45,
+          }}
+        >
+          {locateFeedback}
         </p>
       ) : null}
     </div>
@@ -855,3 +1058,4 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+

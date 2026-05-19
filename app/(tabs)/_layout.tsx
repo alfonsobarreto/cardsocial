@@ -81,7 +81,6 @@ import {
     DeviceEventEmitter,
     Image,
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
@@ -95,6 +94,7 @@ import {
     View,
 } from 'react-native';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import palette from '../theme';
@@ -1720,16 +1720,16 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={[styles.profileModalOverlay, { backgroundColor: shell.overlayScrim }]}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={styles.profileModalKeyboardWrap}
-            >
               <View style={[styles.profileModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder }]}>
                 <Text style={[styles.profileModalTitle, { color: shell.modalTitle }]}>{tr('Modificar Perfil', 'Edit Profile')}</Text>
 
-                <ScrollView
+                <KeyboardAwareScrollView
+                  style={styles.profileModalKeyboardWrap}
                   keyboardDismissMode="on-drag"
                   keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  bottomOffset={42}
+                  nestedScrollEnabled
                   contentContainerStyle={styles.profileFormWrap}
                 >
                   <Text style={[styles.inputLabel, { color: shell.ctaAccent }]}>{tr('Nombre visible', 'Display Name')}</Text>
@@ -1764,29 +1764,28 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   <Text style={[styles.profileHint, { color: shell.textSecondary }]}>
                     {tr('Regla activa: nickname no repetido globalmente y cambio permitido cada 4 semanas.', 'Active rule: nickname must be globally unique and can only be changed every 4 weeks.')}
                   </Text>
-                </ScrollView>
 
-                <View style={[styles.profileModalActions, { paddingBottom: modalFooterBottomPad }]}>
-                  <TouchableOpacity
-                    style={[styles.profileGhostBtn, { backgroundColor: shell.surfaceMuted, borderWidth: 1, borderColor: shell.modalBorder }]}
-                    onPress={() => setProfileModalVisible(false)}
-                    disabled={profileSaving}
-                  >
-                    <Text style={[styles.profileGhostBtnText, { color: shell.ctaAccent }]}>{tr('Cancelar', 'Cancel')}</Text>
-                  </TouchableOpacity>
+                  <View style={[styles.profileModalActions, { paddingBottom: modalFooterBottomPad }]}>
+                    <TouchableOpacity
+                      style={[styles.profileGhostBtn, { backgroundColor: shell.surfaceMuted, borderWidth: 1, borderColor: shell.modalBorder }]}
+                      onPress={() => setProfileModalVisible(false)}
+                      disabled={profileSaving}
+                    >
+                      <Text style={[styles.profileGhostBtnText, { color: shell.ctaAccent }]}>{tr('Cancelar', 'Cancel')}</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.profileSaveBtn, { backgroundColor: shell.ctaAccent }]}
-                    onPress={saveProfileChanges}
-                    disabled={profileSaving}
-                  >
-                    <Text style={[styles.profileSaveBtnText, { color: shell.emptyCtaText }]}>
-                      {profileSaving ? tr('Guardando...', 'Saving...') : tr('Guardar', 'Save')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                    <TouchableOpacity
+                      style={[styles.profileSaveBtn, { backgroundColor: shell.ctaAccent }]}
+                      onPress={saveProfileChanges}
+                      disabled={profileSaving}
+                    >
+                      <Text style={[styles.profileSaveBtnText, { color: shell.emptyCtaText }]}>
+                        {profileSaving ? tr('Guardando...', 'Saving...') : tr('Guardar', 'Save')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </KeyboardAwareScrollView>
               </View>
-            </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -2233,6 +2232,7 @@ const styles = StyleSheet.create({
   },
   profileModalKeyboardWrap: {
     width: '100%',
+    flex: 1,
   },
   profileModalCard: {
     backgroundColor: '#F6FBFF',

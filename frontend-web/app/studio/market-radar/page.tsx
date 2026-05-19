@@ -28,6 +28,13 @@ function useStudioDevRadarBypass(searchParams: ReturnType<typeof useSearchParams
 function MarketRadarPageInner() {
   const searchParams = useSearchParams();
   const devBypass = useStudioDevRadarBypass(searchParams);
+  const seedLocation = useMemo(() => {
+    const lat = Number.parseFloat(searchParams.get('lat') ?? '');
+    const lng = Number.parseFloat(searchParams.get('lng') ?? '');
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return { lat, lng };
+  }, [searchParams]);
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [locale, setLocale] = useState<StudioLocale>('en');
 
@@ -114,7 +121,7 @@ function MarketRadarPageInner() {
 
       <main style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>
         <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto' }}>
-          <MarketRadar t={t} />
+          <MarketRadar t={t} seedLocation={seedLocation} />
         </div>
       </main>
     </div>

@@ -61,7 +61,6 @@ import {
   FlatList,
   Image,
   InteractionManager,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -76,6 +75,7 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import palette from '../theme';
 
@@ -1379,8 +1379,14 @@ export default function CreateBusinessCardScreen() {
 
   return (
     <>
-    <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <KeyboardAwareScrollView
+      style={[styles.root, { backgroundColor: bg }]}
+      contentContainerStyle={styles.scroll}
+      bottomOffset={42}
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
         <View style={styles.hero}>
           <View style={[styles.heroHeaderRow, { paddingTop: safeInsets.top + 6 }]}>
             <MaterialCommunityIcons name="card-account-details-outline" size={40} color={border} />
@@ -1786,8 +1792,7 @@ export default function CreateBusinessCardScreen() {
             </TouchableOpacity>
           </View>
         ) : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
 
     <Modal
       visible={vaultSelectorVisible}

@@ -199,7 +199,6 @@ import {
     FlatList,
     InteractionManager,
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
@@ -217,6 +216,7 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
@@ -3933,7 +3933,6 @@ export default function CardsFactoryScreen() {
         onRequestClose={closeFactoryModalAndSync}
         statusBarTranslucent
       >
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
                 <View
                   style={[
@@ -3944,6 +3943,15 @@ export default function CardsFactoryScreen() {
                       paddingTop: 16 + safeAreaInsets.top,
                     },
                   ]}
+                >
+                <KeyboardAwareScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  bottomOffset={42}
+                  keyboardDismissMode="on-drag"
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
                 >
 
                   {/* Header */}
@@ -4111,9 +4119,9 @@ export default function CardsFactoryScreen() {
                     </TouchableOpacity>
                   </View>
 
+                </KeyboardAwareScrollView>
                 </View>
             </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {/* DataSelector — Vault mirror for bulk icon selection */}
@@ -4135,7 +4143,6 @@ export default function CardsFactoryScreen() {
             ]}
           >
 
-            {/* Header */}
             <View style={styles.dataSelectorHeader}>
               <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0, fontSize: 17 }]}>
                 {t('cards_selector_title')}
@@ -4150,6 +4157,14 @@ export default function CardsFactoryScreen() {
               </TouchableOpacity>
             </View>
 
+            <KeyboardAwareScrollView
+              style={{ flex: 1 }}
+              bottomOffset={42}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
             <View style={styles.dataSelectorToolsRow}>
               <View
                 style={[
@@ -4302,6 +4317,7 @@ export default function CardsFactoryScreen() {
               </TouchableOpacity>
             </View>
 
+            </KeyboardAwareScrollView>
           </View>
         </View>
       </Modal>

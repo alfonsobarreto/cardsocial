@@ -10,9 +10,9 @@ import type { PublicMedalStripDef } from '@/lib/businessMedalDefinitions';
 
 /** Paridad con `services/medalService.ts` (`SOCIAL_MEDALS`). */
 export const PUBLIC_SOCIAL_MEDAL_DEFINITIONS = [
-  { key: 'creativo', labelEs: 'Mente Creativa', labelEn: 'Creative Mind', path: mdiLightbulbOn },
-  { key: 'conector', labelEs: 'Súper Conector', labelEn: 'Super Connector', path: mdiAccountGroup },
+  { key: 'creativo', labelEs: 'Estratega', labelEn: 'Strategist', path: mdiLightbulbOn },
+  { key: 'conector', labelEs: 'Aliado', labelEn: 'Team Player', path: mdiAccountGroup },
   { key: 'visionario', labelEs: 'Visionario', labelEn: 'Visionary', path: mdiEyeCircle },
-  { key: 'conversador', labelEs: 'Buen Conversador', labelEn: 'Good Conversationalist', path: mdiMessageStar },
-  { key: 'guru', labelEs: 'Gurú Tech', labelEn: 'Tech Guru', path: mdiLaptop },
+  { key: 'conversador', labelEs: 'Líder Alpha', labelEn: 'Alpha Lead', path: mdiMessageStar },
+  { key: 'guru', labelEs: 'Influencer', labelEn: 'Influencer', path: mdiLaptop },
 ] as const satisfies readonly PublicMedalStripDef[];

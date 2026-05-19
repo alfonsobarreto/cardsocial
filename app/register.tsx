@@ -41,10 +41,8 @@ import {
     Image,
     InteractionManager,
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -52,6 +50,7 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { auth, db } from '../services/firebaseConfig';
 import CircularPhotoCropper from './components/CircularPhotoCropper';
 import LuxuryModerationModal from './components/LuxuryModerationModal';
@@ -169,7 +168,7 @@ export default function RegisterScreen() {
   const [emailStatus, setEmailStatus] = useState<AvailabilityUiStatus>('idle');
   const [phoneStatus, setPhoneStatus] = useState<AvailabilityUiStatus>('idle');
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<RegisterFieldKey, string>>>({});
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ComponentRef<typeof KeyboardAwareScrollView>>(null);
   const firstNameRef = useRef<TextInput>(null);
   const lastNameRef = useRef<TextInput>(null);
   const nicknameRef = useRef<TextInput>(null);
@@ -1190,19 +1189,17 @@ export default function RegisterScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
+      <View style={styles.container}>
         <LinearGradient
           colors={[...look.gradient]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradientBg}
         >
-          <ScrollView
+          <KeyboardAwareScrollView
             ref={scrollViewRef}
             contentContainerStyle={styles.inner}
+            bottomOffset={42}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -1704,10 +1701,10 @@ export default function RegisterScreen() {
             style={[
               styles.registerButton,
               { backgroundColor: look.registerBtnBg },
-              (!canPressRegister || isSubmitting || isRetryLocked) && styles.registerButtonDisabled,
+              (isSubmitting || isRetryLocked) && styles.registerButtonDisabled,
             ]}
             onPress={handleRegister}
-            disabled={!canPressRegister || isSubmitting || isRetryLocked}
+            disabled={isSubmitting || isRetryLocked}
           >
             {isSubmitting ? (
               <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="cta">
@@ -1721,7 +1718,7 @@ export default function RegisterScreen() {
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
             <Text style={{ color: look.secondaryLink, opacity: 0.75 }}>{t('register_go_back')}</Text>
           </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </LinearGradient>
 
         <Modal
@@ -1896,7 +1893,7 @@ export default function RegisterScreen() {
             </View>
           </View>
         </Modal>
-      </KeyboardAvoidingView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }

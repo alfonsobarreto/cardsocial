@@ -73,20 +73,28 @@ export async function mintMarketRadarEmbedUrl(
               : lang === 'pt'
                 ? 'pt-BR,pt;q=0.9,en;q=0.8'
                 : 'en-US,en;q=0.9';
-    const res = await fetch(`${origin}/api/embed/mint-market-radar`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-        'Content-Type': 'application/json',
-        'Accept-Language': acceptLanguage,
-      },
-      /**
-       * `publicOrigin` debe coincidir con la base que usa Metro (`EXPO_PUBLIC_STUDIO_WEB_URL`).
-       * El servidor arma la URL del embed con el mismo host para evitar tickets `http://localhost:…`
-       * cuando el móvil necesita `http://<LAN>:3001` (WebView / navegador en blanco).
-       */
-      body: JSON.stringify({ lang: radarLang, publicOrigin: origin }),
-    });
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 35_000);
+    let res: Response;
+    try {
+      res = await fetch(`${origin}/api/embed/mint-market-radar`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+          'Accept-Language': acceptLanguage,
+        },
+        signal: controller.signal,
+        /**
+         * `publicOrigin` debe coincidir con la base que usa Metro (`EXPO_PUBLIC_STUDIO_WEB_URL`).
+         * El servidor arma la URL del embed con el mismo host para evitar tickets `http://localhost:…`
+         * cuando el móvil necesita `http://<LAN>:3001` (WebView / navegador en blanco).
+         */
+        body: JSON.stringify({ lang: radarLang, publicOrigin: origin }),
+      });
+    } finally {
+      clearTimeout(abortTimer);
+    }
 
     let data: {
       ok?: boolean;
@@ -127,7 +135,14 @@ export async function mintMarketRadarEmbedUrl(
     });
     return { ok: false, issue };
   } catch (e) {
-    logMintDev('network error', { message: (e as Error)?.message });
-    return { ok: false, issue: { code: 'network_unreachable' } };
+    const aborted = e instanceof Error && e.name === 'AbortError';
+    logMintDev('network error', {
+      message: (e as Error)?.message,
+      aborted,
+    });
+    return {
+      ok: false,
+      issue: { code: aborted ? 'mint_request_timeout' : 'network_unreachable' },
+    };
   }
 }

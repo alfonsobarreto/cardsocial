@@ -255,7 +255,24 @@ const EN: Record<string, string> = {
   'embed.radarNativeBadge': 'Native session · Vault bridge',
 
   /** Interactive BI — geofence + keyword intent */
+  'marketRadar.awaitingLocationPermission':
+    'Allow location access to load Market Radar. Your device will show the GPS prompt.',
   'marketRadar.locateCurrentZone': 'Locate Current Zone',
+  'marketRadar.locateSuccessCoords': 'Map centered on your position ({lat}, {lng}).',
+  'marketRadar.locateOutsideZip':
+    'Outside the Austin metro ZIP demo area — heatmap ZIP stats are not shown, but the map is centered on you.',
+  'marketRadar.locateErrorDenied':
+    'Location permission denied. Allow location for this site in your browser or device settings.',
+  'marketRadar.locateErrorUnavailable':
+    'Could not determine your position. Try again outdoors, disable VPN, or use HTTPS.',
+  'marketRadar.locateErrorDesktop':
+    'Could not read your computer location. In Windows: Settings → Privacy → Location → On, and allow location for your browser. Then tap Locate again.',
+  'marketRadar.locateIpApprox':
+    'Approximate location from your IP (desktop fallback). Allow GPS for better accuracy.',
+  'marketRadar.locateErrorTimeout': 'Location timed out. Try again in a few seconds.',
+  'marketRadar.locateErrorInsecure':
+    'Location is blocked on non-HTTPS URLs. Open Market Radar from https://cardsocial.me or the mobile app.',
+  'marketRadar.locateErrorNativeDenied': 'Location was denied in the Card-Social app. Enable it in system settings.',
   'marketRadar.intentPlaceholder': 'Comida Peruana, Lotes, Construcción…',
   'marketRadar.intentApply': 'Apply intent',
   'marketRadar.intentClear': 'Clear',
@@ -510,7 +527,25 @@ const ES: Record<string, string> = {
     'Vuelve a Card-Social y abre el Panel otra vez. Si continúa, contacta con soporte.',
   'embed.radarNativeBadge': 'Sesión nativa · puente Vault',
 
+  'marketRadar.awaitingLocationPermission':
+    'Permite el acceso a la ubicación para cargar Market Radar. Tu dispositivo mostrará el aviso de GPS.',
   'marketRadar.locateCurrentZone': 'Localizar zona actual',
+  'marketRadar.locateSuccessCoords': 'Mapa centrado en tu posición ({lat}, {lng}).',
+  'marketRadar.locateOutsideZip':
+    'Fuera del área demo ZIP de Austin — no hay estadísticas ZIP, pero el mapa está centrado en ti.',
+  'marketRadar.locateErrorDenied':
+    'Permiso de ubicación denegado. Actívalo para este sitio en el navegador o en ajustes del dispositivo.',
+  'marketRadar.locateErrorUnavailable':
+    'No pudimos obtener tu ubicación. Prueba al aire libre, sin VPN, o usa HTTPS.',
+  'marketRadar.locateErrorDesktop':
+    'No pudimos leer la ubicación del PC. En Windows: Configuración → Privacidad → Ubicación → Activado, y permite ubicación al navegador. Luego pulsa Localizar de nuevo.',
+  'marketRadar.locateIpApprox':
+    'Ubicación aproximada por tu IP (respaldo en PC). Permite el GPS para mayor precisión.',
+  'marketRadar.locateErrorTimeout': 'La ubicación tardó demasiado. Inténtalo de nuevo en unos segundos.',
+  'marketRadar.locateErrorInsecure':
+    'La ubicación está bloqueada en URLs sin HTTPS. Abre el radar desde https://cardsocial.me o la app móvil.',
+  'marketRadar.locateErrorNativeDenied':
+    'Ubicación denegada en la app Card-Social. Actívala en los ajustes del sistema.',
   'marketRadar.intentPlaceholder': 'Comida peruana, lotes, construcción…',
   'marketRadar.intentApply': 'Aplicar intención',
   'marketRadar.intentClear': 'Limpiar',
@@ -773,7 +808,25 @@ const DE: Record<string, string> = {
   'embed.radarHandshakeHint':
     'Kehren Sie zu Card-Social zurück und öffnen Sie das Dashboard erneut. Wenn das weiterhin passiert, wenden Sie sich an den Support.',
   'embed.radarNativeBadge': 'Native Sitzung · Vault-Brücke',
+  'marketRadar.awaitingLocationPermission':
+    'Erlaube den Standortzugriff, um Market Radar zu laden. Dein Gerät zeigt die GPS-Abfrage.',
   'marketRadar.locateCurrentZone': 'Aktuelle Zone orten',
+  'marketRadar.locateSuccessCoords': 'Karte auf deine Position zentriert ({lat}, {lng}).',
+  'marketRadar.locateOutsideZip':
+    'Außerhalb der Austin-ZIP-Demo — keine ZIP-Statistik, aber die Karte ist auf dich zentriert.',
+  'marketRadar.locateErrorDenied':
+    'Standortberechtigung verweigert. Erlaube den Zugriff in Browser- oder Geräteeinstellungen.',
+  'marketRadar.locateErrorUnavailable':
+    'Position konnte nicht ermittelt werden. Versuche es ohne VPN oder über HTTPS.',
+  'marketRadar.locateErrorDesktop':
+    'PC-Standort nicht lesbar. Windows: Einstellungen → Datenschutz → Ort → Ein, und Standort im Browser erlauben. Dann erneut orten.',
+  'marketRadar.locateIpApprox':
+    'Ungefährer Standort über deine IP (Desktop-Fallback). GPS erlauben für mehr Genauigkeit.',
+  'marketRadar.locateErrorTimeout': 'Standort-Zeitüberschreitung. Bitte erneut versuchen.',
+  'marketRadar.locateErrorInsecure':
+    'Standort ist ohne HTTPS blockiert. Öffne den Radar über https://cardsocial.me oder die App.',
+  'marketRadar.locateErrorNativeDenied':
+    'Standort in der Card-Social-App verweigert. In den Systemeinstellungen aktivieren.',
   'marketRadar.intentPlaceholder': 'Peruanische Küche, Grundstücke, Bau…',
   'marketRadar.intentApply': 'Intent anwenden',
   'marketRadar.intentClear': 'Zurücksetzen',

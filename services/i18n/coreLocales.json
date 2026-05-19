@@ -5047,6 +5047,14 @@
     "fr": "Market Radar Pro",
     "de": "Market Radar Pro"
   },
+  "sub_tier_market_radar_pro_included": {
+    "es": "Market Radar Pro incluido (modo prueba global)",
+    "en": "Market Radar Pro included (global trial mode)",
+    "it": "Market Radar Pro incluso (prova globale)",
+    "pt": "Market Radar Pro incluído (modo de teste global)",
+    "fr": "Market Radar Pro inclus (essai global)",
+    "de": "Market Radar Pro inkl. (globale Testphase)"
+  },
   "sub_radar_full_access_body": {
     "es": "El acceso completo se confirma al abrir el radar desde la app.",
     "en": "Full access is confirmed when you open the radar from the app.",

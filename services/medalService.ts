@@ -50,11 +50,11 @@ export const BUSINESS_MEDALS: readonly MedalDef[] = [
 ];
 
 export const SOCIAL_MEDALS: readonly MedalDef[] = [
-  { key: 'creativo',    labelEs: 'Mente Creativa',   labelEn: 'Creative Mind',          icon: 'lightbulb-on'  },
-  { key: 'conector',    labelEs: 'Súper Conector',   labelEn: 'Super Connector',        icon: 'account-group' },
-  { key: 'visionario',  labelEs: 'Visionario',       labelEn: 'Visionary',              icon: 'eye-circle'    },
-  { key: 'conversador', labelEs: 'Buen Conversador', labelEn: 'Good Conversationalist', icon: 'message-star'  },
-  { key: 'guru',        labelEs: 'Gurú Tech',        labelEn: 'Tech Guru',              icon: 'laptop'        },
+  { key: 'creativo',    labelEs: 'Estratega',   labelEn: 'Strategist',  icon: 'lightbulb-on'  },
+  { key: 'conector',    labelEs: 'Aliado',      labelEn: 'Team Player', icon: 'account-group' },
+  { key: 'visionario',  labelEs: 'Visionario',  labelEn: 'Visionary',   icon: 'eye-circle'    },
+  { key: 'conversador', labelEs: 'Líder Alpha', labelEn: 'Alpha Lead',  icon: 'message-star'  },
+  { key: 'guru',        labelEs: 'Influencer',  labelEn: 'Influencer',  icon: 'laptop'        },
 ];
 
 // ─── Tipos de retorno ─────────────────────────────────────────────────────────

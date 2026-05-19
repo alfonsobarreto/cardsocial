@@ -13,7 +13,6 @@ import {
     Image,
     InteractionManager,
     Keyboard,
-    KeyboardAvoidingView,
     LayoutAnimation,
     Linking,
     Modal,
@@ -74,6 +73,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import Toast from 'react-native-toast-message';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
 import { sanitizeMaterialIconName } from './iconNameValidation';
@@ -2530,11 +2530,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   return (
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoiding}
-        behavior={Platform.OS === 'ios' && dataType !== 'Documento' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
-      >
         <View style={[styles.container, { backgroundColor: formTheme.motherBg }]}>
         {/* Header with close button */}
         <View style={[styles.headerTop, { borderBottomColor: formTheme.border }]}>
@@ -2555,17 +2550,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </TouchableOpacity>
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           key={editingData?.id ? `edit-${editingData.id}` : 'create'}
           style={[styles.scrollView, { backgroundColor: formTheme.motherBg }]}
           contentContainerStyle={[
             styles.scrollContent,
             { flexGrow: 1, backgroundColor: formTheme.motherBg },
           ]}
+          bottomOffset={42}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentInsetAdjustmentBehavior="automatic"
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
@@ -2896,7 +2891,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             </LinearGradient>
           </TouchableOpacity>
           <View style={styles.saveButtonSpacer} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {/* MODAL: TYPE SELECTOR */}
         <Modal
@@ -3303,7 +3298,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           lockMessage={retryLockMessage}
         />
       </View>
-      </KeyboardAvoidingView>
   );
 };
 
@@ -3311,9 +3305,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 const PREMIUM_PANEL = premiumTheme.light.surfaceElevated;
 
 const styles = StyleSheet.create({
-  keyboardAvoiding: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },

@@ -7,11 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   output: 'standalone',
   /**
-   * Capa defensiva para Studio/Bóveda web (reduce superficie XSS frente a exfiltración vía scripts de terceros).
+   * Capa defensiva para Studio/Bóveda web y embed Market Radar (reduce superficie XSS).
    * `unsafe-inline` / `unsafe-eval` se mantienen por compatibilidad con el bundle de Next.js en este proyecto.
+   * Mapbox GL requiere connect-src (API/tiles/events) y worker-src blob: para workers de renderizado.
    */
   async headers() {
-    const studioCsp = [
+    const mapboxCapableCsp = [
       "default-src 'self'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -20,12 +21,36 @@ const nextConfig = {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com wss://*.googleapis.com",
+      "worker-src 'self' blob:",
+      [
+        "connect-src 'self'",
+        'https://*.googleapis.com',
+        'https://*.firebaseio.com',
+        'https://*.cloudfunctions.net',
+        'https://www.googleapis.com',
+        'https://identitytoolkit.googleapis.com',
+        'https://securetoken.googleapis.com',
+        'https://firestore.googleapis.com',
+        'wss://*.googleapis.com',
+        'https://api.mapbox.com',
+        'https://events.mapbox.com',
+        'https://*.tiles.mapbox.com',
+        'https://*.mapbox.com',
+        'https://ipapi.co',
+      ].join(' '),
     ].join('; ');
     return [
       {
         source: '/studio/:path*',
-        headers: [{ key: 'Content-Security-Policy', value: studioCsp }],
+        headers: [{ key: 'Content-Security-Policy', value: mapboxCapableCsp }],
+      },
+      {
+        source: '/embed/market-radar',
+        headers: [{ key: 'Content-Security-Policy', value: mapboxCapableCsp }],
+      },
+      {
+        source: '/embed/market-radar/:path*',
+        headers: [{ key: 'Content-Security-Policy', value: mapboxCapableCsp }],
       },
     ];
   },
