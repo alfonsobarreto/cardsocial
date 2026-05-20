@@ -23,6 +23,7 @@ import {
     type CardTheme,
     type ThemeTier
 } from '@/constants/themeChest';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -50,9 +51,11 @@ const BORDER_RADIUS = 22; // squircle iOS-style
 
 type Props = {
   onNavigateToForge?: () => void;
+  /** Si la ruta ya muestra cabecera con botón atrás (evita duplicar título). */
+  hideChromeHeader?: boolean;
 };
 
-export default function ThemeChest({ onNavigateToForge }: Props) {
+export default function ThemeChest({ onNavigateToForge, hideChromeHeader = false }: Props) {
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
@@ -149,15 +152,17 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <MaterialCommunityIcons name="treasure-chest" size={24} color="#C5A065" />
-        <Text style={styles.headerTitle}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
-      </View>
+      {hideChromeHeader ? null : (
+        <View style={styles.header}>
+          <MaterialCommunityIcons name="treasure-chest" size={24} color="#C5A065" />
+          <Text style={styles.headerTitle}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
+        </View>
+      )}
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        {...verticalScrollInteractionProps}
+        contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"

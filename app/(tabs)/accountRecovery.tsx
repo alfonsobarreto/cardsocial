@@ -15,6 +15,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { initiateAccountRecovery, checkRecoveryRequestStatus } from '@/services/accountRecoveryService';
+import { formKeyboardScrollViewProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { useAuthT } from '@/services/authI18n';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -39,7 +40,6 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
           backgroundColor: shell.backgroundSolid,
         },
         scrollContent: {
-          flexGrow: 1,
           paddingBottom: 32,
         },
         header: {
@@ -213,10 +213,9 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
   return (
     <KeyboardAwareScrollView
       style={styles.container}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollContent]}
       bottomOffset={42}
-      keyboardDismissMode="on-drag"
-      keyboardShouldPersistTaps="handled"
+      {...formKeyboardScrollViewProps}
       showsVerticalScrollIndicator={false}
     >
         <View style={styles.header}>

@@ -8,7 +8,7 @@
 
 import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
 import { db } from '@/services/firebaseConfig';
-import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 export interface UserCreditsState {
   userId: string;
@@ -249,61 +249,11 @@ export async function getCreditTransactionHistory(userId: string): Promise<Credi
 }
 
 /**
- * ======================================
- * DEFAULT CARDS & VAULT DATA INITIALIZATION
- * ======================================
- * Crea 3 tarjetas por defecto y 3 datos en Vault
- * para nuevos usuarios (Dull Mode / Free tier)
+ * Smart Cards que ve el usuario viven en Mongo (`smart_cards`) vía `PUT /api/qr/cards`.
+ * Ya no sembramos `users/{uid}/cards` en Firestore al registrar: era legado invisible
+ * para la app y ensuciaba límites/estadísticas. La sinc opcional Vault→Firestore sólo hace
+ * `updateDoc` cuando existan docs en esa colección (p. ej. datos viejos o flows aparte).
  */
-
-/**
- * Inicializa 3 tarjetas por defecto: Personal, Trabajo, Social
- * Free users máximo 5 tarjetas, deben ser borrables
- */
-export async function createDefaultCards(userId: string): Promise<void> {
-  try {
-    const cardsRef = collection(db, `users/${userId}/cards`);
-    
-    const defaultCards = [
-      {
-        name: 'Personal',
-        type: 'personal',
-        order: 1,
-        isActive: true,
-        itemIds: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      {
-        name: 'Trabajo',
-        type: 'work',
-        order: 2,
-        isActive: true,
-        itemIds: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      {
-        name: 'Social',
-        type: 'social',
-        order: 3,
-        isActive: true,
-        itemIds: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-    ];
-
-    // Crear las 3 tarjetas por defecto
-    for (const card of defaultCards) {
-      await addDoc(cardsRef, card);
-    }
-
-    console.log(`✅ Default cards created for user ${userId}`);
-  } catch (error) {
-    console.error('Error creating default cards:', error);
-  }
-}
 
 /**
  * DEPRECATED: Antes sembraba 3 docs en `users/{uid}/vault` (phone/email/social)

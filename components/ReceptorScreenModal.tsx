@@ -6,6 +6,7 @@
  */
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { useCoreT } from '@/services/coreI18n';
 import { intlLocaleTagForAppLanguage, useLanguage, type AppLanguage } from '@/services/language';
 import type { CardSubscriberRow } from '@/services/qrApi';
@@ -581,8 +582,13 @@ export default function ReceptorScreenModal({
           <FlatList
             data={sorted}
             keyExtractor={keyExtractor}
+            {...listScrollInteractionProps}
             renderItem={renderListRow}
-            contentContainerStyle={[s.listContent, { paddingBottom: Math.max(40, modalFooterBottomPad) }]}
+            contentContainerStyle={[
+              SCROLL_CONTENT_MIN_FILL,
+              s.listContent,
+              { paddingBottom: Math.max(40, modalFooterBottomPad) },
+            ]}
             showsVerticalScrollIndicator={false}
             initialNumToRender={15}
             maxToRenderPerBatch={20}

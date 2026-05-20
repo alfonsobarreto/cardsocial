@@ -2,13 +2,27 @@ import type { AuthLocaleKey } from '@/services/authI18n';
 import type { AppLanguage } from '@/services/language';
 import {
   LEGAL_CONSENT_BUNDLE_VERSION,
+  type PrivacySection,
+  PRIVACY_SECTIONS_DE,
   PRIVACY_SECTIONS_EN,
   PRIVACY_SECTIONS_ES,
+  PRIVACY_SECTIONS_FR,
+  PRIVACY_SECTIONS_IT,
+  PRIVACY_SECTIONS_PT,
+  TERMS_LINES_DE,
   TERMS_LINES_EN,
   TERMS_LINES_ES,
+  TERMS_LINES_FR,
+  TERMS_LINES_IT,
+  TERMS_LINES_PT,
+  USAGE_LINES_DE,
   USAGE_LINES_EN,
   USAGE_LINES_ES,
+  USAGE_LINES_FR,
+  USAGE_LINES_IT,
+  USAGE_LINES_PT,
 } from '@/constants/legalConsent';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import React, { useMemo, useState } from 'react';
 import {
   Modal,
@@ -67,10 +81,23 @@ export default function LegalSignupReviewModal({
     }
   }, [visible]);
 
-  const privacySections = useMemo(() => (language === 'es' ? PRIVACY_SECTIONS_ES : PRIVACY_SECTIONS_EN), [language]);
-
-  const termsLines = language === 'es' ? TERMS_LINES_ES : TERMS_LINES_EN;
-  const usageLines = language === 'es' ? USAGE_LINES_ES : USAGE_LINES_EN;
+  const { privacySections, termsLines, usageLines } = useMemo(() => {
+    const bundles: Record<
+      'de' | 'en' | 'es' | 'fr' | 'it' | 'pt',
+      { privacy: PrivacySection[]; terms: readonly string[]; usage: readonly string[] }
+    > = {
+      es: { privacy: PRIVACY_SECTIONS_ES, terms: TERMS_LINES_ES, usage: USAGE_LINES_ES },
+      en: { privacy: PRIVACY_SECTIONS_EN, terms: TERMS_LINES_EN, usage: USAGE_LINES_EN },
+      fr: { privacy: PRIVACY_SECTIONS_FR, terms: TERMS_LINES_FR, usage: USAGE_LINES_FR },
+      it: { privacy: PRIVACY_SECTIONS_IT, terms: TERMS_LINES_IT, usage: USAGE_LINES_IT },
+      pt: { privacy: PRIVACY_SECTIONS_PT, terms: TERMS_LINES_PT, usage: USAGE_LINES_PT },
+      de: { privacy: PRIVACY_SECTIONS_DE, terms: TERMS_LINES_DE, usage: USAGE_LINES_DE },
+    };
+    const picked = bundles[language as keyof typeof bundles];
+    const fallback = { privacy: PRIVACY_SECTIONS_EN, terms: TERMS_LINES_EN, usage: USAGE_LINES_EN };
+    const b = picked ?? fallback;
+    return { privacySections: b.privacy, termsLines: b.terms, usageLines: b.usage };
+  }, [language]);
 
   const canAccept = ack;
 
@@ -110,7 +137,11 @@ export default function LegalSignupReviewModal({
             })}
           </View>
 
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollInner} nestedScrollEnabled>
+          <ScrollView
+            style={styles.scroll}
+            {...verticalScrollInteractionProps}
+            contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollInner]}
+          >
             {tab === 'terms'
               ? termsLines.map((line) => (
                   <Text key={line} style={[styles.bulletPara, { color: palette.bodyText }]}>

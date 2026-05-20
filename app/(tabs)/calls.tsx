@@ -13,6 +13,7 @@ import {
     listCallsHistory,
     listReceivedContacts,
 } from '@/services/qrApi';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { outgoingMirrorFromCallHistoryOutgoing } from '@/services/outgoingCallUiMirror';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
@@ -809,8 +810,9 @@ export default function CallsPage() {
         <FlatList
           data={history}
           keyExtractor={(item) => item.callId}
+          {...listScrollInteractionProps}
           renderItem={renderRow}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.listContent]}
           refreshControl={
             <RefreshControl
               refreshing={listRefreshing}

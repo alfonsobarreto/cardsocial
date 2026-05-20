@@ -7,8 +7,9 @@ import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
+import { listScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
-import { hardLockCheck } from '@/services/biometricAuth';
+import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import {
   collectStringsReceivedContact,
@@ -916,7 +917,9 @@ function ContactsContent() {
   };
 
   const promptDeleteContact = async (contact: Contact) => {
-    const authenticated = await hardLockCheck(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
+    const authenticated = await requireBiometricIfPolicyEnabled(
+      t('vault_biometric_delete_bunker') || 'Confirmar eliminación',
+    );
     if (!authenticated) {
       return;
     }
@@ -956,7 +959,13 @@ function ContactsContent() {
           text: t('common_block'),
           style: 'destructive',
           onPress: () => {
-            void handleBlockContact(uid);
+            void (async () => {
+              const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_contacts_swipe'));
+              if (!gated) {
+                return;
+              }
+              void handleBlockContact(uid);
+            })();
           },
         },
       ],
@@ -964,6 +973,10 @@ function ContactsContent() {
   };
 
   const handleToggleChannelMute = async (contact: Contact) => {
+    const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_contacts_swipe'));
+    if (!gated) {
+      return;
+    }
     const viewerUid = await getActiveUserId();
     if (!viewerUid) {
       return;
@@ -1093,9 +1106,9 @@ function ContactsContent() {
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={contactsListScrollContentStyle}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator
+            {...listScrollInteractionProps}
             nestedScrollEnabled
+            showsVerticalScrollIndicator
             onScrollBeginDrag={closeAllSwipes}
           >
             {loading && contacts.length === 0 ? (

@@ -46,6 +46,7 @@ import { getCardRowTheme } from '@/services/useActiveTheme';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import * as Clipboard from 'expo-clipboard';
 import { getThemeById } from '@/constants/themeChest';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -1365,9 +1366,9 @@ export default function DashboardScreen() {
   return (
     <View style={[styles.root, { backgroundColor: shell.backgroundSolid }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 28 }]}
+        contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 28 }]}
         showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
+        {...verticalScrollInteractionProps}
       >
         <View style={[styles.headerFrame, { shadowColor: headerTone.glow, borderColor: headerTone.border }]}>
           <LinearGradient

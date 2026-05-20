@@ -73,6 +73,7 @@ import {
     View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { formKeyboardScrollViewProps } from '@/constants/scrollInteraction';
 import palette from '../theme';
 import { PartnerBadge } from '@/components/PartnerBadge';
 import { VoipAirTimeBadge } from '@/components/VoipAirTimeBadge';
@@ -869,8 +870,7 @@ export default function MyProfileScreen() {
           },
         ]}
         bottomOffset={42}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
+        {...formKeyboardScrollViewProps}
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"

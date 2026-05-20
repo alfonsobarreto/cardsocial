@@ -1,6 +1,7 @@
 import 'react-native-get-random-values';
 
 import '@/i18n';
+import BiometricResumeOverlay from '@/components/BiometricResumeOverlay';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PremiumDataPanelHost from '@/components/PremiumDataPanelHost';
 import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
@@ -12,10 +13,12 @@ import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
 import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
 import { installGhostLinkNotificationOpenHandlers, registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
+import { applyAndroidNavigationBarChrome } from '@/services/androidNavigationChrome';
 import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { checkInactivitySignOutWithoutTouch, enforceInactivitySignOutIfNeeded } from '@/services/sessionInactivity';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import Toast from 'react-native-toast-message';
@@ -70,6 +73,14 @@ function RootNavigator() {
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
 
+  const rootStackScreenOptions = useMemo(
+    () => ({
+      contentStyle: { backgroundColor: shell.backgroundSolid },
+      animation: 'default' as const,
+    }),
+    [shell.backgroundSolid],
+  );
+
   const privacyOverlayStyle = useMemo(
     () => [
       StyleSheet.absoluteFill,
@@ -112,6 +123,15 @@ function RootNavigator() {
     };
   }, [enqueueInactivitySignOutReplace]);
 
+  /** Contraste de ◀ ● □ sobre fondo de app en Android (edge-to-edge). */
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    const darkBg = isDark;
+    void applyAndroidNavigationBarChrome(darkBg);
+  }, [isDark]);
+
   useEffect(() => {
     initRevenueCatOnce();
   }, []);
@@ -142,7 +162,8 @@ function RootNavigator() {
   return (
     <View style={styles.rootShell}>
       <GhostLinkCallProvider>
-        <Stack>
+        <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+        <Stack screenOptions={rootStackScreenOptions}>
           {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen
@@ -180,6 +201,7 @@ function RootNavigator() {
         <PremiumDataPanelHost />
         <Toast />
       </GhostLinkCallProvider>
+      <BiometricResumeOverlay />
       {privacyOverlayVisible ? (
         <View style={privacyOverlayStyle} pointerEvents="none" />
       ) : null}

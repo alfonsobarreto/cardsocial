@@ -101,3 +101,15 @@ export async function hardLockCheck(actionLabel?: string): Promise<boolean> {
 
   return authenticated;
 }
+
+/**
+ * Único gate de producto: si "Seguridad Presidencial" está desactivada, no se pide biometría.
+ * Si está activada, equivale a {@link hardLockCheck} (solo sistema: Face ID / huella / PIN).
+ */
+export async function requireBiometricIfPolicyEnabled(actionLabel?: string): Promise<boolean> {
+  const policyOn = await getPresidentialSecurityEnabled();
+  if (!policyOn) {
+    return true;
+  }
+  return hardLockCheck(actionLabel);
+}

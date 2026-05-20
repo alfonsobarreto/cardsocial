@@ -19,7 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { useCoreT } from '@/services/coreI18n';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { hardLockCheck } from '@/services/biometricAuth';
+import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
 import { useLanguage } from '@/services/language';
 import { generateQRGift } from '@/services/qrGiftService';
 import GoldenRingButton from './GoldenRingButton';
@@ -87,7 +87,7 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
     try {
       setLoading(true);
 
-      const biometricValid = await hardLockCheck(t('common_auth_required'));
+      const biometricValid = await requireBiometricIfPolicyEnabled(t('common_auth_required'));
       if (!biometricValid) {
         Alert.alert(t('promotions_qr_access_denied_title'), t('promotions_qr_face_only_body'));
         setLoading(false);

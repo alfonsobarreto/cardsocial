@@ -36,6 +36,7 @@ import {
   sanitizeNationalDigits,
 } from '@/constants/countryDialCodes';
 import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
@@ -2903,10 +2904,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     : (['Enlaces', 'Email', 'Teléfono', 'Texto Plain', 'Documento', 'Ghost-Link'] as DataType[]))
                 }
                 keyExtractor={(item) => item}
+                {...listScrollInteractionProps}
                 removeClippedSubviews={true}
-                scrollEventThrottle={16}
                 bounces={false}
                 overScrollMode="never"
+                contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[
@@ -2983,16 +2985,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </View>
                 <FlatList
                   data={[...vaultCategoriesResolved, VAULT_CATEGORY_CREATE_NEW]}
-                  keyboardShouldPersistTaps="handled"
-                  keyboardDismissMode="on-drag"
+                  {...listScrollInteractionProps}
                   keyExtractor={(row) =>
                     row === VAULT_CATEGORY_CREATE_NEW ? '__create__' : String(row).toLowerCase().replace(/\s+/g, '-')
                   }
                   removeClippedSubviews={true}
-                  scrollEventThrottle={16}
                   bounces={false}
                   overScrollMode="never"
-                  contentContainerStyle={{ paddingBottom: 22 }}
+                  contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: 22 }]}
                   renderItem={({ item }) => {
                     const isRowCreate = item === VAULT_CATEGORY_CREATE_NEW;
                     const label = isRowCreate
@@ -3189,8 +3189,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </View>
               <ScrollView
                 style={styles.fileTypeScroll}
-                contentContainerStyle={styles.fileTypeScrollContent}
-                keyboardDismissMode="on-drag"
+                {...verticalScrollInteractionProps}
+                contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.fileTypeScrollContent]}
                 showsVerticalScrollIndicator={false}
                 bounces={false}
                 overScrollMode="never"

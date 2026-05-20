@@ -31,6 +31,7 @@ import {
 } from '@/services/nfcCardsRepo';
 import type { NfcCardDoc, NfcCardStatus, NfcMountOption } from '@/services/types/nfc';
 import { requestSubscriptionPhysicalCardsSection } from '@/services/subscriptionNavigationIntent';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import palette from './theme';
 
 type MaterialIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -629,7 +630,11 @@ export default function NfcScreen() {
         </Text>
       </LinearGradient>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body}>
+      <ScrollView
+        style={{ flex: 1 }}
+        {...verticalScrollInteractionProps}
+        contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.body]}
+      >
         <View style={styles.physicalUpsell}>
           <Text style={styles.physicalUpsellTitle}>
             {t('nfc_buy_cards_title')}
@@ -886,7 +891,11 @@ export default function NfcScreen() {
                 ? t('nfc_smart_fallback_prompt', { name: pendingSmartMount.option.displayName })
                 : null}
             </Text>
-            <ScrollView style={{ marginTop: 6 }}>
+            <ScrollView
+              style={{ marginTop: 6, flexGrow: 1 }}
+              {...verticalScrollInteractionProps}
+              contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
+            >
               {businessMountOptions.map((fallback) => (
                 <TouchableOpacity
                   key={`fallback:${fallback.id}`}

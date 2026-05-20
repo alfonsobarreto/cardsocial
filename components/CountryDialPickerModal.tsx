@@ -1,4 +1,5 @@
 import { COUNTRY_DIAL_REST, COUNTRY_DIAL_TOP, type CountryDialEntry, filterDialEntries } from '@/constants/countryDialCodes';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -88,6 +89,7 @@ export default function CountryDialPickerModal({
           </View>
           <SectionList
             sections={sections}
+            {...listScrollInteractionProps}
             keyExtractor={(item) => item.id}
             renderSectionHeader={({ section: { title: st } }) => (
               <Text style={[styles.sectionHeader, { color: textSecondary }]}>{st}</Text>
@@ -107,7 +109,7 @@ export default function CountryDialPickerModal({
               </TouchableOpacity>
             )}
             stickySectionHeadersEnabled={false}
-            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
             initialNumToRender={24}
             maxToRenderPerBatch={24}
             windowSize={5}

@@ -39,6 +39,7 @@ import {
     View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { SCROLL_CONTENT_MIN_FILL, formKeyboardScrollViewProps } from '@/constants/scrollInteraction';
 
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -478,10 +479,10 @@ export default function SignInScreen() {
       <View style={styles.container}>
         <LinearGradient colors={[...look.gradient]} style={styles.gradient}>
           <KeyboardAwareScrollView
-            contentContainerStyle={styles.content}
+            style={{ flex: 1 }}
+            contentContainerStyle={[styles.content, SCROLL_CONTENT_MIN_FILL]}
             bottomOffset={42}
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
+            {...formKeyboardScrollViewProps}
             showsVerticalScrollIndicator={false}
           >
             <View
@@ -673,10 +674,9 @@ export default function SignInScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={[styles.submitOverlay, { backgroundColor: look.submitOverlay }]}>
               <KeyboardAwareScrollView
-                contentContainerStyle={[styles.recoveryCard, { backgroundColor: look.recoveryCardBg, borderColor: look.recoveryCardBorder }]}
+                contentContainerStyle={[styles.recoveryCard, { backgroundColor: look.recoveryCardBg, borderColor: look.recoveryCardBorder }, SCROLL_CONTENT_MIN_FILL]}
                 bottomOffset={42}
-                keyboardDismissMode="on-drag"
-                keyboardShouldPersistTaps="handled"
+                {...formKeyboardScrollViewProps}
                 showsVerticalScrollIndicator={false}
               >
                 <Text style={[styles.recoveryTitle, { color: look.recoveryTitle }]}>

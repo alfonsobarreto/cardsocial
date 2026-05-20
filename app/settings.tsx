@@ -3,10 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
-import * as LocalAuthentication from 'expo-local-authentication';
 // expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
 // where the module calls addPushTokenListener at module-load time.
 import { shareExportedUserProfileJson } from '@/services/exportUserProfileJson';
+import { SecondaryStackHeader } from '@/components/SecondaryStackHeader';
 import { useCoreT } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
@@ -15,8 +15,8 @@ import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getAppLockEnabledRaw, setAppLockEnabledRaw } from '@/services/appLockSecureStorage';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import { useScreenContentBottomInset } from '@/hooks/useScreenContentBottomInset';
 import { auth } from '../services/firebaseConfig';
 import palette from './theme';
 
@@ -25,7 +25,7 @@ export default function SettingsScreen() {
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
   const t = useCoreT();
-  const insets = useSafeAreaInsets();
+  const contentBottomPad = useScreenContentBottomInset(20);
   const router = useRouter();
 
   const styles = useMemo(
@@ -33,7 +33,7 @@ export default function SettingsScreen() {
       StyleSheet.create({
         container: {
           padding: 20,
-          paddingBottom: 40,
+          paddingBottom: 0,
           backgroundColor: shell.backgroundSolid,
         },
         section: {
@@ -90,23 +90,8 @@ export default function SettingsScreen() {
   const [isNotificationsEnabled, setIsNotificationsEnabled] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
   const [isClearingCache, setIsClearingCache] = React.useState(false);
-  const [appLockEnabled, setAppLockEnabled] = React.useState(false);
-  const [isLoadingAppLock, setIsLoadingAppLock] = React.useState(true);
 
   React.useEffect(() => {
-    const loadAppLock = async () => {
-      try {
-        const value = await getAppLockEnabledRaw();
-        setAppLockEnabled(value === 'true');
-      } catch {
-        /** Fail-closed coherente con el layout: si el almacén seguro falla, mostramos candado activo. */
-        setAppLockEnabled(true);
-      } finally {
-        setIsLoadingAppLock(false);
-      }
-    };
-    loadAppLock();
-
     const checkNotifications = async () => {
       try {
         const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -151,46 +136,6 @@ export default function SettingsScreen() {
           },
           { text: t('common_cancel'), style: 'cancel' },
         ],
-      );
-    }
-  };
-
-  const toggleAppLock = async (value: boolean) => {
-    if (value) {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!hasHardware || !isEnrolled) {
-        Alert.alert(
-          t('common_not_available'),
-          t('settings_biometric_unavailable_body'),
-        );
-        return;
-      }
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: t('settings_app_lock_prompt'),
-        fallbackLabel: t('settings_use_passcode'),
-      });
-      if (!result.success) {
-        Alert.alert(
-          t('common_error'),
-          t('settings_app_lock_enable_fail'),
-        );
-        return;
-      }
-    }
-    try {
-      await setAppLockEnabledRaw(value ? 'true' : 'false');
-      setAppLockEnabled(value);
-      if (!value) {
-        Alert.alert(
-          t('settings_app_lock_disabled_title'),
-          t('settings_app_lock_disabled_body'),
-        );
-      }
-    } catch {
-      Alert.alert(
-        t('common_error'),
-        t('settings_save_fail'),
       );
     }
   };
@@ -297,55 +242,19 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: shell.backgroundSolid }}>
-      {/* Header with back button */}
-      <View
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 12,
-          paddingHorizontal: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: shell.border,
-        }}
+      <SecondaryStackHeader
+        title={t('settings_header_title')}
+        accentColor={shell.ctaPrimary}
+        backgroundColor={shell.backgroundSolid}
+        borderColor={shell.border}
+        titleColor={shell.textPrimary}
+      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.container, { paddingBottom: contentBottomPad }, SCROLL_CONTENT_MIN_FILL]}
+        {...verticalScrollInteractionProps}
       >
-        <TouchableOpacity
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.06)',
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: shell.border,
-          }}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={t('common_back')}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={24} color={shell.ctaPrimary} />
-        </TouchableOpacity>
-        <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: shell.textPrimary, marginLeft: 12 }}>
-          {t('settings_header_title')}
-        </Text>
-      </View>
-      <ScrollView contentContainerStyle={styles.container}>
       <Section title={t('settings_section_security')}>
-        <View style={styles.item}>
-          <MaterialCommunityIcons name="lock-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>{t('settings_app_lock_label')}</Text>
-          {isLoadingAppLock ? (
-            <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12 }} />
-          ) : (
-            <Switch
-              value={appLockEnabled}
-              onValueChange={toggleAppLock}
-              thumbColor={appLockEnabled ? switchOnThumb : switchOffThumb}
-              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
-            />
-          )}
-        </View>
         <TouchableOpacity style={styles.item} onPress={handleActiveSessions}>
           <MaterialCommunityIcons name="account-multiple-outline" size={20} color={iconTint} />
           <Text style={styles.itemText}>{t('settings_active_sessions')}</Text>

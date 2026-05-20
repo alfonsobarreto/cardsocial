@@ -1039,6 +1039,54 @@
     "fr": "voir la carte depuis la recherche",
     "de": "Karte aus der Suche anzeigen"
   },
+  "biometric_resume_app": {
+    "es": "continuar en Card-Social",
+    "en": "continue in Card-Social",
+    "it": "continuare in Card-Social",
+    "pt": "continuar no Card-Social",
+    "fr": "continuer dans Card-Social",
+    "de": "in Card-Social fortfahren"
+  },
+  "biometric_reason_create_smart_card": {
+    "es": "crear una nueva tarjeta",
+    "en": "create a new card",
+    "it": "creare una nuova carta",
+    "pt": "criar um novo cartão",
+    "fr": "créer une nouvelle carte",
+    "de": "eine neue Karte erstellen"
+  },
+  "biometric_reason_card_silence": {
+    "es": "silenciar o activar el audio de la tarjeta",
+    "en": "mute or unmute your card",
+    "it": "silenziare o riattivare l’audio della carta",
+    "pt": "silenciar ou reativar o áudio do cartão",
+    "fr": "couper ou réactiver le son de la carte",
+    "de": "Karte stummschalten oder aktivieren"
+  },
+  "biometric_reason_contacts_swipe": {
+    "es": "esta acción de contactos",
+    "en": "this contacts action",
+    "it": "questa azione sui contatti",
+    "pt": "esta ação em contatos",
+    "fr": "cette action dans les contacts",
+    "de": "diese Kontaktaktion"
+  },
+  "biometric_reason_receptors_manage": {
+    "es": "gestionar suscriptores o receptores",
+    "en": "manage card subscribers or receivers",
+    "it": "gestire iscritti o riceventi",
+    "pt": "gerir assinantes ou receptores",
+    "fr": "gérer les abonnés ou destinataires",
+    "de": "Abonnenten oder Empfänger verwalten"
+  },
+  "biometric_reason_vault_delete_item": {
+    "es": "eliminar un elemento de la Bóveda",
+    "en": "delete a Vault item",
+    "it": "eliminare un elemento del Vault",
+    "pt": "excluir um item do Cofre",
+    "fr": "supprimer un élément du coffre",
+    "de": "ein Tresor-Element löschen"
+  },
   "biometric_verify_identity_continue": {
     "es": "Verifica tu identidad para continuar",
     "en": "Verify your identity to continue",

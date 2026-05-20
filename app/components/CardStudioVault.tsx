@@ -10,6 +10,7 @@
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { STUDIO_CATALOG_VECTOR_ICONS_PAID } from '@/constants/studioEconomy';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { TEXAS_LONGHORNS_ICON_SEEDS } from '@/constants/texasLonghornsPack';
 import { getActiveUserId } from '@/services/authSession';
 import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
@@ -941,6 +942,7 @@ export default function CardStudioVault({
                 <View style={[styles.listViewport, { backgroundColor: theme.sheetBg }]}>
                 <SectionList
                   ref={sectionListRef}
+                  {...listScrollInteractionProps}
                   style={[styles.sectionListFlex, { backgroundColor: theme.sheetBg }]}
                   sections={displaySections}
                   keyExtractor={(row, idx) =>
@@ -961,10 +963,9 @@ export default function CardStudioVault({
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={[
                     styles.listContent,
-                    { flexGrow: 1, backgroundColor: theme.sheetBg },
+                    SCROLL_CONTENT_MIN_FILL,
+                    { backgroundColor: theme.sheetBg },
                   ]}
-                  keyboardShouldPersistTaps="handled"
-                  scrollEventThrottle={16}
                   removeClippedSubviews={false}
                   windowSize={12}
                   maxToRenderPerBatch={20}

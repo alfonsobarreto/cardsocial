@@ -2,6 +2,7 @@ import { resolveNotificationCopyKeys } from '@/services/inAppNotificationCopy';
 import { auth, db } from '@/services/firebaseConfig';
 import { useCoreT } from '@/services/coreI18n';
 import { SYS_ONBOARDING_TOUR_TEMPLATE_ID } from '@/services/onboardingTourNotification';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { useLookMode } from '@/services/lookMode';
 import palette from './theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -415,7 +416,8 @@ export default function NotificationsScreen() {
         <FlatList
           data={mergedRows}
           keyExtractor={(x) => (x.kind === 'broadcast' ? `b:${x.id}` : `p:${x.id}`)}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          {...listScrollInteractionProps}
+          contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: insets.bottom + 24 }]}
           refreshing={false}
           renderItem={({ item }) => {
             const keys = resolveNotificationCopyKeys(item.templateId);

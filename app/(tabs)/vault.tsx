@@ -2,8 +2,10 @@ import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VaultPremiumEntryGlow from '@/components/VaultPremiumEntryGlow';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
+import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
 import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
@@ -443,6 +445,10 @@ const VaultScreen = () => {
           t('vault_ghost_delete_title'),
           t('vault_ghost_delete_body'),
         );
+        return;
+      }
+      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_vault_delete_item'));
+      if (!gated) {
         return;
       }
       const updated = links.filter((item) => item.id !== link.id);
@@ -1722,15 +1728,14 @@ const VaultScreen = () => {
           </View>
         )}
         stickySectionHeadersEnabled={false}
-        keyboardDismissMode="on-drag"
+        {...listScrollInteractionProps}
         ListEmptyComponent={renderVaultListEmpty}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, SCROLL_CONTENT_MIN_FILL]}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"
         removeClippedSubviews={true}
-        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

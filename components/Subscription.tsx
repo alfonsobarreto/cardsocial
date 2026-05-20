@@ -1,5 +1,6 @@
 import LuxCtaButton from '@/components/LuxCtaButton';
 import palette from '@/app/theme';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { Picker } from '@react-native-picker/picker';
 import {
@@ -630,7 +631,8 @@ const Subscription: React.FC<SubscriptionProps> = ({
     <ScrollView
       ref={scrollRef}
       style={styles.container}
-      contentContainerStyle={styles.content}
+      {...verticalScrollInteractionProps}
+      contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.content]}
       bounces={false}
       showsVerticalScrollIndicator={false}
     >

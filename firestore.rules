@@ -1,6 +1,8 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -17,14 +19,37 @@ service cloud.firestore {
       return /databases/$(database)/documents/unique_user_keys/$(type + ':' + value);
     }
 
+    /** Operación + cuenta con rol persistido `users/{uid}.role`. */
     function isSuperAdmin() {
       return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+        && (
+          request.auth.token.email == 'pochobs@gmail.com'
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
+          )
+        );
     }
 
-    // User profile: owner read/write; super_admin read (dashboard).
-    // Enforces that unique key docs belong to same uid in the post-transaction state.
+    /** Subcolección genérica usuario: sin pisar `/notifications`, `/crypto/`. */
+    function userGenericRead(uid, tail) {
+      return isOwner(uid)
+        && !tail.matches('^notifications(?:/.*)?$')
+        && !tail.matches('^crypto(?:/.*)?$');
+    }
+
+    /** Sin `/notifications`, `/crypto/` ni `/status/` (salvo estado de broadcasts). */
+    function userGenericWrite(uid, tail) {
+      let statusLocked =
+        tail.matches('^status/.*')
+        && !(tail == 'status/notifications_state' || tail.matches('^status/notifications_state/.*'));
+
+      return isOwner(uid)
+        && !tail.matches('^notifications(?:/.*)?$')
+        && !tail.matches('^crypto(?:/.*)?$')
+        && !statusLocked;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid) || isSuperAdmin();
 
@@ -40,16 +65,15 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Links de bóveda: el superadmin puede borrar tarjetas confirmadas por moderación.
     match /users/{uid}/links/{linkId} {
       allow read: if isOwner(uid) || isSuperAdmin();
       allow create, update: if isOwner(uid);
       allow delete: if isOwner(uid) || isSuperAdmin();
     }
 
-    // Notificaciones oficiales: super_admin crea cierres MOD_*; el dueño puede crear SYS_* (sistema in-app); lectura/actualización solo dueño.
     match /users/{uid}/notifications/{notificationId} {
       allow read: if isOwner(uid);
+
       allow create: if request.resource.data.read == false
         && (
           (
@@ -58,28 +82,16 @@ service cloud.firestore {
             && request.resource.data.reportId is string
             && request.resource.data.reportSourceCollection in ['reports', 'userReports']
           )
-          || (
+          ||
+          (
             isOwner(uid)
             && request.resource.data.templateId in ['SYS_WELCOME_MISSING_CARD', 'SYS_ACCOUNT_EXPIRING', 'SYS_ONBOARDING_TOUR']
           )
         );
-      allow update: if isOwner(uid);
-      allow delete: if isOwner(uid);
+
+      allow update, delete: if isOwner(uid);
     }
 
-    // Onboarding / tour in-app: flags y notas bajo rutas explícitas (dueño). Complementa el
-    // match recursivo general; algunos clientes disparan lecturas justo tras login.
-    match /users/{uid}/private_app_state/{document=**} {
-      allow read, write: if isOwner(uid);
-    }
-
-    // Dueño: lectura/escritura en subcolección notifications (incl. queries y batch).
-    // super_admin crea MOD_* vía la regla granular anterior cuando auth.uid != uid (no es dueño del doc).
-    match /users/{uid}/notifications/{document=**} {
-      allow read, write: if isOwner(uid);
-    }
-
-    // Bóveda e iconos: dueño o moderación (panel admin) solo lectura.
     match /users/{uid}/icon_vault/{itemId} {
       allow read: if isOwner(uid) || isSuperAdmin();
       allow write: if isOwner(uid);
@@ -90,20 +102,15 @@ service cloud.firestore {
       allow write: if isOwner(uid);
     }
 
-    // Owner-only access for all user-scoped subcollections
-    match /users/{uid}/{document=**} {
-      allow read: if isOwner(uid);
-      allow write: if isOwner(uid);
+    match /users/{uid}/private_app_state/{document=**} {
+      allow read, write: if isOwner(uid);
     }
 
-    // Identidad X25519 para compartir llaves de tarjeta: lectura a cualquier usuario autenticado;
-    // solo el dueño escribe (documento bajo users/{uid}/crypto/…).
     match /users/{uid}/crypto/sharing_identity {
       allow read: if isSignedIn();
       allow write: if isOwner(uid);
     }
 
-    // Estado de notificaciones in-app por usuario (megáfono leído): solo el dueño escribe readBroadcastIds.
     match /users/{uid}/status/notifications_state {
       allow read: if isOwner(uid);
       allow create, update: if isOwner(uid)
@@ -113,14 +120,41 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Estado de cuenta por moderación (super_admin): auditoría separada del doc raíz `users/{uid}`.
     match /users/{uid}/status/{docId} {
       allow read: if isOwner(uid) || isSuperAdmin();
       allow write: if isSuperAdmin();
     }
 
-    // Cabina de sobres cifrados: el remitente crea; remitente o destinatario lee.
-    // `envelope` contiene ephemPub, salt, iv, ciphertext (AES-GCM); Firestore no ve el plaintext.
+    match /users/{uid}/{document=**} {
+      allow read: if userGenericRead(uid, document);
+      allow write: if userGenericWrite(uid, document);
+    }
+
+    match /unique_user_keys/{keyId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+
+      allow create, update: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.type is string
+        && request.resource.data.value is string
+        && validUniqueKeyType(request.resource.data.type)
+        && (
+          (request.resource.data.type == 'nickname' && keyId.matches('^nickname:.+$'))
+          ||
+          (request.resource.data.type == 'email' && keyId.matches('^email:.+$'))
+          ||
+          (request.resource.data.type == 'phone' && keyId.matches('^phone:.+$'))
+        )
+        && (
+          !exists(/databases/$(database)/documents/unique_user_keys/$(keyId))
+          ||
+          get(/databases/$(database)/documents/unique_user_keys/$(keyId)).data.uid == request.auth.uid
+        );
+
+      allow delete: if false;
+    }
+
     match /shared_vault_keys/{keyId} {
       allow read: if isSignedIn()
         && (
@@ -144,55 +178,60 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Unique-key registry (nickname/email/phone) used by transactional registration.
-    match /unique_user_keys/{keyId} {
-      allow read: if false;
-
-      allow create, update: if isSignedIn()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.type is string
-        && request.resource.data.value is string
-        && validUniqueKeyType(request.resource.data.type)
-        && (
-          (request.resource.data.type == 'nickname' && keyId.matches('^nickname:.+$')) ||
-          (request.resource.data.type == 'email' && keyId.matches('^email:.+$')) ||
-          (request.resource.data.type == 'phone' && keyId.matches('^phone:.+$'))
-        )
-        // If key already exists, only same owner can keep/update it.
-        && (!exists(/databases/$(database)/documents/unique_user_keys/$(keyId))
-          || get(/databases/$(database)/documents/unique_user_keys/$(keyId)).data.uid == request.auth.uid);
-
-      allow delete: if false;
-    }
-
-    // Business cards can be queried by authenticated users for Social Market.
-    // Only owner or super admin can write.
     match /businessCards/{bId} {
       allow read: if isSignedIn();
-
-      allow create: if isSignedIn()
-        && request.resource.data.uid == request.auth.uid;
-
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update, delete: if isSignedIn()
-        && (
-          resource.data.uid == request.auth.uid
-          || isSuperAdmin()
-        );
+        && (resource.data.uid == request.auth.uid || isSuperAdmin());
     }
 
-    // Icon catalog: readable for signed-in users, mutable only by super admin.
     match /icon_packs/{packId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // Skins forjados desde La Forja admin (wallpaper Spaces + icon pack + colores).
     match /skins/{skinId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // Admin namespace restricted to super admin, except recovery ticket creation by any authenticated user.
+    /** Catálogos mercado/app (Firestore). */
+    match /font_library/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /wallpapers/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    /** Inventario Studio (admin-web). `icon_packs`/`skins` se reutilizan arriba. */
+    match /wallpaper_library/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /icon_library/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /studio_themes/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /studio_icon_packs/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /studio_skins/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
     match /admin/accountRecoveryTickets/tickets/{ticketId} {
       allow create: if isSignedIn();
       allow read, update, delete: if isSuperAdmin();
@@ -202,13 +241,10 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // Ghost-Link VoIP: señales efímeras de consentimiento cámara (audio → video).
-    // sessionId opaco por llamada; solo usuarios autenticados (riesgo bajo si no adivinan el id).
     match /ghostLinkVoipSignals/{sessionId} {
       allow read, write: if isSignedIn();
     }
 
-    // Referidos únicos por usuario nuevo: solo el cuenta creador (`referredUid`) puede crear su doc `{referrerUid,...}`.
     match /referrals/{referredUid} {
       allow read: if isSignedIn()
         && (
@@ -224,7 +260,6 @@ service cloud.firestore {
         && request.resource.data.referrerUid != request.auth.uid
         && request.resource.data.status == 'completed';
 
-      /** `setDoc(merge)` en doc existente cuenta como actualización — solo permite refrescar mismo referidor. */
       allow update: if isSignedIn()
         && referredUid == request.auth.uid
         && resource.data.referredUid == request.auth.uid
@@ -236,10 +271,9 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Medal system: counts readable by all signed-in users; votes owner-only.
     match /medals/{medalDocId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
 
     match /medals/{medalDocId}/votes/{userId} {
@@ -247,21 +281,20 @@ service cloud.firestore {
       allow create, update, delete: if isOwner(userId);
     }
 
-    // Config pública de producto (tiers, precios CMS). Lectura pública de docs publicados; solo super_admin escribe.
     match /system_config/{docId} {
-      allow read: if docId in ['tiers', 'commerce', 'market_radar', 'cs_economy'] || isSignedIn();
+      allow read: if true;
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // Denuncias: creación autenticada con sobre de evidencia o estado explícito; lectura solo super_admin (evidence* no filtrable por campo).
-    function validReportExpiresAt() {
-      return request.resource.data.expiresAt is timestamp
-        && request.resource.data.expiresAt > request.time + duration.value(34, 'h')
-        && request.resource.data.expiresAt < request.time + duration.value(38, 'h');
-    }
+    match /reports/{reportId} {
+      allow read: if isSuperAdmin();
 
-    function validReportEvidenceShape() {
-      return request.resource.data.evidenceVersion == 1
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUserId == request.auth.uid
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time + duration.value(34, 'h')
+        && request.resource.data.expiresAt < request.time + duration.value(38, 'h')
+        && request.resource.data.evidenceVersion == 1
         && request.resource.data.evidenceStatus in ['present', 'missing', 'invalid']
         && request.resource.data.evidenceCiphertext is string
         && request.resource.data.evidenceIv is string
@@ -273,16 +306,7 @@ service cloud.firestore {
             && request.resource.data.evidenceIv.size() > 0
             && request.resource.data.evidenceEphemPub.size() > 0
           )
-        );
-    }
-
-    match /reports/{reportId} {
-      allow read: if isSuperAdmin();
-
-      allow create: if isSignedIn()
-        && request.resource.data.reporterUserId == request.auth.uid
-        && validReportExpiresAt()
-        && validReportEvidenceShape()
+        )
         && request.resource.data.type is string
         && request.resource.data.status == 'pending'
         && request.resource.data.targetCardId is string
@@ -296,23 +320,19 @@ service cloud.firestore {
     }
 
     match /userReports/{reportId} {
-      allow read: if isSuperAdmin();
-      allow create, update, delete: if isSuperAdmin();
+      allow read, create, update, delete: if isSuperAdmin();
     }
 
-    match /reports/{reportId}/auditLog/{eventId} {
-      allow read, write: if isSuperAdmin();
-    }
-
-    match /userReports/{reportId}/auditLog/{eventId} {
-      allow read, write: if isSuperAdmin();
+    /** Auditoría moderación (`reports` y `userReports`). */
+    match /{reportColl}/{reportId}/auditLog/{eventId} {
+      allow read, write: if isSuperAdmin()
+        && reportColl in ['reports', 'userReports'];
     }
 
     match /banned_identities/{uid} {
       allow read, write: if isSuperAdmin();
     }
 
-    // Megáfono global in-app: un documento por anuncio; lectura a usuarios logueados; escritura solo super_admin.
     match /system_broadcasts/{broadcastId} {
       allow read: if isSignedIn();
       allow create: if isSuperAdmin()
@@ -321,7 +341,62 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
-    // Default deny for any non-explicit collection.
+    /** Regalo QR (`services/qrGiftService`): el id es el secreto del enlace. */
+    match /qr_gifts/{giftId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid;
+      /** Canje cliente: actualiza uso; revisar eventualmente si movéis la lógica a Functions. */
+      allow update: if isSignedIn();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /vip_campaigns/{id} {
+      allow read: if isSignedIn();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSignedIn();
+    }
+
+    match /redemption_logs/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.redeemedBy == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    /** Escrituras QR campañas desde cliente con `actor` = uid. Lectura sólo admin. */
+    match /admin_audit/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.actor == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /pricing_audit_logs/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /legal_audit_logs/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /market_radar_audit_logs/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /payment_events/{id} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    match /organizations/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /affiliates/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

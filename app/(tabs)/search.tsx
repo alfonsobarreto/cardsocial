@@ -9,6 +9,7 @@ import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { trackMarketplaceCardClick, trackMarketplaceSearch } from '@/services/analyticsService';
 import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
@@ -1288,12 +1289,10 @@ export default function SearchScreen() {
     <View style={[styles.wrapper, { backgroundColor: shell.background }]}> 
       <SectionList
         ref={sectionListRef}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.listContent}
+        {...listScrollInteractionProps}
+        contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.listContent]}
         sections={listSections}
         onScroll={onSearchScroll}
-        scrollEventThrottle={16}
         keyExtractor={(item) => `${item.rowSource ?? 'm'}:${item.card.bId}`}
         renderItem={renderResultCard}
         renderSectionHeader={({ section: { title } }) => (

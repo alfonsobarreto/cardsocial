@@ -8,6 +8,7 @@ import {
   ThemeLockerThemeTile,
 } from '@/components/ThemeLockerThemeTile';
 import { getThemeById, getThemesByTier, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
@@ -1715,7 +1716,13 @@ export default function CreateBusinessCardScreen() {
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
           <Text style={[styles.sectionTitle, { color: text }]}>{tcx('create_terms_section_title')}</Text>
-          <ScrollView style={[styles.termsBox, { borderColor: border }]} nestedScrollEnabled showsVerticalScrollIndicator>
+          <ScrollView
+            style={[styles.termsBox, { borderColor: border }]}
+            {...verticalScrollInteractionProps}
+            contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+          >
             <Text style={[styles.termsText, { color: sub }]}>{tcx('create_business_terms_body')}</Text>
           </ScrollView>
           <TouchableOpacity
@@ -1905,11 +1912,11 @@ export default function CreateBusinessCardScreen() {
               data={filteredVaultLinksForSelector}
               keyExtractor={(item) => item.id}
               numColumns={3}
+              {...listScrollInteractionProps}
               bounces={false}
               overScrollMode="never"
               style={styles.vaultSelectorGrid}
-              contentContainerStyle={styles.vaultSelectorGridContent}
-              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.vaultSelectorGridContent]}
               renderItem={({ item }) => {
                 const selectedOrder = tempVaultLinkIds.indexOf(item.id) + 1;
                 const isSelected = selectedOrder > 0;
@@ -1998,7 +2005,8 @@ export default function CreateBusinessCardScreen() {
               </View>
               <ScrollView
                 style={{ maxHeight: 440 }}
-                contentContainerStyle={{ paddingBottom: 8 }}
+                {...verticalScrollInteractionProps}
+                contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: 8 }]}
                 showsVerticalScrollIndicator={false}
                 onLayout={(e) => {
                   const w = e.nativeEvent.layout.width;

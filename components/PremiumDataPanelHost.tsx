@@ -3,6 +3,7 @@ import {
     type PremiumDataPanelPayload,
     subscribePremiumDataPanel,
 } from '@/services/premiumDataPanelController';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { splitSovereignText } from '@/utils/sovereignTextSplit';
@@ -126,8 +127,8 @@ export default function PremiumDataPanelHost() {
         <View style={styles.sovereignTopAccent} />
         <ScrollView
           style={styles.sovereignScroll}
+          {...verticalScrollInteractionProps}
           contentContainerStyle={styles.sovereignScrollContent}
-          keyboardShouldPersistTaps="handled"
         >
           {(() => {
             const { headline, body: bodyRest } = splitSovereignText(String(p.body || ''));
@@ -220,7 +221,11 @@ export default function PremiumDataPanelHost() {
               </View>
 
               {p.emailOptions && p.emailOptions.length > 0 ? (
-                <ScrollView style={styles.emailScroll} keyboardShouldPersistTaps="handled">
+                <ScrollView
+                  style={styles.emailScroll}
+                  {...verticalScrollInteractionProps}
+                  contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
+                >
                   {p.emailOptions.map((row) => (
                     <TouchableOpacity
                       key={row.key}
@@ -236,7 +241,11 @@ export default function PremiumDataPanelHost() {
                   ))}
                 </ScrollView>
               ) : p.body ? (
-                <ScrollView style={styles.bodyScroll} keyboardShouldPersistTaps="handled">
+                <ScrollView
+                  style={styles.bodyScroll}
+                  {...verticalScrollInteractionProps}
+                  contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
+                >
                   <Text style={styles.body} selectable>
                     {p.body}
                   </Text>

@@ -12,7 +12,7 @@ import {
 import { requestVerificationEmailViaBackend } from '@/services/requestVerificationEmail';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { saveCachedCredentials } from '@/services/credentialVault';
-import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
+import { createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
 import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { useLookMode } from '@/services/lookMode';
@@ -51,6 +51,7 @@ import {
     View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { SCROLL_CONTENT_MIN_FILL, formKeyboardScrollViewProps } from '@/constants/scrollInteraction';
 import { auth, db } from '../services/firebaseConfig';
 import CircularPhotoCropper from './components/CircularPhotoCropper';
 import LegalSignupReviewModal from './components/LegalSignupReviewModal';
@@ -1137,9 +1138,6 @@ export default function RegisterScreen() {
       // Zero-balance inicial; bono bienvenida: `system_config/cs_economy` al confirmar pago.
       await initializeUserCredits(uid);
 
-      // Create 3 default cards: Personal, Trabajo, Social
-      await createDefaultCards(uid);
-      
       // Create 3 default vault data: Teléfono, Email, Red Social
       await createDefaultVaultData(uid);
 
@@ -1213,10 +1211,10 @@ export default function RegisterScreen() {
         >
           <KeyboardAwareScrollView
             ref={scrollViewRef}
-            contentContainerStyle={styles.inner}
+            style={{ flex: 1 }}
+            contentContainerStyle={[styles.inner, SCROLL_CONTENT_MIN_FILL]}
             bottomOffset={42}
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
+            {...formKeyboardScrollViewProps}
             showsVerticalScrollIndicator={false}
             bounces={false}
             overScrollMode="never"

@@ -25,7 +25,7 @@ import {
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { runAirEvaporationDeleteFeedback } from '@/services/airEvaporationDeleteFeedback';
-import { hardLockCheck } from '@/services/biometricAuth';
+import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
 import {
   ExportBusinessQR,
   generatePublicBusinessWebUrl,
@@ -1383,6 +1383,11 @@ export default function CardsFactoryScreen() {
         return;
       }
 
+      const createOk = await requireBiometricIfPolicyEnabled(t('biometric_reason_create_smart_card'));
+      if (!createOk) {
+        return;
+      }
+
       const newCard: SmartCard = {
         sid: createSmartCardId(),
         scName: cardName.trim(),
@@ -1429,7 +1434,7 @@ export default function CardsFactoryScreen() {
   };
 
   const deleteCard = async (card: SmartCard) => {
-    const biometricOk = await hardLockCheck(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
+    const biometricOk = await requireBiometricIfPolicyEnabled(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
     if (!biometricOk) return;
 
     const nextCards = smartCards.filter((item) => item.sid !== card.sid);
@@ -1731,6 +1736,11 @@ export default function CardsFactoryScreen() {
         throw new Error('No se pudo validar tu sesion.');
       }
 
+      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_receptors_manage'));
+      if (!gated) {
+        return;
+      }
+
       await revokeCardSubscriber({
         uid: uid,
         cardRef: subscribersCard.sid,
@@ -1762,6 +1772,11 @@ export default function CardsFactoryScreen() {
       const uid = await getActiveUserId();
       if (!uid) {
         throw new Error('No se pudo validar tu sesion.');
+      }
+
+      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_receptors_manage'));
+      if (!gated) {
+        return;
       }
 
       await blockRelationship({ uid: uid, targetUid });
@@ -1798,6 +1813,11 @@ export default function CardsFactoryScreen() {
         throw new Error('No se pudo validar tu sesion.');
       }
 
+      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_receptors_manage'));
+      if (!gated) {
+        return;
+      }
+
       await setCardSubscriberMute({
         uid: uid,
         cardRef: subscribersCard.sid,
@@ -1817,6 +1837,10 @@ export default function CardsFactoryScreen() {
   };
 
   const toggleCardSilence = async (card: SmartCard) => {
+    const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_card_silence'));
+    if (!gated) {
+      return;
+    }
     const next = !card.silenced;
     try {
       const uid = await getActiveUserId();
@@ -1835,7 +1859,7 @@ export default function CardsFactoryScreen() {
 
   const issueQrForCard = async (card: SmartCard, options?: { forceNew?: boolean }) => {
     try {
-      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_share'));
+      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_share'));
       if (!authenticated) {
         return;
       }
@@ -1958,7 +1982,7 @@ export default function CardsFactoryScreen() {
       qrActiveSid === card.sid && qrExpiresAt > Date.now() && Boolean(qrUniversalWebUrl);
 
     if (universalStillValid) {
-      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_24h'));
+      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_24h'));
       if (!authenticated) {
         return;
       }
@@ -1980,7 +2004,7 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_24h'));
+      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_24h'));
       if (!authenticated) return;
       const uid = await getActiveUserId();
       if (!uid) throw new Error(t('cards_session_missing'));
@@ -2071,8 +2095,8 @@ export default function CardsFactoryScreen() {
     console.log('[QR_FLOW] issueQrForBusiness: START', { bId: row.bId, bcName: row.bcName });
     setIssuingQr(true);
     try {
-      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_share'));
-      console.log('[QR_FLOW] hardLockCheck →', authenticated);
+      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_share'));
+      console.log('[QR_FLOW] requireBiometricIfPolicyEnabled →', authenticated);
       if (!authenticated) {
         return;
       }
@@ -2180,7 +2204,7 @@ export default function CardsFactoryScreen() {
   };
 
   const deleteBusinessCardEntry = async (row: BusinessCardListRow) => {
-    const biometricOk = await hardLockCheck(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
+    const biometricOk = await requireBiometricIfPolicyEnabled(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
     if (!biometricOk) return;
 
     const uid = await getActiveUserId();
@@ -2206,6 +2230,10 @@ export default function CardsFactoryScreen() {
   };
 
   const toggleBusinessCardSilence = async (row: BusinessCardListRow) => {
+    const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_card_silence'));
+    if (!gated) {
+      return;
+    }
     const next = !row.silenced;
     try {
       const uid = await getActiveUserId();

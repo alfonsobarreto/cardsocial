@@ -33,8 +33,7 @@ import {
   unblockRelationship,
 } from '@/services/qrApi';
 import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
-import { getPresidentialSecurityEnabled, hardLockCheck } from '@/services/biometricAuth';
-import { removeAppLockEnabled } from '@/services/appLockSecureStorage';
+import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
@@ -94,10 +93,16 @@ import {
     View,
 } from 'react-native';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { useTabBarBottomInset } from '@/hooks/useTabBarBottomInset';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import palette from '../theme';
+import {
+  formKeyboardScrollViewProps,
+  SCROLL_CONTENT_MIN_FILL,
+  verticalScrollInteractionProps,
+} from '@/constants/scrollInteraction';
 
 type BlockedUser = {
   uid: string;
@@ -202,18 +207,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const tabInactiveMuted = resolvedMode === 'noche' ? 'rgba(235,235,245,0.42)' : 'rgba(60,60,67,0.42)';
   const dashboardTabVisible = shouldShowDashboardTab(userHasBusinessCardWithBId, radarTrialRemote);
   const insets = useSafeAreaInsets();
-  /** Android a veces reporta bottom=0 con nav de 3 botones; igualamos aire arriba/abajo del tab bar. */
   const tabBarInnerVerticalPad = 10;
-  const tabBarBottomSafe = useMemo(() => {
-    if (Platform.OS === 'ios') {
-      return Math.max(insets.bottom, 12);
-    }
-    return Math.max(insets.bottom, 40);
-  }, [insets.bottom]);
+  const tabBarBottomInset = useTabBarBottomInset();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
   const headerAvatarFsUnsubRef = useRef<(() => void) | undefined>(undefined);
-  const [presidentialLockActive, setPresidentialLockActive] = useState(false);
   const appStateRef = useRef(AppState.currentState);
 
   const refreshHeaderAvatar = useCallback(async () => {
@@ -273,25 +271,15 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        void (async () => {
-          const isPresEnabled = await getPresidentialSecurityEnabled();
-          if (isPresEnabled) {
-            setPresidentialLockActive(true);
-            const unlocked = await hardLockCheck(tr('Desbloquea Card-Social', 'Unlock Card-Social'));
-            if (unlocked) {
-              setPresidentialLockActive(false);
-            }
-          }
-          void refreshHeaderAvatar();
-          const user = auth.currentUser;
-          if (user) {
-            void listMyBusinessCards(user.uid)
-              .then((cards) =>
-                setUserHasBusinessCardWithBId(cards.some((card) => String(card?.bId || '').trim().length > 0)),
-              )
-              .catch(() => undefined);
-          }
-        })();
+        void refreshHeaderAvatar();
+        const user = auth.currentUser;
+        if (user) {
+          void listMyBusinessCards(user.uid)
+            .then((cards) =>
+              setUserHasBusinessCardWithBId(cards.some((card) => String(card?.bId || '').trim().length > 0)),
+            )
+            .catch(() => undefined);
+        }
       }
       appStateRef.current = nextAppState;
     });
@@ -424,11 +412,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       const signingOutUid = auth.currentUser?.uid ?? null;
-      // Limpieza de memoria: elimina el flag de bloqueo biométrico y otras claves sensibles
-      try {
-        await removeAppLockEnabled();
-        // Ejemplo: await AsyncStorage.removeItem('OTRA_CLAVE_SENSIBLE');
-      } catch {}
       await clearLocalCachesForSignOut(signingOutUid);
       await signOut(auth);
     } catch {
@@ -573,7 +556,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               const actorUid = await getActiveUserId();
               if (!actorUid) return;
 
-              const biometricPassed = await hardLockCheck(
+              const biometricPassed = await requireBiometricIfPolicyEnabled(
                 tr('Confirmar eliminación permanente', 'Confirm permanent deletion'),
               );
               if (!biometricPassed) return;
@@ -920,10 +903,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             backgroundColor: shell.surface,
             minHeight:
               Platform.OS === 'ios'
-                ? 72 + tabBarInnerVerticalPad * 2 + tabBarBottomSafe
-                : 64 + tabBarInnerVerticalPad * 2 + tabBarBottomSafe,
+                ? 72 + tabBarInnerVerticalPad * 2 + tabBarBottomInset
+                : 64 + tabBarInnerVerticalPad * 2 + tabBarBottomInset,
             paddingTop: tabBarInnerVerticalPad,
-            paddingBottom: tabBarInnerVerticalPad + tabBarBottomSafe,
+            paddingBottom: tabBarInnerVerticalPad + tabBarBottomInset,
             borderTopWidth: 0,
             marginHorizontal: 0,
             width: '100%' as const,
@@ -1215,7 +1198,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 <ConfettiAnimation ref={confettiRef} />
 
                 {activePanel === 'menu' ? (
-                  <ScrollView style={styles.drawerMenuList} contentContainerStyle={{ paddingBottom: 32 }}>
+                  <ScrollView
+                    style={styles.drawerMenuList}
+                    {...verticalScrollInteractionProps}
+                    contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: 16 + insets.bottom }]}
+                  >
                     <TouchableOpacity
                       style={styles.drawerItem}
                       onPress={() => {
@@ -1261,7 +1248,20 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('blocked_users'); void loadRelEntries('blocked'); setRelTab('blocked'); }}>
+                    <TouchableOpacity
+                      style={styles.drawerItem}
+                      onPress={() => {
+                        void (async () => {
+                          const ok = await requireBiometricIfPolicyEnabled(
+                            tr('Gestión de Relaciones', 'Relationship Manager'),
+                          );
+                          if (!ok) return;
+                          setActivePanel('blocked_users');
+                          void loadRelEntries('blocked');
+                          setRelTab('blocked');
+                        })();
+                      }}
+                    >
                       <MaterialCommunityIcons name="account-cancel-outline" size={20} color={shell.danger} />
                       <Text style={[styles.drawerItemText, { color: shell.danger }]}>{tr('Gestión de Relaciones', 'Relationship Manager')}</Text>
                     </TouchableOpacity>
@@ -1370,7 +1370,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     </TouchableOpacity>
                   </ScrollView>
                 ) : activePanel === 'privacy' ? (
-                  <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
+                  <ScrollView
+                    style={styles.legalScroll}
+                    {...verticalScrollInteractionProps}
+                    contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.legalContentWrap]}
+                  >
                     <Text style={[styles.legalTitle, { color: shell.ctaAccent }]}>
                       {tr('Cumplimiento de datos Zero-Party y soberanía', 'Zero-Party Data Compliance & Sovereignty')}
                     </Text>
@@ -1498,7 +1502,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     </TouchableOpacity>
                   </ScrollView>
                 ) : activePanel === 'profile' ? (
-                  <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
+                  <ScrollView
+                    style={styles.legalScroll}
+                    {...verticalScrollInteractionProps}
+                    contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.legalContentWrap]}
+                  >
                               {profileLoading ? (
                                 <Text style={[styles.legalText, { color: shell.modalSubtitle }]}>{tr('Cargando perfil...', 'Loading profile...')}</Text>
                               ) : !profileData ? (
@@ -1578,7 +1586,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     </View>
 
                     {/* ── List ────────────────────────────────────────────────── */}
-                    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+                    <ScrollView
+                      style={{ flex: 1 }}
+                      {...verticalScrollInteractionProps}
+                      contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: 12 + insets.bottom }]}
+                    >
                       {loadingRel ? (
                         <Text style={{ color: shell.textSecondary, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
                           {tr('Cargando…', 'Loading…')}
@@ -1633,7 +1645,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </View>
                 ) : activePanel === 'bunker' ? (
                   <View style={styles.legalScroll}>
-                    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+                    <ScrollView
+                      style={{ flex: 1 }}
+                      {...verticalScrollInteractionProps}
+                      contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: 12 + insets.bottom }]}
+                    >
                       {loadingBunker ? (
                         <Text style={{ color: shell.textSecondary, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
                           {tr('Cargando…', 'Loading…')}
@@ -1695,7 +1711,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     </ScrollView>
                   </View>
                 ) : (
-                  <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
+                  <ScrollView
+                    style={styles.legalScroll}
+                    {...verticalScrollInteractionProps}
+                    contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.legalContentWrap]}
+                  >
                     {legalContent.map((line, index) => (
                       <View style={styles.legalLine} key={`${activePanel}-${index}`}>
                         <MaterialCommunityIcons name="chevron-right" size={16} color={shell.ctaAccent} />
@@ -1725,12 +1745,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
                 <KeyboardAwareScrollView
                   style={styles.profileModalKeyboardWrap}
-                  keyboardDismissMode="on-drag"
-                  keyboardShouldPersistTaps="handled"
+                  {...formKeyboardScrollViewProps}
                   showsVerticalScrollIndicator={false}
                   bottomOffset={42}
-                  nestedScrollEnabled
-                  contentContainerStyle={styles.profileFormWrap}
+                  contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.profileFormWrap]}
                 >
                   <Text style={[styles.inputLabel, { color: shell.ctaAccent }]}>{tr('Nombre visible', 'Display Name')}</Text>
                   <TextInput
@@ -1790,40 +1808,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Escudo de Seguridad Presidencial */}
-      <Modal
-        visible={presidentialLockActive}
-        transparent={false}
-        animationType="none"
-        onRequestClose={() => {}}
-      >
-        <View
-          style={[
-            styles.tabRootShell,
-            { backgroundColor: shell.backgroundSolid, alignItems: 'center', justifyContent: 'center' },
-          ]}
-        >
-          <MaterialCommunityIcons name="shield-lock-outline" size={64} color={shell.ctaAccent} />
-          <Text style={{ marginTop: 24, fontSize: 18, fontWeight: '700', color: shell.text }}>
-            {tr('Seguridad Presidencial', 'Presidential Security')}
-          </Text>
-          <TouchableOpacity
-            style={{
-              marginTop: 32,
-              paddingVertical: 14,
-              paddingHorizontal: 24,
-              backgroundColor: shell.ctaAccent,
-              borderRadius: 12,
-            }}
-            onPress={async () => {
-              const unlocked = await hardLockCheck(tr('Desbloquea Card-Social', 'Unlock Card-Social'));
-              if (unlocked) setPresidentialLockActive(false);
-            }}
-          >
-            <Text style={{ color: shell.emptyCtaText, fontWeight: '700' }}>{tr('Desbloquear', 'Unlock')}</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
     </View>
   );
 }
