@@ -58,6 +58,7 @@ secrets/
 # deployment temp artifacts
 # Volcados locales de logs Azure/Kudu (pesados, pueden contener paths viejos; no versionar)
 runtime-logs*/
+runtime-logs*.zip
 backend-deploy*.zip
 backend-deploy-staging/
 kudu-command.json

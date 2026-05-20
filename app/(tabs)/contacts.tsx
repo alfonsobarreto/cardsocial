@@ -10,7 +10,11 @@ import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
-import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
+import {
+  collectStringsReceivedContact,
+  orderByDeepSearchWithExpandedQuery,
+  type CardSearchFacet,
+} from '@/services/deepSearch';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { useCoreT } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -120,6 +124,10 @@ type Contact = {
   bcContactName?: string | null;
   /** Logo de marca (`business_cards.bcLogoUrl`); solo business — no usar `userAvatarUrl` del perfil. */
   bcLogoUrl?: string | null;
+  /** Fecha de alta en la libreta (API); alimenta `ContactMeta.firstSeenAt` al fusionar metadatos. */
+  addedAt?: string | null;
+  /** Facetas buscables (vault-like) cuando el backend las incluye en la lista de recibidos. */
+  searchFacets?: CardSearchFacet[];
   meta?: {
     group: string;
     isFavorite: boolean;
@@ -134,6 +142,10 @@ type ContactListRow = ContactRow | HeaderRow;
 type ContactMeta = {
   group: string;
   isFavorite: boolean;
+  /** Ordenación “por fecha” y fusión al importar desde API (`addedAt`). */
+  firstSeenAt?: string;
+  /** Iconos asociados al contacto (búsqueda profunda por nombre/URL); opcional si no hay caché. */
+  icons?: Icon[];
   /** Legacy: ya no pisa `themeId` del API en lista (evita tema congelado al actualizar la tarjeta). */
   scanThemeId?: string;
   /** Avatar visto al aceptar (preview); solo si el API no devolvió userAvatarUrl. */
@@ -662,7 +674,9 @@ function ContactsContent() {
         if (favDiff !== 0) {
           return favDiff;
         }
-        return new Date(b.meta.firstSeenAt).getTime() - new Date(a.meta.firstSeenAt).getTime();
+        const tb = new Date(String(b.meta.firstSeenAt || '').trim() || '1970-01-01T00:00:00Z').getTime();
+        const ta = new Date(String(a.meta.firstSeenAt || '').trim() || '1970-01-01T00:00:00Z').getTime();
+        return tb - ta;
       });
       return rows;
     }

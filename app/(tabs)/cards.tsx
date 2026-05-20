@@ -3682,6 +3682,9 @@ export default function CardsFactoryScreen() {
   };
 
   const smartSlotBlocked = Boolean(cardSlotCaps && cardSlotCaps.smartCurrent >= cardSlotCaps.smartMax);
+  const businessSlotBlocked = Boolean(
+    cardSlotCaps && cardSlotCaps.businessUsed >= cardSlotCaps.businessMax,
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
