@@ -51,6 +51,11 @@ export type ReceivedContactForMarketSearch = {
   wallpaperPriceCredits?: number;
   enableParallax?: boolean;
   publicCardSlots?: PublicCardSlotPayload[];
+  /** Orden/espejo de slots en presenter (lista Contactos puede incluirlos). */
+  itemIds?: string[];
+  cardUpdatedAt?: string | null;
+  /** Tarjeta silenciada por el receptor (`channelMuted`). */
+  channelMuted?: boolean;
   ownerOccupation?: string | null;
   bcContactName?: string | null;
   bcLogoUrl?: string | null;

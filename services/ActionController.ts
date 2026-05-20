@@ -316,6 +316,8 @@ export const ActionController = {
     }
 
     const resolvedCardPhoto = cardPhoto?.trim() ? cardPhoto : null;
+    const resolvedPeerPhoto =
+      peerPhotoUrl != null && String(peerPhotoUrl).trim() ? String(peerPhotoUrl).trim() : null;
     const biz = cardType === 'business';
 
     /**

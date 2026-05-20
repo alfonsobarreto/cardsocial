@@ -98,7 +98,7 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
         cloudSnapshot.docs.map(async (itemDoc) => {
           const id = String(itemDoc.id || '').trim();
           const raw = { id: itemDoc.id, ...itemDoc.data() } as Record<string, unknown>;
-          return (await decodeVaultLink(id, raw, aesKey)) as unknown;
+          return (await decodeVaultLink(id, raw, null)) as unknown;
         }),
       );
       itemsMigrated = migrateVaultIconsForStorage(cloudItems as unknown[]);

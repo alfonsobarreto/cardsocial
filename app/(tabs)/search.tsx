@@ -371,7 +371,7 @@ export default function SearchScreen() {
         if (d == null || !Number.isFinite(d)) {
           return true;
         }
-        return d <= MAX_MARKET_RADIUS_MILES;
+        return d <= SOCIAL_MARKET_RADIUS_MILES;
       });
       return [...within].sort((a, b) => {
         const da = a.distanceMiles ?? 1e9;
