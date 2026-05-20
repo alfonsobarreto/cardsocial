@@ -1,5 +1,5 @@
 /**
- * Denormaliza contadores en `users/{uid}` para reglas server-side (p. ej. mint Market Radar).
+ * Denormaliza contadores en `users/{uid}` para reglas server-side (p. ej. Market Radar desde Studio Web).
  */
 const { getFirestoreOptional } = require('./firebaseAdminApp');
 

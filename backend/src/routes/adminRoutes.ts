@@ -1,16 +1,12 @@
 /**
  * Admin Routes - Card-Social Backend
- * Endpoints para: Login, Mint Assets, Publish Assets, Get Stats
- *
- * Base: /api/admin
- * Security: JWT Bearer Token + Gateway Key
- * Session: 30 minutos de expiración
+ * Login, borradores de activos del Market, publicación y estadísticas.
  */
 
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import AdminAuthService from '../services/adminAuthService.js';
-import MarketMintService from '../services/marketMintService.js';
+import MarketAssetDraftService from '../services/marketAssetDraftService.js';
 import { Db } from 'mongodb';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -50,12 +46,12 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // ═══════════════════════════════════════════════╗
-// 🎨 POST /api/admin/mint_asset
+// 🎨 POST /api/admin/market_asset_draft
 // Crear un nuevo asset en estado DRAFT con archivos
 // Requiere: JWT Bearer Token válido
 // ═══════════════════════════════════════════════╝
 router.post(
-  '/mint_asset',
+  '/market_asset_draft',
   AdminAuthService.middleware(),
   upload.fields([
     { name: 'wallpaper_vertical', maxCount: 1 },
@@ -79,7 +75,7 @@ router.post(
       }
 
       const db = (req as any).db as Db;
-      const mintService = new MarketMintService(db);
+      const draftService = new MarketAssetDraftService(db);
 
       // Preparar archivos
       const filesBuffer: any = {};
@@ -89,7 +85,7 @@ router.post(
       if (files.font) filesBuffer.font = files.font[0].buffer;
       if (files.preview) filesBuffer.preview = files.preview[0].buffer;
 
-      const mintRequest = {
+      const draftRequest = {
         collection,
         name,
         rarity,
@@ -97,7 +93,7 @@ router.post(
         files: filesBuffer,
       };
 
-      const result = await mintService.mintAsset(mintRequest);
+      const result = await draftService.createDraftAsset(draftRequest);
 
       res.json(
         buildUserFacingSuccessJson(req, 'ASSET_DRAFT_CREATED', {
@@ -106,7 +102,7 @@ router.post(
         }),
       );
     } catch (error) {
-      console.error('❌ Mint route error:', error);
+      console.error('❌ Market draft route error:', error);
       res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   }
@@ -119,16 +115,16 @@ router.post(
 // ═══════════════════════════════════════════════╝
 router.post('/publish_asset', AdminAuthService.middleware(), async (req: Request, res: Response) => {
   try {
-    const { mint_id, confirm_ready } = req.body;
+    const { draft_id, confirm_ready } = req.body;
 
-    if (!mint_id || !confirm_ready) {
+    if (!draft_id || !confirm_ready) {
       return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
     }
 
     const db = (req as any).db as Db;
-    const mintService = new MarketMintService(db);
+    const draftPublishService = new MarketAssetDraftService(db);
 
-    const result = await mintService.publishAsset(mint_id);
+    const result = await draftPublishService.publishAsset(draft_id);
 
     res.json(
       buildUserFacingSuccessJson(req, 'ASSET_PUBLISHED', {
@@ -149,9 +145,9 @@ router.post('/publish_asset', AdminAuthService.middleware(), async (req: Request
 router.get('/stats', AdminAuthService.middleware(), async (req: Request, res: Response) => {
   try {
     const db = (req as any).db as Db;
-    const mintService = new MarketMintService(db);
+    const draftStatsService = new MarketAssetDraftService(db);
 
-    const stats = await mintService.getMarketStats();
+    const stats = await draftStatsService.getMarketStats();
 
     res.json({
       success: true,
@@ -176,9 +172,9 @@ router.get('/assets', AdminAuthService.middleware(), async (req: Request, res: R
     if (status) filter.status = status;
 
     const db = (req as any).db as Db;
-    const mintService = new MarketMintService(db);
+    const draftListService = new MarketAssetDraftService(db);
 
-    const assets = await mintService.listAssets(filter);
+    const assets = await draftListService.listAssets(filter);
 
     res.json({
       success: true,
@@ -192,17 +188,17 @@ router.get('/assets', AdminAuthService.middleware(), async (req: Request, res: R
 });
 
 // ═══════════════════════════════════════════════╗
-// 🎯 GET /api/admin/preview/:mint_id
+// 🎯 GET /api/admin/preview/:draft_id
 // Generar y retornar preview en tiempo real
 // ═══════════════════════════════════════════════╝
-router.get('/preview/:mint_id', AdminAuthService.middleware(), async (req: Request, res: Response) => {
+router.get('/preview/:draft_id', AdminAuthService.middleware(), async (req: Request, res: Response) => {
   try {
-    const { mint_id } = req.params;
+    const { draft_id } = req.params;
 
     const db = (req as any).db as Db;
-    const mintService = new MarketMintService(db);
+    const previewService = new MarketAssetDraftService(db);
 
-    const previewBuffer = await mintService.generatePreview(mint_id);
+    const previewBuffer = await previewService.generatePreview(draft_id);
 
     res.setHeader('Content-Type', 'image/png');
     res.send(previewBuffer);

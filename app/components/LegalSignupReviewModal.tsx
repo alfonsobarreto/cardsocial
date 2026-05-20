@@ -49,7 +49,14 @@ type Props = {
   onConfirm: () => void;
 };
 
-({ visible, palette, language, t, onClose, onConfirm }: Props) {
+export default function LegalSignupReviewModal({
+  visible,
+  palette,
+  language,
+  t,
+  onClose,
+  onConfirm,
+}: Props) {
   const [tab, setTab] = useState<LegalDocTab>('terms');
   const [ack, setAck] = useState(false);
 

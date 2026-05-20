@@ -130,9 +130,9 @@ export interface OwnedCollectible {
 }
 
 /**
- * Admin Mint Request (Payload para crear nuevo asset)
+ * Payload administrativo para crear un borrador de activo de Market en Card Studio.
  */
-export interface AdminMintRequest {
+export interface AdminMarketDraftRequest {
   category: AssetCategory; // 'skin' | 'wallpaper' | 'font' | 'collectible'
   name: string;
   collection_name?: string; // Para coleccionables
@@ -161,7 +161,7 @@ export interface AdminMintRequest {
  * Admin Publish Payload (Finalizar y publicar a cloud)
  */
 export interface AdminPublishPayload {
-  mint_id: string; // Referencia a draft en DB
+  draft_id: string; // Referencia a borrador en DB
   confirm_ready: boolean; // Admin confirma que se ve bien en preview
   override_price?: number; // Ajuste en último momento
 }

@@ -1,9 +1,0 @@
-<step title="Incoming Request" date="2026-03-22T15:51:46.938" instance="4674be" url="/api/deployments/40b066e5-d3d3-4213-aaf3-030b954c0e6b/log/2f7fa090-7bff-4465-864e-41c5cc1fc9aa" method="GET" type="request" pid="843,1,16" Accept="*/*" Host="card-social-api.scm.azurewebsites.net" User-Agent="python/3.13.11 (Windows-11-10.0.26200-SP0) AZURECLI/2.84.0 (MSI)" Accept-Encoding="gzip, deflate" Authorization="Bas..." x-ms-client-request-id="8f202750-5a05-4f2a-8872-4afbc97ea5dd" CommandName="rest" ParameterSetName="--method --url --headers" X-ARR-LOG-ID="8f202750-5a05-4f2a-8872-4afbc97ea5dd" CLIENT-IP="172.56.93.246:8058" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/40b066e5-d3d3-4213-aaf3-030b954c0e6b/log/2f7fa090-7bff-4465-864e-41c5cc1fc9aa" X-Client-IP="172.56.93.246" X-Client-Port="8058" >
-  <step title="Cleanup Xml Logs" date="2026-03-22T15:51:46.942" >
-    <step title="Cleanup Infos" date="2026-03-22T15:51:46.963" totalFiles="211" totalCleanup="51" /><!-- duration: 8ms -->
-  </step><!-- duration: 34ms -->
-  <step title="DeploymentService.GetLogEntryDetails" date="2026-03-22T15:51:46.997" >
-    <step title="DeploymentManager.GetLogEntryDetails(id:40b066e5-d3d3-4213-aaf3-030b954c0e6b, entryId:2f7fa090-7bff-4465-864e-41c5cc1fc9aa" date="2026-03-22T15:51:47.007" /><!-- duration: 27ms -->
-  </step><!-- duration: 43ms -->
-  <step title="Outgoing response" date="2026-03-22T15:51:47.045" type="response" statusCode="200" statusText="OK" /><!-- duration: 5ms -->
-</step><!-- duration: 118ms -->

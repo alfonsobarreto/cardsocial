@@ -939,11 +939,14 @@ function createQrRoutes({ storage }) {
           type: 'ghost-link-incoming',
           inviteId,
           callerUid,
+          calleeUid: targetUid,
           callerName: caller.name,
           cardName,
           callType,
         },
         channelId: 'ghost-link-calls',
+        /* FCM/APNs: prioridad alta + TTL razonable evita pérdidas en reposo Android (Doze) con TTL muy bajo. */
+        ttl: 300,
       });
 
       return res.status(200).json({

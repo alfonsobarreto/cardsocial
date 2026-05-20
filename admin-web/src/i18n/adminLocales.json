@@ -752,8 +752,8 @@
     "en": "Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate."
   },
   "admin_login_form_eyebrow": {
-    "es": "The Mint",
-    "en": "The Mint"
+    "es": "Promociones QR",
+    "en": "Promotions QR"
   },
   "admin_login_form_title": {
     "es": "Iniciar sesión",

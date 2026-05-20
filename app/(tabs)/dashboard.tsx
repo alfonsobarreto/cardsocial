@@ -22,10 +22,10 @@ import { fetchBusinessCardHolderCounts } from '@/services/qrApi';
 import { auth, db } from '@/services/firebaseConfig';
 import { useLegacyPathEngine, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
+import { issuePromotionsQrMarketRadarUrl } from '@/services/promotionsQrMarketRadarEmbedUrl';
 import { MarketRadarWebView } from '@/components/MarketRadarWebView';
 import { startSearchLocationSession } from '@/services/searchLocationSession';
-import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
+import { marketRadarPromotionsQrUserMessage } from '@/services/marketRadarPromotionsQrMessages';
 import {
   getMarketRadarRemoteConfig,
   subscribeMarketRadarRemoteConfig,
@@ -80,6 +80,9 @@ import {
 } from 'react-native';
 import { Map as LucideMap, Maximize2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+/** SEO explorer + heatmap + “niche keyword” + Market Radar WebView: oculto hasta UX/geo estables y reglas KPI claras. */
+const DASHBOARD_SHOW_SEO_INTEL_AND_RADAR = false;
 
 const CARD_GAP = 12;
 
@@ -936,7 +939,8 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [updatingBId, setUpdatingBId] = useState<string | null>(null);
   const [signatureBusy, setSignatureBusy] = useState(false);
-  const [periodMode, setPeriodMode] = useState<PeriodMode>('week');
+  /** Año civil en curso (1 ene → 31 dic, offset 0) — mejor visión macro del negocio. */
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('year');
   const [periodOffset, setPeriodOffset] = useState(0);
   const [headerInfo, setHeaderInfo] = useState<DashboardHeaderInfo>({
     firstName: '',
@@ -1064,7 +1068,7 @@ export default function DashboardScreen() {
   }, [cards, periodMode, periodOffset, sessionUid]);
 
   useEffect(() => {
-    if (!sessionUid || !cards.length) {
+    if (!DASHBOARD_SHOW_SEO_INTEL_AND_RADAR || !sessionUid || !cards.length) {
       setSeoByBId({});
       return;
     }
@@ -1158,23 +1162,23 @@ export default function DashboardScreen() {
     }
     setLaunchingRadar(true);
     try {
-      const minted = await mintMarketRadarEmbedUrl(language);
-      if (!minted.ok) {
+      const radarEmbed = await issuePromotionsQrMarketRadarUrl(language);
+      if (!radarEmbed.ok) {
         const gate403 =
-          minted.issue.httpStatus === 403 &&
-          (minted.issue.code === 'market_radar_pro_required' ||
-            minted.issue.code === 'market_radar_requires_business_card');
+          radarEmbed.issue.httpStatus === 403 &&
+          (radarEmbed.issue.code === 'market_radar_pro_required' ||
+            radarEmbed.issue.code === 'market_radar_requires_business_card');
         if (gate403) {
           requestSubscriptionMarketRadarSection();
           return;
         }
         Alert.alert(
           tcx('dashboard_radar_unavailable'),
-          marketRadarMintUserMessage(minted.issue),
+          marketRadarPromotionsQrUserMessage(radarEmbed.issue),
         );
         return;
       }
-      let url = minted.url.trim();
+      let url = radarEmbed.url.trim();
       const locSession = await startSearchLocationSession();
       if (locSession.ok) {
         const parsed = new URL(url);
@@ -1541,6 +1545,17 @@ export default function DashboardScreen() {
           />
         ) : null}
 
+        {activeCard && sessionUid && periodMode === 'year' ? (
+          <Text
+            style={[
+              styles.rankEmptyText,
+              { marginTop: -4, marginBottom: 8, paddingHorizontal: 4, color: chrome.textMuted, fontSize: 12 },
+            ]}
+          >
+            {tcx('dashboard_metric_calendar_year_scope')}
+          </Text>
+        ) : null}
+
         <CollapsibleSection
           title={tcx('dashboard_iconodata_section_title')}
           icon="format-list-numbered"
@@ -1582,6 +1597,7 @@ export default function DashboardScreen() {
           )}
         </CollapsibleSection>
 
+        {DASHBOARD_SHOW_SEO_INTEL_AND_RADAR ? (
         <CollapsibleSection
           title={tcx('dashboard_seo_intel_title')}
           icon="map-search-outline"
@@ -1853,6 +1869,7 @@ export default function DashboardScreen() {
             </Text>
           </View>
         </CollapsibleSection>
+        ) : null}
 
         <CollapsibleSection
           title={tcx('dashboard_legacy_path_title')}

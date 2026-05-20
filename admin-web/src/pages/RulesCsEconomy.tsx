@@ -65,8 +65,8 @@ export default function RulesCsEconomy() {
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">CS Economy</p>
         <h1 className="mt-3 text-3xl font-semibold text-slate-950">Bonos y precios CS (dos casilleros)</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Bonos (bienvenida, pack estudiantil, cashback tarjeta negocio), precio de icono Studio y bundle temático Texas
-          Longhorns. Par USD + CS donde aplique — la app aplica el monto en CS publicado.
+          Bonos (bienvenida, cashback tarjeta negocio), precio de icono Studio y bundle temático Texas Longhorns. Par USD + CS donde
+          aplique — la app aplica el monto en CS publicado.
         </p>
       </section>
 
@@ -98,35 +98,6 @@ export default function RulesCsEconomy() {
                 value={config.welcomeBonusCs}
                 onChange={(ev) =>
                   setConfig((p) => ({ ...p, welcomeBonusCs: Number.parseInt(ev.target.value, 10) || 0 }))
-                }
-              />
-            </label>
-          </fieldset>
-
-          <fieldset className="grid gap-4 md:grid-cols-2">
-            <legend className="col-span-full text-lg font-semibold text-slate-900">Pack estudiantil (.edu + social)</legend>
-            <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Monto ref. USD</span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={config.studentPackUsd}
-                onChange={(ev) =>
-                  setConfig((p) => ({ ...p, studentPackUsd: Number.parseFloat(ev.target.value) || 0 }))
-                }
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Créditos CS</span>
-              <input
-                type="number"
-                min={0}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={config.studentPackBonusCs}
-                onChange={(ev) =>
-                  setConfig((p) => ({ ...p, studentPackBonusCs: Number.parseInt(ev.target.value, 10) || 0 }))
                 }
               />
             </label>

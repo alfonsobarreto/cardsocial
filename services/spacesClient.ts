@@ -6,7 +6,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 // (Azure App Service / Node.js). En Expo, process.env.DO_SPACES_KEY es undefined
 // y todas las llamadas S3 fallarían con auth error.
 //
-// Para uploads desde la app: llama al backend vía fetch('/api/admin/mint_asset').
+// Para uploads desde la app: llama al backend vía fetch('/api/admin/market_asset_draft').
 // =============================================================================
 
 if (!process.env.DO_SPACES_KEY) {

@@ -96,7 +96,7 @@ npx expo start
 - `backend/README.md` — moderación, uploads, variables de entorno del backend.
 - `backend/DEPLOY_DETERMINISTIC_AZURE.md` — despliegue Azure del API.
 - `funcionalidades.md` — MVP + tab Mis Tarjetas (historial abril 2026).
-- `admin.md` — panel The Mint (`super_admin`, módulos, Firestore).
+- `admin.md` — panel Promociones QR (`super_admin`, módulos, Firestore).
 - `businesscard.md` — contrato Business Card (v1 freeze).
 - `ICON_STORE_SETUP.md`, `ICON_LIBRARY_SETUP.md` — tienda / librería de iconos.
 - `ONE_PAGER_CARD_SOCIAL_MUNDO.md`, `PATENTE_MARCA_CARD_SOCIAL_BRIEF.md` — comercial / legal (no son spec de código).

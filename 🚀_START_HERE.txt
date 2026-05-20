@@ -18,14 +18,14 @@
 ═════════════════════════════════════════════════════════════════════════════════
 
 ✅ FULLY BUILT:
-   • Admin UI (React dashboard with mint, preview, publish, stats)
+   • Admin UI (React dashboard with Card-Studio drafts, preview, publish, stats)
    • 13 API endpoints (7 admin + 4 mobile sync + 2 utility)
    • Authentication system (JWT HS256, bcryptjs, 30min expiry)
    • Mobile sync service (auto-load 10 free icons on registration)
    • Market assets database (MongoDB with validation + indices)
    • 10 free icons with SVG assets (Phone, Email, Link, Text, PDF, etc.)
    • MARVEL-001 test collectible (sequential ID validation ready)
-   • End-to-end test script (7 step validation: login → mint → publish → verify)
+   • End-to-end test script (7 step validation: login → draft → publish → verify)
    • Canvas preview renderer (real-time asset composition)
    • All security hardened (no SQL injection, no XSS, API Gateway Key auth)
 
@@ -132,8 +132,8 @@ Result: ✅ ADMIN PORTAL IS LIVE!
 🚀 WHAT YOU CAN DO NOW
 ═════════════════════════════════════════════════════════════════════════════════
 
-MINT YOUR FIRST COLLECTIBLE:
-1. Go to Admin Dashboard → Mint Asset
+CREATE YOUR FIRST COLLECTIBLE:
+1. Go to Admin Dashboard → Card-STUDIO / crear borrador
 2. Fill form:
    Collection: collectibles
    Name: Marvel Spider-Man
@@ -141,7 +141,7 @@ MINT YOUR FIRST COLLECTIBLE:
    Price: 500 CS
    Stock Limit: 100
 3. Upload a preview image
-4. Click "Mint"
+4. Click "Crear borrador"
 5. System auto-generates ID: COLLECTIBLES_MARVEL-001 ✅ (sequential!)
 6. Click "Preview" → Canvas renders in real-time
 7. Click "Publish" → Status changes to PUBLISHED
@@ -170,7 +170,7 @@ Frontend (Vercel)
 ├─ https://cardsocial.me/admin (AdminDashboard.tsx)
 ├─ React 18 + TypeScript
 ├─ Authentication modal
-├─ Mint form with image upload
+├─ Asset draft form with image upload
 ├─ Real-time preview (HTML5 Canvas)
 └─ Statistics dashboard
 
@@ -251,7 +251,7 @@ A: Yes! Run: npm run dev (in backend folder)
 
 Q: How do I seed the 10 free icons?
 A: Two options:
-   1. Run testMarvelMint.ts (creates sample icons)
+   1. Run testMarvelMarketDraft.ts (creates sample icons)
    2. Manually insert via MongoDB Atlas dashboard (choose seedBasicIcons.ts data)
 
 Q: What's the session timeout?
@@ -288,7 +288,7 @@ SOLUTION:
   • Confirm ADMIN_JWT_SECRET in backend .env (must match signing key)
   • Check MongoDB connection working (backend logs should show "DB connected")
 
-PROBLEM: "Mint button does nothing"
+PROBLEM: "Crear borrador button does nothing"
 SOLUTION:
   • Backend API not responding → check Azure deployment
   • Check browser console (F12) for JavaScript errors
@@ -322,7 +322,7 @@ Your move:
 2. Open 3 cloud accounts (Vercel, Azure, MongoDB)
 3. Follow 5-step deployment plan above
 4. At step 5: Login to https://cardsocial.me/admin
-5. Mint MARVEL-001 collectible
+5. Draft MARVEL-001 collectible
 6. Confirm sequential ID: COLLECTIBLES_MARVEL-001 ✅
 7. Announce: Card-Social Admin Portal is LIVE!
 

@@ -1,9 +1,6 @@
-import type { SocialProviderId } from '@/services/socialAuth';
-
-export const STUDENT_PACK_ELIGIBLE_PROVIDERS = Object.freeze([
-  'github.com',
-  'google.com',
-] as SocialProviderId[]);
+/**
+ * Constantes de reglas de producto Card-Social (tarjetas, fotos por tipo, privilegios super_admin).
+ */
 
 /**
  * Reglas de foto por tipo de tarjeta.
@@ -20,8 +17,8 @@ export const STUDENT_PACK_ELIGIBLE_PROVIDERS = Object.freeze([
  */
 export const CARD_PHOTO_RULES = Object.freeze({
   personal: { allowCustomPhoto: false, fallbackToProfilePhoto: true },
-  social:   { allowCustomPhoto: false, fallbackToProfilePhoto: true },
-  business: { allowCustomPhoto: true,  fallbackToProfilePhoto: true },
+  social: { allowCustomPhoto: false, fallbackToProfilePhoto: true },
+  business: { allowCustomPhoto: true, fallbackToProfilePhoto: true },
 } as const);
 
 /**
@@ -29,12 +26,12 @@ export const CARD_PHOTO_RULES = Object.freeze({
  * Fuente de verdad para la UI y los servicios.
  */
 export const SUPER_ADMIN_PRIVILEGES = Object.freeze({
-  unlimitedCards:          true,
-  unlimitedVaultItems:     true,
-  freeIconPackClaims:      true,  // sin costo de créditos
+  unlimitedCards: true,
+  unlimitedVaultItems: true,
+  freeIconPackClaims: true, // sin costo de créditos
   collectibleStillDecrement: true, // coleccionables siguen usando 1 del supply (regla 99/100)
-  canEditAnyCardPhoto:     true,  // puede cambiar foto en personal/social también
+  canEditAnyCardPhoto: true, // puede cambiar foto en personal/social también
   canEditBusinessCardPhoto: true,
-  hideProgressBar:         true,  // la barra de uso desaparece (ilimitado)
-  subscriptionPlan:        'premium-infinite',
+  hideProgressBar: true, // la barra de uso desaparece (ilimitado)
+  subscriptionPlan: 'premium-infinite',
 } as const);

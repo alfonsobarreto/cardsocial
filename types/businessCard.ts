@@ -135,7 +135,7 @@ export interface SocialMarketSearchParams {
   query: string; // Hasta 3 palabras: "nails hair coloración"
   userLatitude?: number;
   userLongitude?: number;
-  radiusMiles?: number; // Default: 5 millas
+  radiusMiles?: number; // Default producto Social Market: 25 millas (`SOCIAL_MARKET_RADIUS_MILES`)
   sortBy?: 'distance' | 'rating' | 'relevance';
 }
 

@@ -367,13 +367,13 @@ Write-Host "    User:     admin_pochobs" -ForegroundColor Cyan
 Write-Host "    Password: Arantza11@" -ForegroundColor Cyan
 
 Write-Host "`n2️⃣  Create First Collectible" -ForegroundColor Yellow
-Write-Host "    - Click 'Mint Asset'" -ForegroundColor Cyan
+Write-Host "    - Click 'Crear borrador (Card-STUDIO)'" -ForegroundColor Cyan
 Write-Host "    - Collection: collectibles" -ForegroundColor Cyan
 Write-Host "    - Name: Marvel Spider-Man" -ForegroundColor Cyan
 Write-Host "    - Rarity: legendario" -ForegroundColor Cyan
 Write-Host "    - Price: 500 CS" -ForegroundColor Cyan
 Write-Host "    - Upload preview image" -ForegroundColor Cyan
-Write-Host "    - Click 'Mint'" -ForegroundColor Cyan
+Write-Host "    - Click 'Crear borrador'" -ForegroundColor Cyan
 
 Write-Host "`n3️⃣  Verify Sequential ID" -ForegroundColor Yellow
 Write-Host "    Expected ID: COLLECTIBLES_MARVEL-001" -ForegroundColor Cyan
@@ -391,7 +391,7 @@ Write-Host "    - Vault automatically syncs 10 free icons" -ForegroundColor Cyan
 Write-Host "    - MARVEL-001 appears in Skins for MyCards" -ForegroundColor Cyan
 
 Write-Host "`n═════════════════════════════════════════════════════════════════════════════" -ForegroundColor Magenta
-Write-Host "  🎉 System is LIVE! Alfonso can now mint, publish, and sync collectibles." -ForegroundColor Magenta
+Write-Host "  🎉 System is LIVE! Alfonso can publish collectibles from Card-Studio and sync vaults." -ForegroundColor Magenta
 Write-Host "═════════════════════════════════════════════════════════════════════════════`n" -ForegroundColor Magenta
 
 Write-Host "Questions? Check DEPLOYMENT_GUIDE.md for detailed instructions" -ForegroundColor Cyan

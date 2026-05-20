@@ -41,11 +41,13 @@ import { useAgoraRtc } from '@/services/voip/useAgoraRtc';
 import { useGhostLinkRingingVideoPreview } from '@/services/voip/useGhostLinkRingingVideoPreview';
 import { ensureVoipPermissions } from '@/services/voip/ensureVoipPermissions';
 import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
+import { subscribeGhostLinkPushDigest } from '@/services/ghostLinkPushSignals';
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import { getGhostLinkAgoraEngine, setGhostLinkAgoraSpeaker } from '@/services/ghostLinkAgoraSession';
 import { clearGhostLinkCameraSignal } from '@/services/ghostLinkVoipCameraSignal';
 import { useGhostLinkCameraConsent } from '@/hooks/useGhostLinkCameraConsent';
 import { coreT, useAppLanguage } from '@/services/coreI18n';
+import { digestGhostLinkRemoteNotificationData } from '@/services/ghostLinkPushSignals';
 
 /** @deprecated Use `VoIPCallPhase` (enum) en código nuevo. */
 export type GhostCallPhase = VoIPCallPhase;
@@ -180,6 +182,8 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   const [voipAudioRouteHint, setVoipAudioRouteHint] = useState<string | null>(null);
 
   const pendingParamsRef = useRef<GhostLinkCallStartParams | null>(null);
+  /** Dispara una consulta inmediata a `/incoming` sin esperar el intervalo (wake por push). */
+  const incomingPollKickRef = useRef<() => void>(() => {});
   const pollingRef = useRef(true);
   const activeStartRef = useRef<number | null>(null);
   const ringingStartRef = useRef<number | null>(null);
@@ -294,7 +298,12 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
 
-    const poll = async () => {
+    const scheduleNext = () => {
+      if (cancelled) return;
+      timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
+    };
+
+    const pollOnce = async () => {
       if (cancelled || !pollingRef.current) return;
       if (phaseRef.current !== VoIPCallPhase.Idle) return;
 
@@ -336,23 +345,40 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       } catch {
         /* network hiccup — retry next tick */
       }
-
-      if (!cancelled) {
-        timer = setTimeout(poll, POLL_INTERVAL_MS);
-      }
     };
 
-    poll();
+    async function tick() {
+      await pollOnce();
+      if (!cancelled) scheduleNext();
+    }
+
+    const kickPollingNow = () => {
+      if (phaseRef.current !== VoIPCallPhase.Idle) return;
+      pollingRef.current = true;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      void (async () => {
+        await pollOnce();
+        if (!cancelled) scheduleNext();
+      })();
+    };
+
+    incomingPollKickRef.current = kickPollingNow;
+
+    void tick();
 
     const appSub = AppState.addEventListener('change', (next) => {
       if (next === 'active' && phaseRef.current === VoIPCallPhase.Idle) {
         pollingRef.current = true;
-        poll();
+        kickPollingNow();
       }
     });
 
     return () => {
       cancelled = true;
+      incomingPollKickRef.current = () => {};
       if (timer) clearTimeout(timer);
       appSub.remove();
     };
@@ -415,19 +441,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     let sub: { remove: () => void } | undefined;
     const onNotificationReceived = (notification: Notifications.Notification) => {
-      const data = notification.request.content.data as Record<string, unknown> | undefined;
-      const type = data?.type != null ? String(data.type) : '';
-
-      if (type === 'ghost-link-incoming' && phaseRef.current === VoIPCallPhase.Idle) {
-        pollingRef.current = true;
-      }
-
-      if (type === 'ghost-link-cancelled' && phaseRef.current === VoIPCallPhase.RingingIncoming) {
-        const nid = data?.inviteId != null ? String(data.inviteId) : '';
-        if (!nid || nid === callDataRef.current?.inviteId) {
-          void finalizeEndingRef.current('remote');
-        }
-      }
+      digestGhostLinkRemoteNotificationData(
+        notification.request.content.data as Record<string, unknown> | undefined,
+      );
     };
 
     try {
@@ -765,6 +781,25 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   useLayoutEffect(() => {
     finalizeEndingRef.current = finalizeCallEnding;
   });
+
+  /** Push Expo (foreground/background/headless cuando aplique): wake + `/incoming`; cancel coherent con timbre. */
+  useEffect(() => {
+    return subscribeGhostLinkPushDigest((detail) => {
+      if (detail.kind === 'incoming') {
+        if (phaseRef.current !== VoIPCallPhase.Idle) return;
+        pollingRef.current = true;
+        incomingPollKickRef.current();
+        return;
+      }
+      if (detail.kind === 'cancelled') {
+        if (phaseRef.current !== VoIPCallPhase.RingingIncoming) return;
+        const nid = detail.inviteId;
+        if (!nid || nid === callDataRef.current?.inviteId) {
+          void finalizeEndingRef.current('remote');
+        }
+      }
+    });
+  }, []);
 
   // ── Emisor: poll estado de invitación (signaling). Ringback sigue en expo-av hasta `accepted`; entonces handoff + join Agora.
   useEffect(() => {

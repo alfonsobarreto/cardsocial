@@ -825,7 +825,7 @@ export default function MyProfileScreen() {
       } catch {
         /* ignore */
       }
-      Alert.alert(tcx('common_done') || 'Hecho', 'Seguridad Presidencial activada.');
+      Alert.alert(tcx('common_done'), tcx('profile_presidential_enabled_toast'));
     }
   };
 
@@ -1175,7 +1175,7 @@ export default function MyProfileScreen() {
               <View style={[styles.cardHeader, { justifyContent: 'space-between' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <MaterialCommunityIcons name="shield-lock-outline" size={18} color={accent} />
-                  <Text style={[styles.cardTitle, { color: textPrimary }]}>Seguridad Presidencial</Text>
+                  <Text style={[styles.cardTitle, { color: textPrimary }]}>{tcx('profile_presidential_title')}</Text>
                 </View>
                 <Switch
                   value={presidentialSecEnabled}
@@ -1190,10 +1190,7 @@ export default function MyProfileScreen() {
                   }
                 />
               </View>
-              <Text style={[styles.hintText, { color: textSecondary }]}>
-                Protege tu cuenta con biometría (FaceID/Huella) al minimizar la aplicación. Evita bloqueos
-                repetitivos mientras navegas dentro de tu cuenta.
-              </Text>
+              <Text style={[styles.hintText, { color: textSecondary }]}>{tcx('profile_presidential_body')}</Text>
             </View>
 
             {/* ── Contraseña (solo usuarios password) ──────────────────────────── */}

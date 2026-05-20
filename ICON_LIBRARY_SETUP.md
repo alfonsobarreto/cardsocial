@@ -92,7 +92,7 @@ Firebase Storage no tiene "crear carpetas" como un filesystem normal.
 
 1. **Inicia sesión** con tu cuenta (`pochobs@gmail.com`)
 2. **Abre el drawer** (3 líneas)
-3. **Toca "The Mint 👑"** → Admin Dashboard
+3. **Toca "Promociones QR 👑"** → Admin Dashboard
 4. **Click en tab "Icons"** (el último tab con icono de paleta)
 5. **Panel "Admin Icon Uploader" aparece 💎**
 

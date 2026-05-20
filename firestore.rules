@@ -192,21 +192,6 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // Student Pack grants are immutable auditable records.
-    match /student_pack_grants/{uid} {
-      allow read: if isSignedIn() && (request.auth.uid == uid || isSuperAdmin());
-
-      allow create: if isSignedIn()
-        && request.auth.uid == uid
-        && request.resource.data.uid == uid
-        && request.resource.data.emailLower is string
-        && request.resource.data.provider is string
-        && request.resource.data.amount is number
-        && request.resource.data.granted == true;
-
-      allow update, delete: if false;
-    }
-
     // Admin namespace restricted to super admin, except recovery ticket creation by any authenticated user.
     match /admin/accountRecoveryTickets/tickets/{ticketId} {
       allow create: if isSignedIn();

@@ -403,8 +403,8 @@
   margin: 0;
 }
 
-/* Mint Form */
-.mint-form {
+/* Asset draft form (CARD-STUDIO) */
+.asset-draft-form {
   display: flex;
   flex-direction: column;
   gap: 20px;

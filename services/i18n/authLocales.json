@@ -967,22 +967,6 @@
     "fr": "Nous avons envoyé un lien de vérification. Vérifiez courrier indésirable. Confirmation requise avant connexion.",
     "de": "Wir haben einen Bestätigungslink gesendet. Prüfen Sie Posteingang/Spam. Bestätigung vor Anmeldung erforderlich."
   },
-  "register_alert_student_pack_title": {
-    "es": "Student Pack activado",
-    "en": "Student Pack activated",
-    "it": "Student Pack attivato",
-    "pt": "Student Pack ativado",
-    "fr": "Student Pack activé",
-    "de": "Student Pack aktiviert"
-  },
-  "register_alert_student_pack_body": {
-    "es": "Se acreditaron {{amount}} CS por elegibilidad estudiantil.",
-    "en": "{{amount}} CS were credited for student eligibility.",
-    "it": "Sono stati accreditati {{amount}} CS per idoneità studentesca.",
-    "pt": "Foram creditados {{amount}} CS por elegibilidade estudantil.",
-    "fr": "{{amount}} CS ont été crédités (éligibilité étudiante).",
-    "de": "{{amount}} CS wurden für Studierenden-Bonus gutgeschrieben."
-  },
   "register_alert_registration_error_title": {
     "es": "Error de registro",
     "en": "Registration Error",

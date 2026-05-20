@@ -2,7 +2,6 @@ import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import { getQRHistory } from '@/services/qrGiftService';
 import { isSuperAdmin } from '@/services/roleService';
-import { getStudentPackGrantAudits } from '@/services/studentPackAdminService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -20,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 
-type StatsTab = 'users' | 'coins' | 'students' | 'costs';
+type StatsTab = 'users' | 'coins' | 'costs';
 type CoinsPeriod = 'month' | 'year' | 'all';
 
 interface UserStats {
@@ -37,13 +36,6 @@ interface CoinsStats {
   thisYear: number;
 }
 
-interface StudentStats {
-  totalGrants: number;
-  totalCS: number;
-  github: number;
-  google: number;
-}
-
 export default function AdminStatsScreen() {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
@@ -55,9 +47,6 @@ export default function AdminStatsScreen() {
   const [authorized, setAuthorized] = useState(false);
   const [userStats, setUserStats] = useState<UserStats>({ total: 0, premium: 0, business: 0, businessNull: 0 });
   const [coinsStats, setCoinsStats] = useState<CoinsStats>({ totalGifted: 0, totalRedeemed: 0, thisMonth: 0, thisYear: 0 });
-  const [studentStats, setStudentStats] = useState<StudentStats>({ totalGrants: 0, totalCS: 0, github: 0, google: 0 });
-  const [studentRows, setStudentRows] = useState<any[]>([]);
-
   useEffect(() => {
     init();
   }, []);
@@ -70,11 +59,10 @@ export default function AdminStatsScreen() {
         return;
       }
 
-      const [usersSnap, businessSnap, qrHistory, studentAudits] = await Promise.all([
+      const [usersSnap, businessSnap, qrHistory] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'businessCards')).catch(() => ({ docs: [], size: 0 })),
         getQRHistory(uid),
-        getStudentPackGrantAudits(200).catch(() => []),
       ]);
 
       // Users
@@ -111,16 +99,6 @@ export default function AdminStatsScreen() {
 
       setCoinsStats({ totalGifted, totalRedeemed, thisMonth, thisYear });
 
-      // Students
-      const grants = (studentAudits as any[]).filter((r: any) => r.granted);
-      setStudentStats({
-        totalGrants: grants.length,
-        totalCS: grants.reduce((s: number, r: any) => s + r.amount, 0),
-        github: grants.filter((r: any) => r.provider === 'github.com').length,
-        google: grants.filter((r: any) => r.provider === 'google.com').length,
-      });
-      setStudentRows(studentAudits as any[]);
-
       setAuthorized(true);
     } catch (err) {
       console.error('[AdminStats] init error:', err);
@@ -133,7 +111,6 @@ export default function AdminStatsScreen() {
     () => [
       { key: 'users', label: tr('Usuarios', 'Users'), icon: 'account-group' },
       { key: 'coins', label: 'CS Coins', icon: 'cash-multiple' },
-      { key: 'students', label: 'Student Pack', icon: 'school' },
       { key: 'costs', label: tr('Costos', 'Costs'), icon: 'server' },
     ],
     [language],
@@ -272,39 +249,6 @@ export default function AdminStatsScreen() {
           </View>
         )}
 
-        {/* ── STUDENT PACK ── */}
-        {activeTab === 'students' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{tr('Student Pack (.edu)', 'Student Pack (.edu)')}</Text>
-            <View style={styles.kpiGrid}>
-              <KpiCard icon="school-outline" label={tr('Grants Otorgados', 'Grants given')} value={studentStats.totalGrants.toLocaleString(intlLocale)} color="#27AE60" />
-              <KpiCard icon="cash-multiple" label={tr('CS Entregados', 'CS given')} value={studentStats.totalCS.toLocaleString(intlLocale)} color="#C5A065" />
-              <KpiCard icon="github" label={tr('Vía GitHub', 'Via GitHub')} value={studentStats.github.toLocaleString(intlLocale)} color="#333" />
-              <KpiCard icon="google" label={tr('Vía Google', 'Via Google')} value={studentStats.google.toLocaleString(intlLocale)} color="#EA4335" />
-            </View>
-            {studentRows.length === 0 ? (
-              <Text style={styles.emptyText}>{tr('No hay grants registrados aún.', 'No grants recorded yet.')}</Text>
-            ) : (
-              studentRows.slice(0, 50).map((item: any) => (
-                <View key={item.uid} style={styles.studentRow}>
-                  <MaterialCommunityIcons name="school-outline" size={14} color="#0A2540" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.studentEmail}>{item.emailLower || item.uid}</Text>
-                    <Text style={styles.studentMeta}>{item.provider} · {item.source} · {item.grantedAtText}</Text>
-                  </View>
-                  <View style={[styles.studentBadge, !item.granted && styles.studentBadgeDenied]}>
-                    <Text style={styles.studentBadgeText}>
-                      {item.granted
-                        ? `+${item.amount} CS`
-                        : tr('Denegado', 'Denied')}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-        )}
-
         {/* ── COSTOS ── */}
         {activeTab === 'costs' && (
           <View style={styles.section}>
@@ -428,22 +372,6 @@ const styles = StyleSheet.create({
   },
   bigKpiValue: { color: '#C5A065', fontSize: 40, fontWeight: '900' },
   bigKpiLabel: { color: 'rgba(197,160,101,0.6)', fontSize: 13 },
-  emptyText: { fontSize: 13, color: '#999', textAlign: 'center', paddingVertical: 32 },
-  studentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E8EDF2',
-  },
-  studentEmail: { fontSize: 12, fontWeight: '600', color: '#0A2540' },
-  studentMeta: { fontSize: 10, color: '#999', marginTop: 2 },
-  studentBadge: { backgroundColor: 'rgba(39,174,96,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  studentBadgeDenied: { backgroundColor: 'rgba(231,76,60,0.12)' },
-  studentBadgeText: { fontSize: 11, fontWeight: '700', color: '#27AE60' },
   costsNote: { fontSize: 12, color: '#777', lineHeight: 18, backgroundColor: '#FFF', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#E8EDF2' },
   costRow: {
     flexDirection: 'row',

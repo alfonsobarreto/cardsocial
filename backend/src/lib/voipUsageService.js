@@ -214,7 +214,7 @@ async function readUserMergeFirestoreMongo(storage, uid) {
   return out;
 }
 
-/** `system_config/market_radar.radar_trial_enabled` — cache corta (misma fuente que mint Radar). */
+/** `system_config/market_radar.radar_trial_enabled` — cache corta (misma fuente que acceso Radar / Promotions QR Studio). */
 const RADAR_TRIAL_AGORA_CAP_SEC = 60 * 60;
 const AGORA_SUPERADMIN_MIN_PRIVILEGE_SEC = 24 * 60 * 60;
 

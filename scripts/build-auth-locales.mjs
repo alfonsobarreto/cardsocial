@@ -603,16 +603,7 @@ const dict = {
     'Nous avons envoyé un lien de vérification. Vérifiez courrier indésirable. Confirmation requise avant connexion.',
     'Wir haben einen Bestätigungslink gesendet. Prüfen Sie Posteingang/Spam. Bestätigung vor Anmeldung erforderlich.',
   ),
-  register_alert_student_pack_title: L('Student Pack activado', 'Student Pack activated', 'Student Pack attivato', 'Student Pack ativado', 'Student Pack activé', 'Student Pack aktiviert'),
-  register_alert_student_pack_body: L(
-    'Se acreditaron {{amount}} CS por elegibilidad estudiantil.',
-    '{{amount}} CS were credited for student eligibility.',
-    'Sono stati accreditati {{amount}} CS per idoneità studentesca.',
-    'Foram creditados {{amount}} CS por elegibilidade estudantil.',
-    '{{amount}} CS ont été crédités (éligibilité étudiante).',
-    '{{amount}} CS wurden für Studierenden-Bonus gutgeschrieben.',
-  ),
-  register_alert_registration_error_title: L('Error de registro', 'Registration Error', 'Errore di registrazione', 'Erro no cadastro', 'Erreur d’inscription', 'Registrierungsfehler'),
+ L('Error de registro', 'Registration Error', 'Errore di registrazione', 'Erro no cadastro', 'Erreur d’inscription', 'Registrierungsfehler'),
   register_alert_registration_error_fallback: L(
     'No se pudo completar el registro.',
     'Could not complete registration.',

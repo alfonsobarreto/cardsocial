@@ -143,6 +143,21 @@ function GhostCallInterstitial({
         </h2>
         <p
           style={{
+            margin: '0 0 12px',
+            color: '#e4e4e7',
+            fontSize: 15,
+            lineHeight: 1.55,
+            textAlign: 'center',
+            fontWeight: 600,
+          }}
+        >
+          {tr(
+            'La llamada privada Ghost-Link no está disponible en el navegador: necesitas la app Card-Social instalada.',
+            'Private Ghost-Link calling is not available in the browser: you need the Card-Social app installed.',
+          )}
+        </p>
+        <p
+          style={{
             margin: '0 0 28px',
             color: '#a1a1aa',
             fontSize: 15,
@@ -151,8 +166,8 @@ function GhostCallInterstitial({
           }}
         >
           {tr(
-            'Llamada privada Ghost-Link: solo en la app Card-Social. Tu número real no se comparte.',
-            'Private Ghost-Link call: only in the Card-Social app. Your real number is never shared.',
+            'Abre Card-Social para iniciar la llamada VoIP segura desde aquí; tu número real no se muestra.',
+            'Open Card-Social to start the VoIP call from here; your real phone number stays private.',
           )}
         </p>
 

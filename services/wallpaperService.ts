@@ -209,7 +209,7 @@ export async function uploadWallpaperAsAdmin(params: {
       type: 'image/jpeg',
     } as any);
 
-    const response = await fetch(`${backendUrl}/api/admin/mint_asset`, {
+    const response = await fetch(`${backendUrl}/api/admin/market_asset_draft`, {
       method: 'POST',
       headers: {
         'X-API-Key': process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY || '',
@@ -231,7 +231,7 @@ export async function uploadWallpaperAsAdmin(params: {
     return {
       success: true,
       wallpaper: {
-        id: data?.mint_id || String(Date.now()),
+        id: data?.draft_id || String(Date.now()),
         name: params.fileName,
         orientation: params.orientation,
         tier: params.tier,

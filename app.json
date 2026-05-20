@@ -143,7 +143,8 @@
           "icon": "./assets/images/cs-icon-logo.png",
           "color": "#C5A065",
           "defaultChannel": "ghost-link-calls",
-          "sounds": []
+          "sounds": [],
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       [

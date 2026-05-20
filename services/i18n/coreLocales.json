@@ -200,12 +200,12 @@
     "de": "Nicht verfügbar"
   },
   "common_auth_required": {
-    "es": "Autentícate para acuñar monedas",
-    "en": "Authenticate to mint coins",
-    "it": "Autenticati per coniare monete",
-    "pt": "Autentique-se para cunhar moedas",
-    "fr": "Authentifiez-vous pour frapper des pièces",
-    "de": "Authentifizieren Sie sich zum Prägen"
+    "es": "Autentícate para generar Promociones QR",
+    "en": "Authenticate to create Promotional QR codes",
+    "it": "Autenticati per generare codici Promotions QR",
+    "pt": "Autentique-se para gerar QR de promoções",
+    "fr": "Authentifiez-vous pour générer des QR promotionnels",
+    "de": "Authentifizieren Sie sich, um Aktions‑QR‑Codes zu erstellen"
   },
   "common_clear": {
     "es": "Limpiar",
@@ -5863,7 +5863,7 @@
     "fr": "Votre avantage est actif sur Card-Social.",
     "de": "Dein Vorteil ist jetzt bei Card-Social aktiv."
   },
-  "mint_invalid_credits": {
+  "promotions_qr_invalid_credits": {
     "es": "Ingresa una cantidad válida de créditos",
     "en": "Enter a valid credits amount",
     "it": "Inserisci un importo crediti valido",
@@ -5871,7 +5871,7 @@
     "fr": "Saisissez un montant de crédits valide",
     "de": "Geben Sie einen gültigen Credit-Betrag ein"
   },
-  "mint_max_months_gift": {
+  "promotions_qr_max_months_gift": {
     "es": "Máximo 3 meses de Premium por regalo",
     "en": "Max 3 months of Premium per gift",
     "it": "Massimo 3 mesi Premium per regalo",
@@ -5879,7 +5879,7 @@
     "fr": "Maximum 3 mois Premium par cadeau",
     "de": "Max. 3 Monate Premium pro Geschenk"
   },
-  "mint_max_people": {
+  "promotions_qr_max_people": {
     "es": "Máximo 500 personas por código",
     "en": "Max 500 people per code",
     "it": "Massimo 500 persone per codice",
@@ -5887,7 +5887,7 @@
     "fr": "500 personnes max. par code",
     "de": "Max. 500 Personen pro Code"
   },
-  "mint_max_validity_days": {
+  "promotions_qr_max_validity_days": {
     "es": "Máximo 90 días de validez",
     "en": "Max 90 days of validity",
     "it": "Massimo 90 giorni di validità",
@@ -5895,7 +5895,7 @@
     "fr": "90 jours de validité max.",
     "de": "Max. 90 Tage Gültigkeit"
   },
-  "mint_access_denied_title": {
+  "promotions_qr_access_denied_title": {
     "es": "❌ Acceso denegado",
     "en": "❌ Access denied",
     "it": "❌ Accesso negato",
@@ -5903,15 +5903,15 @@
     "fr": "❌ Accès refusé",
     "de": "❌ Zugriff verweigert"
   },
-  "mint_face_only_body": {
-    "es": "Solo tu cara puede acuñar monedas. Intenta de nuevo.",
-    "en": "Only your face can mint coins. Try again.",
-    "it": "Solo il tuo viso può coniare monete. Riprova.",
-    "pt": "Apenas seu rosto pode cunhar moedas. Tente de novo.",
-    "fr": "Seul votre visage peut frapper des pièces. Réessayez.",
-    "de": "Nur Ihr Gesicht kann Münzen prägen. Erneut versuchen."
+  "promotions_qr_face_only_body": {
+    "es": "Solo tu rostro puede crear Promociones QR. Intenta de nuevo.",
+    "en": "Only your face can create Promotional QR codes. Try again.",
+    "it": "Solo il tuo volto può creare i codici Promotions QR. Riprova.",
+    "pt": "Apenas seu rosto pode criar os QRs de promoções. Tente de novo.",
+    "fr": "Seul votre visage peut créer les QR promotionnels. Réessayez.",
+    "de": "Nur Ihr Gesicht kann Aktions‑QR‑Codes erstellen. Erneut versuchen."
   },
-  "mint_qr_generated_title": {
+  "promotions_qr_qr_generated_title": {
     "es": "✅ ¡QR generado!",
     "en": "✅ QR generated!",
     "it": "✅ QR generato!",
@@ -5919,7 +5919,7 @@
     "fr": "✅ QR généré !",
     "de": "✅ QR erstellt!"
   },
-  "mint_qr_generated_body": {
+  "promotions_qr_qr_generated_body": {
     "es": "Código: {{code}}\nTotal invertido: {{totalCs}} CS",
     "en": "Code: {{code}}\nTotal: {{totalCs}} CS",
     "it": "Codice: {{code}}\nTotale: {{totalCs}} CS",
@@ -5927,7 +5927,7 @@
     "fr": "Code : {{code}}\nTotal : {{totalCs}} CS",
     "de": "Code: {{code}}\nGesamt: {{totalCs}} CS"
   },
-  "mint_generate_failed": {
+  "promotions_qr_generate_failed": {
     "es": "No se pudo generar el código",
     "en": "Could not generate the code",
     "it": "Impossibile generare il codice",
@@ -5935,7 +5935,7 @@
     "fr": "Impossible de générer le code",
     "de": "Code konnte nicht erstellt werden"
   },
-  "mint_share_dialog_title": {
+  "promotions_qr_share_dialog_title": {
     "es": "Comparte tu QR de regalo",
     "en": "Share your gift QR",
     "it": "Condividi il QR regalo",
@@ -5943,7 +5943,7 @@
     "fr": "Partagez votre QR cadeau",
     "de": "Geschenk-QR teilen"
   },
-  "mint_share_title": {
+  "promotions_qr_share_title": {
     "es": "QR de regalo exclusivo",
     "en": "Exclusive gift QR",
     "it": "QR regalo esclusivo",
@@ -5951,7 +5951,7 @@
     "fr": "QR cadeau exclusif",
     "de": "Exklusives Geschenk-QR"
   },
-  "mint_share_message": {
+  "promotions_qr_share_message": {
     "es": "¡Pochobs te regala créditos! Escanea este código en Card-Social",
     "en": "Pochobs is gifting you credits! Scan this code in Card-Social",
     "it": "Pochobs ti regala crediti! Scansiona in Card-Social",
@@ -5959,7 +5959,7 @@
     "fr": "Pochobs vous offre des crédits ! Scannez dans Card-Social",
     "de": "Pochobs schenkt dir Credits! In Card-Social scannen"
   },
-  "mint_downloaded_title": {
+  "promotions_qr_downloaded_title": {
     "es": "✅ Descargado",
     "en": "✅ Downloaded",
     "it": "✅ Scaricato",
@@ -5967,7 +5967,7 @@
     "fr": "✅ Téléchargé",
     "de": "✅ Heruntergeladen"
   },
-  "mint_qr_saved_as": {
+  "promotions_qr_qr_saved_as": {
     "es": "QR guardado como: {{fileName}}",
     "en": "QR saved as: {{fileName}}",
     "it": "QR salvato come: {{fileName}}",
@@ -5975,7 +5975,7 @@
     "fr": "QR enregistré sous : {{fileName}}",
     "de": "QR gespeichert als: {{fileName}}"
   },
-  "mint_download_fail": {
+  "promotions_qr_download_fail": {
     "es": "No se pudo descargar el QR",
     "en": "Could not download the QR",
     "it": "Impossibile scaricare il QR",
@@ -5983,7 +5983,7 @@
     "fr": "Impossible de télécharger le QR",
     "de": "QR konnte nicht heruntergeladen werden"
   },
-  "mint_export_fail": {
+  "promotions_qr_export_fail": {
     "es": "No se pudo exportar el QR",
     "en": "Could not export the QR",
     "it": "Impossibile esportare il QR",
@@ -5991,15 +5991,15 @@
     "fr": "Impossible d’exporter le QR",
     "de": "QR konnte nicht exportiert werden"
   },
-  "mint_header_title": {
-    "es": "Acuñador de monedas (Mint)",
-    "en": "Coin Minter (Mint)",
-    "it": "Coniatore di monete (Mint)",
-    "pt": "Cunhador de moedas (Mint)",
-    "fr": "Frappe de pièces (Mint)",
-    "de": "Münzprägung (Mint)"
+  "promotions_qr_header_title": {
+    "es": "Promociones QR",
+    "en": "Promotions QR",
+    "it": "Promotions QR",
+    "pt": "Promotions QR",
+    "fr": "Promotions QR",
+    "de": "Promotions QR"
   },
-  "mint_header_subtitle": {
+  "promotions_qr_header_subtitle": {
     "es": "Regala CS y Premium al instante",
     "en": "Gift CS and Premium instantly",
     "it": "Regala CS e Premium all’istante",
@@ -6007,7 +6007,7 @@
     "fr": "Offrez CS et Premium instantanément",
     "de": "Verschenken Sie CS und Premium sofort"
   },
-  "mint_credits_per_person": {
+  "promotions_qr_credits_per_person": {
     "es": "Créditos por persona",
     "en": "Credits per person",
     "it": "Crediti per persona",
@@ -6015,7 +6015,7 @@
     "fr": "Crédits par personne",
     "de": "Credits pro Person"
   },
-  "mint_credits_hint": {
+  "promotions_qr_credits_hint": {
     "es": "Cada usuario recibirá esta cantidad de CS",
     "en": "Each user will receive this many CS",
     "it": "Ogni utente riceverà questi CS",
@@ -6023,7 +6023,7 @@
     "fr": "Chaque utilisateur recevra ces crédits CS",
     "de": "Jeder Nutzer erhält diese CS"
   },
-  "mint_months_premium": {
+  "promotions_qr_months_premium": {
     "es": "Meses de Premium",
     "en": "Months of Premium",
     "it": "Mesi Premium",
@@ -6031,7 +6031,7 @@
     "fr": "Mois Premium",
     "de": "Monate Premium"
   },
-  "mint_max_months_austerity": {
+  "promotions_qr_max_months_austerity": {
     "es": "Máximo 3 meses (regla de austeridad)",
     "en": "Max 3 months (austerity rule)",
     "it": "Massimo 3 mesi (regola austerity)",
@@ -6039,7 +6039,7 @@
     "fr": "3 mois max. (règle d’austérité)",
     "de": "Max. 3 Monate (Sparkurs)"
   },
-  "mint_num_people_label": {
+  "promotions_qr_num_people_label": {
     "es": "Cantidad de personas",
     "en": "Number of people",
     "it": "Numero di persone",
@@ -6047,7 +6047,7 @@
     "fr": "Nombre de personnes",
     "de": "Anzahl Personen"
   },
-  "mint_validity_days_label": {
+  "promotions_qr_validity_days_label": {
     "es": "Validez (días)",
     "en": "Validity (days)",
     "it": "Validità (giorni)",
@@ -6055,7 +6055,7 @@
     "fr": "Validité (jours)",
     "de": "Gültigkeit (Tage)"
   },
-  "mint_max_90_days": {
+  "promotions_qr_max_90_days": {
     "es": "Máximo 90 días",
     "en": "Max 90 days",
     "it": "Massimo 90 giorni",
@@ -6063,7 +6063,7 @@
     "fr": "90 jours max.",
     "de": "Max. 90 Tage"
   },
-  "mint_total_credits_label": {
+  "promotions_qr_total_credits_label": {
     "es": "Total de créditos:",
     "en": "Total credits:",
     "it": "Totale crediti:",
@@ -6071,7 +6071,7 @@
     "fr": "Total crédits :",
     "de": "Credits gesamt:"
   },
-  "mint_people_colon": {
+  "promotions_qr_people_colon": {
     "es": "Personas:",
     "en": "People:",
     "it": "Persone:",
@@ -6079,7 +6079,7 @@
     "fr": "Personnes :",
     "de": "Personen:"
   },
-  "mint_valid_for_label": {
+  "promotions_qr_valid_for_label": {
     "es": "Válido por:",
     "en": "Valid for:",
     "it": "Valido per:",
@@ -6087,7 +6087,7 @@
     "fr": "Valable :",
     "de": "Gültig:"
   },
-  "mint_days": {
+  "promotions_qr_days": {
     "es": "días",
     "en": "days",
     "it": "giorni",
@@ -6095,7 +6095,7 @@
     "fr": "jours",
     "de": "Tage"
   },
-  "mint_validating_biometric": {
+  "promotions_qr_validating_biometric": {
     "es": "Validando biometría…",
     "en": "Validating biometrics…",
     "it": "Biometria in corso…",
@@ -6103,7 +6103,7 @@
     "fr": "Biométrie…",
     "de": "Biometrie wird geprüft…"
   },
-  "mint_generate_button": {
+  "promotions_qr_generate_button": {
     "es": "Generar QR de regalo",
     "en": "Generate gift QR",
     "it": "Genera QR regalo",
@@ -6111,15 +6111,15 @@
     "fr": "Générer le QR cadeau",
     "de": "Geschenk-QR erzeugen"
   },
-  "mint_face_key_warning": {
-    "es": "⚠️ Tu cara es la llave. Face ID validará antes de acuñar.",
-    "en": "⚠️ Your face is the key. Face ID will verify before minting.",
-    "it": "⚠️ Il tuo viso è la chiave. Face ID verifica prima della coniazione.",
-    "pt": "⚠️ Seu rosto é a chave. Face ID validará antes de cunhar.",
-    "fr": "⚠️ Votre visage est la clé. Face ID vérifie avant la frappe.",
-    "de": "⚠️ Ihr Gesicht ist der Schlüssel. Face ID prüft vor dem Prägen."
+  "promotions_qr_face_key_warning": {
+    "es": "⚠️ Tu cara es la llave. Face ID confirmará antes de generar cada Promoción QR.",
+    "en": "⚠️ Your face is the key. Face ID will verify before each Promotions QR code is created.",
+    "it": "⚠️ Il tuo volto è la chiave: Face ID verifica prima della generazione dei codici Promotions QR.",
+    "pt": "⚠️ Seu rosto é a chave. O Face ID confirma antes de gerar cada QR de promoções.",
+    "fr": "⚠️ Votre visage est la clé. Face ID vérifie avant chaque création de QR promotionnel.",
+    "de": "⚠️ Ihr Gesicht ist der Schlüssel. Face ID prüft vor jeder Ausgabe eines Aktions‑QR."
   },
-  "mint_security_title": {
+  "promotions_qr_security_title": {
     "es": "Seguridad máxima",
     "en": "Maximum security",
     "it": "Sicurezza massima",
@@ -6127,7 +6127,7 @@
     "fr": "Sécurité maximale",
     "de": "Maximale Sicherheit"
   },
-  "mint_security_body": {
+  "promotions_qr_security_body": {
     "es": "Solo tú (Pochobs) puedes generar QRs. Cada código es único, caducable y auditable.",
     "en": "Only you (Pochobs) can generate QRs. Each code is unique, expirable, and auditable.",
     "it": "Solo tu (Pochobs) puoi generare QR. Ogni codice è unico, scadibile e tracciabile.",
@@ -6135,7 +6135,7 @@
     "fr": "Seul vous (Pochobs) pouvez générer des QR. Chaque code est unique, expirable et auditable.",
     "de": "Nur Sie (Pochobs) können QRs erzeugen. Jeder Code ist einzigartig, ablaufend und nachvollziehbar."
   },
-  "mint_modal_title": {
+  "promotions_qr_modal_title": {
     "es": "🎁 QR de regalo generado",
     "en": "🎁 Gift QR generated",
     "it": "🎁 QR regalo creato",
@@ -6143,7 +6143,7 @@
     "fr": "🎁 QR cadeau généré",
     "de": "🎁 Geschenk-QR erstellt"
   },
-  "mint_scan_or_share": {
+  "promotions_qr_scan_or_share": {
     "es": "Escanea o comparte este código",
     "en": "Scan or share this code",
     "it": "Scansiona o condividi il codice",
@@ -6151,7 +6151,7 @@
     "fr": "Scannez ou partagez ce code",
     "de": "Code scannen oder teilen"
   },
-  "mint_download_png": {
+  "promotions_qr_download_png": {
     "es": "Descargar PNG",
     "en": "Download PNG",
     "it": "Scarica PNG",
@@ -6159,7 +6159,7 @@
     "fr": "Télécharger PNG",
     "de": "PNG herunterladen"
   },
-  "mint_for_pdf": {
+  "promotions_qr_for_pdf": {
     "es": "Para PDF",
     "en": "For PDF",
     "it": "Per PDF",
@@ -6167,7 +6167,7 @@
     "fr": "Pour PDF",
     "de": "Für PDF"
   },
-  "mint_share_whatsapp_telegram": {
+  "promotions_qr_share_whatsapp_telegram": {
     "es": "Compartir a WhatsApp o Telegram",
     "en": "Share to WhatsApp or Telegram",
     "it": "Condividi su WhatsApp o Telegram",
@@ -6502,6 +6502,38 @@
     "pt": "Ano",
     "fr": "Année",
     "de": "Jahr"
+  },
+  "dashboard_metric_calendar_year_scope": {
+    "es": "Período «Año»: totales desde el 1 de enero del año mostrado (usa las pestañas para día, semana o mes).",
+    "en": "“Year” view: totals from January 1 of the year shown through today (use the tabs for day, week, or month).",
+    "it": "Periodo Anno: totali dall’1° gennaio dell’anno mostrato fino ad oggi (usa le schede giorno/settimana/mese).",
+    "pt": "Período Ano: totais desde 1º de janeiro do ano exibido até hoje (use as guias dia/semana/mês).",
+    "fr": "Période « Année » : totaux depuis le 1ᵉʳ janvier de l’année affichée jusqu’à aujourd’hui (onglets jour/semaine/mois).",
+    "de": "„Jahr“: Summen vom 1. Januar des angezeigten Jahres bis heute (Register Tag/Woche/Monat)."
+  },
+  "profile_presidential_title": {
+    "es": "Seguridad presidencial",
+    "en": "Presidential security",
+    "it": "Sicurezza presidenziale",
+    "pt": "Segurança presidencial",
+    "fr": "Sécurité présidentielle",
+    "de": "Presidential Security"
+  },
+  "profile_presidential_body": {
+    "es": "Si está activada, al sacar Card-Social a segundo plano y volver a abrirla te pedimos Face ID, huella o PIN del equipo. Además, otras acciones sensibles (p. ej. generar/compartir un QR desde Mis Tarjetas o eliminar ciertas tarjetas/contactos) pueden pedir biometric en cualquier momento, con el interruptor ON u OFF.",
+    "en": "When enabled, after you leave Card-Social in the background and open it again we ask for Face ID, fingerprint or device PIN. Separately, some sensitive actions (e.g. generating/sharing a QR from My Cards or removing certain cards/contacts) can ask for biometric whether this is on or off.",
+    "it": "Se attiva, dopo aver mandato Card-Social in background e tornare all’app chiediamo Face ID, impronta o PIN del dispositivo. Alcune azioni sensibili (es. QR da Le mie carte o elimina tarjette/contatti) possono richiedere biometric con l’interruttore ON o OFF.",
+    "pt": "Se ativar, ao deixar o Card-Social em segundo plano e voltar, pedimos Face ID, impressão digital ou PIN. Ações sensíveis (ex.: QR em Minhas cartões ou remover cartões/contactos) podem pedir biometria com o toggle ligado ou desligado.",
+    "fr": "Si activée, après mise en arrière-plan et retour sur Card-Social, nous demandons Face ID, empreinte ou code appareil. D’autres actions sensibles (ex. QR depuis Mes cartes, suppression cartes/contacts) peuvent demander la biométrie avec l’interrupteur ON ou OFF.",
+    "de": "Wenn aktiv, nach Zurücklegen in den Hintergrund fordern wir Face ID, Fingerabdruck oder Geräte-PIN. Daneben können sensible Schritte (z. B. QR in „Meine Karten“ oder Löschen) biometrisch sein — unabhängig vom Schalter."
+  },
+  "profile_presidential_enabled_toast": {
+    "es": "Seguridad presidencial activada: al salir de la app y volver te pediremos desbloqueo.",
+    "en": "Presidential security on: when you leave the app and return we’ll ask you to unlock.",
+    "it": "Sicurezza presidenziale attiva: uscendo e tornando all’app chiederemo lo sblocco.",
+    "pt": "Segurança presidencial ativada: ao sair da app e voltar, pediremos desbloqueio.",
+    "fr": "Sécurité présidentielle activée : après sortie puis retour, déverrouillage demandé.",
+    "de": "Presidential Security aktiv: nach Verlassen und erneutem Öffnen wird entsperrt."
   },
   "dashboard_trial_mode_label": {
     "es": "Expiración: Modo Prueba",

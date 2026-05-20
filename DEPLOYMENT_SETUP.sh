@@ -196,7 +196,7 @@ cat > DEPLOYMENT_SUMMARY.txt << 'EOF'
 ╚══════════════════════════════════════════════════════════════════╝
 
 ✅ CODE CHECKLIST
-  ✓ Backend services: adminAuthService, marketMintService, marketSyncService
+  ✓ Backend services: adminAuthService, marketAssetDraftService, marketSyncService
   ✓ Backend routes: 11 endpoints (7 admin + 4 sync)
   ✓ Frontend: AdminDashboard.tsx + CSS + Canvas preview
   ✓ Seed data: 10 free icons + MARVEL-001 collectible
@@ -216,7 +216,7 @@ cat > DEPLOYMENT_SUMMARY.txt << 'EOF'
 
 ✅ FEATURES READY
   ✓ Dashboard with stats
-  ✓ Mint assets (auto-ID generation)
+  ✓ Market draft assets (auto-ID generation)
   ✓ Real-time preview rendering
   ✓ Publish workflow
   ✓ Mobile sync integration

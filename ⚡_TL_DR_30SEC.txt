@@ -17,7 +17,7 @@
 ✅ Database:    Template ready (MongoDB schema + seed data)
 ✅ Security:    Hardened (JWT + bcryptjs + 30min expiry)
 ✅ Mobile Sync: Ready (10 free icons auto-load on registration)
-✅ Tests:       Ready (7-step validation script: testMarvelMint.ts)
+✅ Tests:       Ready (7-step validation script: testMarvelMarketDraft.ts)
 
 
 🚀 YOUR NEXT STEPS (30 MINUTES)
@@ -44,7 +44,7 @@ Session:  30 minutes (auto-logout)
 🎯 WHAT YOU CAN DO AT LAUNCH
 ═════════════════════════════════════════════════════════════════════════════════
 
-✓ Mint collectible (auto-generates sequential ID: COLLECTIBLES_MARVEL-001)
+✓ Draft collectible (auto-generates sequential ID: COLLECTIBLES_MARVEL-001)
 ✓ Preview in real-time (HTML5 Canvas rendering)
 ✓ Publish to mobile immediately (< 2sec sync latency)
 ✓ Upload unlimited assets (Skins, Wallpapers, Fonts, Collectibles)
@@ -66,7 +66,7 @@ DEPLOYMENT_GUIDE.md        ← Detailed manual steps (reference)
 
 Admin Portal
 ├─ Dashboard with stats
-├─ Mint asset form (collection, name, rarity, price, image)
+├─ Asset draft form (collection, name, rarity, price, image)
 ├─ Real-time canvas preview
 ├─ Publish workflow (DRAFT → PUBLISHED)
 └─ Session management (30min expiry)
@@ -92,7 +92,7 @@ Now:      Start deployment
 +15 min:  Backend live on Azure
 +20 min:  Database ready (MongoDB)
 +25 min:  All tests passing ✅
-+30 min:  LIVE! Mint MARVEL-001 to test ✅
++30 min:  LIVE! Draft MARVEL-001 to test ✅
 
 
 🔐 SECURITY FEATURES
@@ -127,7 +127,7 @@ Q: Can I test locally first?
 A: Yes! npm run dev (backend) + npm start (frontend)
 
 Q: How do I seed the 10 free icons?
-A: Run testMarvelMint.ts or insert seedBasicIcons.ts data to MongoDB
+A: Run testMarvelMarketDraft.ts or insert seedBasicIcons.ts data to MongoDB
 
 Q: What if login doesn't work?
 A: Check .env variables match Azure backend configuration

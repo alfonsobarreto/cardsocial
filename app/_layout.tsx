@@ -10,7 +10,7 @@ import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
 import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
 import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
-import { registerPushToken } from '@/services/pushRegistration';
+import { installGhostLinkNotificationOpenHandlers, registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
 import { Stack, useRouter } from 'expo-router';
 import { checkInactivitySignOutWithoutTouch, enforceInactivitySignOutIfNeeded } from '@/services/sessionInactivity';
@@ -118,6 +118,10 @@ function RootNavigator() {
 
   useEffect(() => {
     void registerPushToken();
+  }, []);
+
+  useEffect(() => {
+    return installGhostLinkNotificationOpenHandlers();
   }, []);
 
   useEffect(() => {

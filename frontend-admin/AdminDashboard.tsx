@@ -4,7 +4,7 @@
  *
  * Features:
  * - Login seguro (admin_pochobs / Arantza11@)
- * - Minting interface con drag-drop
+ * - Interfaz de borradores (drag‑drop / Card‑Studio)
  * - Real-time preview renderer
  * - Publish confirmation
  * - Asset listing y statistics
@@ -23,10 +23,10 @@ interface AdminState {
   token: string | null;
   username: string | null;
   sessionExpiry: Date | null;
-  currentPage: 'login' | 'dashboard' | 'mint' | 'preview' | 'publish' | 'stats';
+  currentPage: 'login' | 'dashboard' | 'asset_draft' | 'preview' | 'publish' | 'stats';
 }
 
-interface MintFormData {
+interface AssetDraftUploadForm {
   collection: 'skins' | 'collectibles' | 'wallpapers' | 'fonts';
   name: string;
   rarity: 'gratis' | 'comun' | 'lujo' | 'legendario' | 'coleccionable';
@@ -71,7 +71,7 @@ export const AdminDashboard: React.FC = () => {
   });
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [mintForm, setMintForm] = useState<MintFormData>({
+  const [assetDraftForm, setAssetDraftForm] = useState<AssetDraftUploadForm>({
     collection: 'skins',
     name: '',
     rarity: 'comun',
@@ -194,29 +194,29 @@ export const AdminDashboard: React.FC = () => {
   // CARD-STUDIO Handler
   // ═════════════════════════════════════════════════
 
-  const handleMintSubmit = async (e: React.FormEvent) => {
+  const handleAssetDraftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
 
     try {
       const formData = new FormData();
-      formData.append('collection', mintForm.collection);
-      formData.append('name', mintForm.name);
-      formData.append('rarity', mintForm.rarity);
-      formData.append('price_cs', mintForm.price_cs.toString());
+      formData.append('collection', assetDraftForm.collection);
+      formData.append('name', assetDraftForm.name);
+      formData.append('rarity', assetDraftForm.rarity);
+      formData.append('price_cs', assetDraftForm.price_cs.toString());
 
       // Agregar archivos
-      if (mintForm.files.wallpaper_vertical) {
-        formData.append('wallpaper_vertical', mintForm.files.wallpaper_vertical);
+      if (assetDraftForm.files.wallpaper_vertical) {
+        formData.append('wallpaper_vertical', assetDraftForm.files.wallpaper_vertical);
       }
-      if (mintForm.files.icons) {
-        mintForm.files.icons.forEach((icon, idx) => {
+      if (assetDraftForm.files.icons) {
+        assetDraftForm.files.icons.forEach((icon, idx) => {
           formData.append(`icons`, icon);
         });
       }
 
-      const response = await fetch(`${ADMIN_API}/mint_asset`, {
+      const response = await fetch(`${ADMIN_API}/market_asset_draft`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${state.token}`,
@@ -226,7 +226,7 @@ export const AdminDashboard: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Mint failed');
+        throw new Error(error.error || 'Draft request failed');
       }
 
       const data = await response.json();
@@ -234,7 +234,7 @@ export const AdminDashboard: React.FC = () => {
       setState(prev => ({ ...prev, currentPage: 'preview' }));
 
       // Reset form
-      setMintForm({
+      setAssetDraftForm({
         collection: 'skins',
         name: '',
         rarity: 'comun',
@@ -396,8 +396,8 @@ export const AdminDashboard: React.FC = () => {
             📊 Dashboard
           </button>
           <button
-            className={`nav-btn ${state.currentPage === 'mint' ? 'active' : ''}`}
-            onClick={() => setState(prev => ({ ...prev, currentPage: 'mint' }))}
+            className={`nav-btn ${state.currentPage === 'asset_draft' ? 'active' : ''}`}
+            onClick={() => setState(prev => ({ ...prev, currentPage: 'asset_draft' }))}
           >
             🎨 CARD-STUDIO
           </button>
@@ -464,16 +464,18 @@ export const AdminDashboard: React.FC = () => {
         )}
 
         {/* CARD-STUDIO Page */}
-        {state.currentPage === 'mint' && (
+        {state.currentPage === 'asset_draft' && (
           <section className="page-section">
             <h3>🎨 CARD-STUDIO · Crear Nuevo Asset</h3>
-            <form onSubmit={handleMintSubmit} className="mint-form">
+            <form onSubmit={handleAssetDraftSubmit} className="asset-draft-form">
               <div className="form-row">
                 <div className="form-group">
                   <label>Colección</label>
                   <select
-                    value={mintForm.collection}
-                    onChange={e => setMintForm({ ...mintForm, collection: e.target.value as any })}
+                    value={assetDraftForm.collection}
+                    onChange={e =>
+                      setAssetDraftForm({ ...assetDraftForm, collection: e.target.value as any })
+                    }
                   >
                     <option value="skins">Skins</option>
                     <option value="collectibles">Collectibles</option>
@@ -486,8 +488,8 @@ export const AdminDashboard: React.FC = () => {
                   <label>Nombre</label>
                   <input
                     type="text"
-                    value={mintForm.name}
-                    onChange={e => setMintForm({ ...mintForm, name: e.target.value })}
+                    value={assetDraftForm.name}
+                    onChange={e => setAssetDraftForm({ ...assetDraftForm, name: e.target.value })}
                     placeholder="ej. Marvel Spider-Man"
                     required
                   />
@@ -498,8 +500,10 @@ export const AdminDashboard: React.FC = () => {
                 <div className="form-group">
                   <label>Rareza</label>
                   <select
-                    value={mintForm.rarity}
-                    onChange={e => setMintForm({ ...mintForm, rarity: e.target.value as any })}
+                    value={assetDraftForm.rarity}
+                    onChange={e =>
+                      setAssetDraftForm({ ...assetDraftForm, rarity: e.target.value as any })
+                    }
                   >
                     <option value="gratis">Gratis</option>
                     <option value="comun">Común</option>
@@ -513,8 +517,13 @@ export const AdminDashboard: React.FC = () => {
                   <label>Precio (CS)</label>
                   <input
                     type="number"
-                    value={mintForm.price_cs}
-                    onChange={e => setMintForm({ ...mintForm, price_cs: parseInt(e.target.value) || 0 })}
+                    value={assetDraftForm.price_cs}
+                    onChange={e =>
+                      setAssetDraftForm({
+                        ...assetDraftForm,
+                        price_cs: parseInt(e.target.value) || 0,
+                      })
+                    }
                     placeholder="0"
                   />
                 </div>
@@ -528,9 +537,9 @@ export const AdminDashboard: React.FC = () => {
                     accept="image/*"
                     onChange={e => {
                       if (e.target.files?.[0]) {
-                        setMintForm({
-                          ...mintForm,
-                          files: { ...mintForm.files, wallpaper_vertical: e.target.files[0] },
+                        setAssetDraftForm({
+                          ...assetDraftForm,
+                          files: { ...assetDraftForm.files, wallpaper_vertical: e.target.files[0] },
                         });
                       }
                     }}

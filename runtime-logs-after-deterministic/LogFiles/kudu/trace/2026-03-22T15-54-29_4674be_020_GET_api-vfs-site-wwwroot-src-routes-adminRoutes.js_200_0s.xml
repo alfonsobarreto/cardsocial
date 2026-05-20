@@ -1,6 +1,0 @@
-<step title="Incoming Request" date="2026-03-22T15:54:29.741" instance="4674be" url="/api/vfs/site/wwwroot/src/routes/adminRoutes.js" method="GET" type="request" pid="843,1,5" Accept="*/*" Host="card-social-api.scm.azurewebsites.net" User-Agent="python/3.13.11 (Windows-11-10.0.26200-SP0) AZURECLI/2.84.0 (MSI)" Accept-Encoding="gzip, deflate" Authorization="Bas..." x-ms-client-request-id="f9976a54-c674-4cda-8869-3761eb78bf11" CommandName="rest" ParameterSetName="--method --url --headers" X-ARR-LOG-ID="f9976a54-c674-4cda-8869-3761eb78bf11" CLIENT-IP="172.56.93.246:18240" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/vfs/site/wwwroot/src/routes/adminRoutes.js" X-Client-IP="172.56.93.246" X-Client-Port="18240" >
-  <step title="Cleanup Xml Logs" date="2026-03-22T15:54:29.751" >
-    <step title="Cleanup Infos" date="2026-03-22T15:54:29.782" totalFiles="225" totalCleanup="65" /><!-- duration: 21ms -->
-  </step><!-- duration: 62ms -->
-  <step title="Outgoing response" date="2026-03-22T15:54:29.864" type="response" statusCode="200" statusText="OK" /><!-- duration: 8ms -->
-</step><!-- duration: 136ms -->

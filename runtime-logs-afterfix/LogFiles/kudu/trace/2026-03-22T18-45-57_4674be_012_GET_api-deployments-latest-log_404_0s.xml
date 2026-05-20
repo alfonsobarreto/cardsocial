@@ -1,6 +1,0 @@
-<step title="Incoming Request" date="2026-03-22T18:45:57.799" instance="4674be" url="/api/deployments/latest/log" method="GET" type="request" pid="833,1,5" Accept="*/*" Host="card-social-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="gzip, deflate" Authorization="Bas..." x-ms-client-request-id="5b3d18e2-261f-11f1-82ff-b6b0861342e5" X-ARR-LOG-ID="5b3d18e2-261f-11f1-82ff-b6b0861342e5" CLIENT-IP="172.56.93.246:41755" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest/log" X-Client-IP="172.56.93.246" X-Client-Port="41755" >
-  <step title="DeploymentService.GetLogEntry" date="2026-03-22T18:45:57.841" >
-    <step title="DeploymentManager.GetLogEntries(id:latest)" date="2026-03-22T18:45:57.846" /><!-- duration: 14ms -->
-  </step><!-- duration: 52ms -->
-  <step title="Outgoing response" date="2026-03-22T18:45:57.920" type="response" statusCode="404" statusText="NotFound" /><!-- duration: 16ms -->
-</step><!-- duration: 160ms -->

@@ -29,9 +29,9 @@ El Admin no debe ser solo un dashboard. Debe ser el centro de control de platafo
 
 Rutas actuales:
 
-- `app/admin/dashboard.tsx` - landing principal "The Mint".
-- `app/admin/mint.tsx` - generacion e historial de QR gifts.
-- `app/admin/stats.tsx` - usuarios, CS Coins, Student Pack y costos informativos.
+- `app/admin/dashboard.tsx` - landing principal Promociones QR.
+- `components/PromotionsQrGenerator.tsx` - generación e historial de QR gifts.
+- `app/admin/stats.tsx` - usuarios, CS Coins y costos informativos.
 - `app/admin/moderation.tsx` - reportes, revision, dismiss y ban.
 - `app/admin/studio.tsx` - uploaders de iconos, wallpapers y fuentes.
 - `app/admin/config.tsx` - broadcast y feature flags.
@@ -42,7 +42,6 @@ Servicios/componentes relacionados:
 - `services/adminAuthGuard.ts`
 - `services/roleService.ts`
 - `services/qrGiftService.ts`
-- `services/studentPackAdminService.ts`
 
 Estado actual:
 
@@ -63,7 +62,7 @@ Archivos relevantes:
 Endpoints activos del router JS:
 
 - `POST /api/admin/login`
-- `POST /api/admin/mint_asset`
+- `POST /api/admin/market_asset_draft`
 - `POST /api/admin/publish_asset`
 - `GET /api/admin/stats`
 - `GET /api/admin/billing-status`
@@ -284,7 +283,7 @@ Estado actual:
 - `app/admin/studio.tsx` tiene tabs de iconos, wallpapers y fonts.
 - Los docs `ICON_LIBRARY_SETUP.md` e `ICON_STORE_SETUP.md` describen libreria y tienda.
 - Hay referencias a un admin web para themes completos con drag-and-drop y preview.
-- El backend JS activo tiene endpoints mock/parciales para mint/publish.
+- El backend JS activo tiene endpoints mock/parciales para borrador/publish de activos Market.
 - El backend TS no montado contiene logica mas cercana a `market_assets`.
 
 Recomendacion:

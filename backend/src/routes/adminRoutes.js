@@ -1,6 +1,6 @@
 /**
  * Admin Routes - Card-Social Backend (JavaScript version)
- * Endpoints: Login, Mint Assets, Publish Assets, Get Stats
+ * Endpoints: Login, market draft assets, Publish assets, Get stats
  * Base: /api/admin
  * Security: JWT Bearer Token + Gateway Key
  *
@@ -256,10 +256,10 @@ function createAdminRoutes(options = {}) {
   });
 
   /**
-   * 🎨 POST /api/admin/mint_asset
+   * 🎨 POST /api/admin/market_asset_draft
    */
   router.post(
-    '/mint_asset',
+    '/market_asset_draft',
     verifyAdminToken,
     upload.fields([
       { name: 'wallpaper_vertical', maxCount: 1 },
@@ -282,7 +282,7 @@ function createAdminRoutes(options = {}) {
           return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_INVALID_COLLECTION_TYPE'));
         }
 
-        const assetId = `MINT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const assetId = `DRAFT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         return res.status(201).json(
           buildUserFacingSuccessJson(req, 'ASSET_DRAFT_CREATED', {
@@ -296,7 +296,7 @@ function createAdminRoutes(options = {}) {
           }),
         );
       } catch (error) {
-        console.error('❌ Mint route error:', error);
+        console.error('❌ Market draft route error:', error);
         res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
     },
@@ -304,16 +304,16 @@ function createAdminRoutes(options = {}) {
 
   router.post('/publish_asset', verifyAdminToken, async (req, res) => {
     try {
-      const { mint_id, confirm_ready } = req.body;
+      const { draft_id, confirm_ready } = req.body;
 
-      if (!mint_id || !confirm_ready) {
+      if (!draft_id || !confirm_ready) {
         return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
 
       return res.status(200).json(
         buildUserFacingSuccessJson(req, 'ASSET_PUBLISHED', {
           success: true,
-          unique_id: mint_id,
+          unique_id: draft_id,
           status: 'published',
           published_at: new Date().toISOString(),
         }),

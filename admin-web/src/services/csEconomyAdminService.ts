@@ -9,8 +9,6 @@ export type ThemeBundlePricingRow = {
 export type CsEconomyAdminConfig = {
   welcomeBonusUsd: number;
   welcomeBonusCs: number;
-  studentPackUsd: number;
-  studentPackBonusCs: number;
   businessCardCashbackUsd: number;
   businessCardCashbackCs: number;
   studioIconUsd: number;
@@ -25,8 +23,6 @@ const DEFAULT_THEME_BUNDLE_ID = 'texas_longhorns';
 export const DEFAULT_CS_ECONOMY_ADMIN: CsEconomyAdminConfig = {
   welcomeBonusUsd: 0,
   welcomeBonusCs: 0,
-  studentPackUsd: 0,
-  studentPackBonusCs: 0,
   businessCardCashbackUsd: 0,
   businessCardCashbackCs: 0,
   studioIconUsd: 0,
@@ -58,8 +54,6 @@ export function coerceCsEconomyAdmin(data: Record<string, unknown> | undefined):
   return {
     welcomeBonusUsd: Math.max(0, Number(data.welcomeBonusUsd) || 0),
     welcomeBonusCs: Math.max(0, Math.floor(Number(data.welcomeBonusCs) || 0)),
-    studentPackUsd: Math.max(0, Number(data.studentPackUsd) || 0),
-    studentPackBonusCs: Math.max(0, Math.floor(Number(data.studentPackBonusCs) || 0)),
     businessCardCashbackUsd: Math.max(0, Number(data.businessCardCashbackUsd) || 0),
     businessCardCashbackCs: Math.max(0, Math.floor(Number(data.businessCardCashbackCs) || 0)),
     studioIconUsd: Math.max(0, Number(data.studioIconUsd) || 0),

@@ -3,7 +3,9 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import axios from 'axios';
 import { getActiveUserId } from '@/services/authSession';
+import { digestGhostLinkRemoteNotificationData } from '@/services/ghostLinkPushSignals';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
+import { registerGhostLinkBackgroundNotificationTask } from '@/services/ghostLinkPushTask';
 
 function getApiBaseUrl(): string {
   return resolveExpoPublicApiBaseUrl();
@@ -65,6 +67,37 @@ if (Platform.OS === 'android') {
     sound: 'default',
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
+}
+
+void registerGhostLinkBackgroundNotificationTask();
+
+/**
+ * Tap en la notificación + cold start cuando la app abre desde ese tap.
+ * Reutiliza `digestGhostLinkRemoteNotificationData` para alinear con el task en segundo plano.
+ */
+export function installGhostLinkNotificationOpenHandlers(): () => void {
+  const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+    digestGhostLinkRemoteNotificationData(
+      resp.notification.request.content.data as Record<string, unknown> | undefined,
+    );
+  });
+
+  let teardown = false;
+  void Notifications.getLastNotificationResponseAsync()
+    .then((last) => {
+      if (teardown || !last) return;
+      const ts = last.notification.date;
+      if (!Number.isFinite(ts) || ts <= 0 || Date.now() - ts > 120_000) return;
+      digestGhostLinkRemoteNotificationData(
+        last.notification.request.content.data as Record<string, unknown> | undefined,
+      );
+    })
+    .catch(() => {});
+
+  return () => {
+    teardown = true;
+    sub.remove();
+  };
 }
 
 /** SDK 53+: Expo Go en Android ya no expone push remoto; evita getExpoPushTokenAsync (warning/crash). */

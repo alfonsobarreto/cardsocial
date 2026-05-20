@@ -101,9 +101,9 @@
  * En la app, después de hacer login con Pochobs:
  * 
  * 1. Abrir el drawer (hamburguesa)
- * 2. Si el rol es 'super_admin', verás "The Mint 👑" en el menú
- * 3. Al tocar "The Mint 👑", se abre el AdminDashboard con 3 tabs:
- *    - Mint: Crear nuevos QRs de regalo
+ * 2. Si el rol es 'super_admin', verás "Promociones QR 👑" en el menú
+ * 3. Al tocar "Promociones QR 👑", se abre el AdminDashboard con 3 tabs:
+ *    - Promociones QR: Crear nuevos QRs de regalo
  *    - QR History: Ver todos los QRs generados
  *    - Audit: Ver registro de todas las transacciones de regalo
  * 
@@ -128,11 +128,11 @@
  * 
  * 1. Modificar app/(tabs)/_layout.tsx para:
  *    - Importar isSuperAdmin() de roleService
- *    - Agregar condición en el menú para mostrar "The Mint 👑"
- *    - Abrir AdminDashboard al presionar "The Mint"
+ *    - Agregar condición en el menú para mostrar "Promociones QR 👑"
+ *    - Abrir AdminDashboard al presionar "Promociones QR"
  * 
  * 2. Probar flujo completo:
- *    - Login → Abre drawer → "The Mint 👑" visible
+ *    - Login → Abre drawer → "Promociones QR 👑" visible
  *    - Generar QR de regalo → Verificar deducción en balance
  *    - Escanear QR con otro usuario → Verificar canje y auditoría
  * 

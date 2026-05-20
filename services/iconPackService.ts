@@ -74,11 +74,10 @@ export interface CollectibleOwnership {
   assetToken: string;
   certificateLabel: string;
   authenticityText: string;
-  mintedAt: string;
+  issuedAt: string;
   tradable: boolean;
   marketStatus: 'held' | 'listed' | 'sold';
 }
-
 function normalizeSection(pack: IconPack): IconPack['storeSection'] {
   const limited = Boolean(pack.isLimitedEdition);
   const currentSupply = Math.max(0, Number(pack.current_supply ?? pack.stockRemaining ?? 0));
@@ -265,14 +264,14 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
           assetToken,
           certificateLabel: `Poseedor #${serialNumber}/${total} — Auténtico Pochobs Design`,
           authenticityText: 'Auténtico Pochobs Design',
-          mintedAt: new Date().toISOString(),
+          issuedAt: new Date().toISOString(),
           tradable: true, marketStatus: 'held',
         };
         await setDoc(doc(db, 'users', userId, 'collectible_assets', cert.ownershipId), cert);
         await setDoc(doc(db, 'users', userId, 'vault_certificates', cert.ownershipId), {
           id: cert.ownershipId, title: `Certificado ${pack.name}`,
           type: 'Collectible Certificate', value: cert.certificateLabel,
-          assetToken: cert.assetToken, packId, tradable: true, createdAt: cert.mintedAt,
+          assetToken: cert.assetToken, packId, tradable: true, createdAt: cert.issuedAt,
         });
       }
       const packKeys = Array.isArray((pack as IconPack).grantedIconVaultKeys)
@@ -358,7 +357,7 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
         assetToken,
         certificateLabel: `Poseedor #${serialNumber}/${total} - Autentico Pochobs Design`,
         authenticityText: 'Autentico Pochobs Design',
-        mintedAt: new Date().toISOString(),
+        issuedAt: new Date().toISOString(),
         tradable: true,
         marketStatus: 'held',
       };
@@ -372,7 +371,7 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
         assetToken: cert.assetToken,
         packId,
         tradable: true,
-        createdAt: cert.mintedAt,
+        createdAt: cert.issuedAt,
       });
     }
 

@@ -69,7 +69,7 @@ const chunk = {
     'Acceso restringido. Este panel se conecta a Firebase Auth y estará protegido por roles de SuperAdmin antes de activar módulos sensibles.',
     'Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate.',
   ),
-  admin_login_form_eyebrow: L('The Mint', 'The Mint'),
+  admin_login_form_eyebrow: L('Promociones QR', 'Promotions QR'),
   admin_login_form_title: L('Iniciar sesión', 'Sign in'),
   admin_login_form_hint: L(
     'Usa una cuenta autorizada en Firebase para entrar al Admin Web.',

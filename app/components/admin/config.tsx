@@ -23,7 +23,6 @@ import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 
 interface FeatureFlags {
-  studentPackEnabled: boolean;
   businessCardEnabled: boolean;
   iconStoreEnabled: boolean;
   maintenanceMode: boolean;
@@ -39,7 +38,6 @@ export default function AdminConfigScreen() {
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastActive, setBroadcastActive] = useState(false);
   const [flags, setFlags] = useState<FeatureFlags>({
-    studentPackEnabled: true,
     businessCardEnabled: true,
     iconStoreEnabled: true,
     maintenanceMode: false,
@@ -67,7 +65,6 @@ export default function AdminConfigScreen() {
         }
         if (data.featureFlags) {
           setFlags({
-            studentPackEnabled: data.featureFlags.studentPackEnabled ?? true,
             businessCardEnabled: data.featureFlags.businessCardEnabled ?? true,
             iconStoreEnabled: data.featureFlags.iconStoreEnabled ?? true,
             maintenanceMode: data.featureFlags.maintenanceMode ?? false,
@@ -121,13 +118,6 @@ export default function AdminConfigScreen() {
   const FLAG_CONFIG = useMemo(
     () =>
       [
-        {
-          key: 'studentPackEnabled' as const,
-          label: 'Student Pack',
-          desc: tr('Permite grants automáticos a emails .edu', 'Allows automatic grants to .edu emails'),
-          icon: 'school' as const,
-          danger: false,
-        },
         {
           key: 'businessCardEnabled' as const,
           label: 'Business Cards',

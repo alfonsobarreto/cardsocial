@@ -21,7 +21,7 @@ async function sendPushToUser(db, targetUid, payload) {
     const pushToken = String(row.token || '').trim();
     if (!Expo.isExpoPushToken(pushToken)) continue;
 
-    messages.push({
+    const msg = {
       to: pushToken,
       sound: 'default',
       priority: 'high',
@@ -29,7 +29,11 @@ async function sendPushToUser(db, targetUid, payload) {
       body: payload.body,
       data: payload.data || {},
       channelId: payload.channelId || 'ghost-link-calls',
-    });
+    };
+    if (typeof payload.ttl === 'number' && Number.isFinite(payload.ttl) && payload.ttl >= 0) {
+      msg.ttl = Math.floor(payload.ttl);
+    }
+    messages.push(msg);
   }
 
   if (messages.length === 0) return;

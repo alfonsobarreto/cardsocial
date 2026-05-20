@@ -13,8 +13,6 @@ export type ThemeBundlePricingRow = {
 export type CsEconomyConfig = {
   welcomeBonusUsd: number;
   welcomeBonusCs: number;
-  studentPackUsd: number;
-  studentPackBonusCs: number;
   businessCardCashbackUsd: number;
   businessCardCashbackCs: number;
   studioIconUsd: number;
@@ -28,8 +26,6 @@ const REF = doc(db, 'system_config', 'cs_economy');
 const EMPTY: CsEconomyConfig = {
   welcomeBonusUsd: 0,
   welcomeBonusCs: 0,
-  studentPackUsd: 0,
-  studentPackBonusCs: 0,
   businessCardCashbackUsd: 0,
   businessCardCashbackCs: 0,
   studioIconUsd: 0,
@@ -57,8 +53,6 @@ export function coerceCsEconomy(raw: Record<string, unknown> | undefined): CsEco
   return {
     welcomeBonusUsd: Math.max(0, Number(raw.welcomeBonusUsd) || 0),
     welcomeBonusCs: Math.max(0, Math.floor(Number(raw.welcomeBonusCs) || 0)),
-    studentPackUsd: Math.max(0, Number(raw.studentPackUsd) || 0),
-    studentPackBonusCs: Math.max(0, Math.floor(Number(raw.studentPackBonusCs) || 0)),
     businessCardCashbackUsd: Math.max(0, Number(raw.businessCardCashbackUsd) || 0),
     businessCardCashbackCs: Math.max(0, Math.floor(Number(raw.businessCardCashbackCs) || 0)),
     studioIconUsd: Math.max(0, Number(raw.studioIconUsd) || 0),

@@ -5,7 +5,7 @@ import { setRadarTrialEnabledCache } from '@/services/radarTrialEnabledCache';
 export type MarketRadarRemoteConfig = {
   proPriceUsd: number;
   proEquivalentCs: number;
-  /** Prueba global (Firestore): tier efectivo business + mint Radar sin gates Pro/tarjeta. */
+  /** Prueba global (Firestore): tier efectivo business + Radar Studio sin gates Pro/tarjeta. */
   radarTrialEnabled: boolean;
 };
 

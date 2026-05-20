@@ -18,7 +18,6 @@ import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
-import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
 import { upsertSuccessfulReferralAttribution } from '@/services/referralsFirestoreService';
 import { fetchSignupFieldAvailability } from '@/services/studioAuthPublicApi';
 import { firestoreFirstUserDocByNickLower, firestoreUserAvatarUrlWrite } from '@/services/userIdentityFields';
@@ -1138,13 +1137,6 @@ export default function RegisterScreen() {
       // Zero-balance inicial; bono bienvenida: `system_config/cs_economy` al confirmar pago.
       await initializeUserCredits(uid);
 
-      const authProvider = socialProviderId || 'password';
-      const studentPackResult = await grantStudentPackCreditsIfEligible({
-        uid,
-        emailLower,
-        authProvider,
-      });
-      
       // Create 3 default cards: Personal, Trabajo, Social
       await createDefaultCards(uid);
       
@@ -1186,13 +1178,6 @@ export default function RegisterScreen() {
       }
 
       await setPresidentialSecurityEnabled(presidentialSecurity);
-
-      if (studentPackResult.granted) {
-        Alert.alert(
-          t('register_alert_student_pack_title'),
-          t('register_alert_student_pack_body', { amount: studentPackResult.bonusAmount })
-        );
-      }
 
       setSuccessTransitionVisible(true);
       setUploadModalVisible(false);

@@ -1,5 +1,5 @@
 /**
- * Acceso a Market Radar Pro (mint en Card Studio): flags en `users/{uid}`.
+ * Acceso a Market Radar Pro en Card Studio: flags en `users/{uid}`.
  * Superadmin publica precio en `system_config/market_radar`.
  */
 import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';

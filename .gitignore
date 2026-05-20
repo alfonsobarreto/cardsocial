@@ -56,6 +56,8 @@ frontend-web/firebase-adminsdk*.json
 secrets/
 
 # deployment temp artifacts
+# Volcados locales de logs Azure/Kudu (pesados, pueden contener paths viejos; no versionar)
+runtime-logs*/
 backend-deploy*.zip
 backend-deploy-staging/
 kudu-command.json

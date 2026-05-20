@@ -572,7 +572,7 @@ const otpHash = (emailLower, code) => {
     createAdminMediaRouter({ uploadDir: adminPublicUploadsDir }),
   );
 
-  // Admin Routes (Marketing, Asset Minting, Stats)
+  // Admin Routes (marketing, market asset drafts, stats)
   app.use(
     "/api/admin",
     createAdminRoutes({

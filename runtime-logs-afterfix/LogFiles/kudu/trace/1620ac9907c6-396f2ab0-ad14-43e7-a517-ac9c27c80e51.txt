@@ -1,1 +1,0 @@
-2026-03-22T15:57:34  Startup Request, url: /api/vfs/site/wwwroot/startup.sh, method: PUT, type: request, pid: 832,1,7, ScmType: LocalGit, SCM_SCRIPT_GENERATOR_ARGS: --basic, SCM_DO_BUILD_DURING_DEPLOYMENT: true

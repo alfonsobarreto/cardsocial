@@ -24,8 +24,6 @@ export type PublicThemeBundleRow = { priceUsd: number; creditsCs: number };
 export type PublicCsEconomyConfig = {
   welcomeBonusUsd: number;
   welcomeBonusCs: number;
-  studentPackUsd: number;
-  studentPackBonusCs: number;
   businessCardCashbackUsd: number;
   businessCardCashbackCs: number;
   studioIconUsd: number;
@@ -113,8 +111,6 @@ export async function fetchPublicCsEconomyConfig(): Promise<PublicCsEconomyConfi
       return {
         welcomeBonusUsd: 0,
         welcomeBonusCs: 0,
-        studentPackUsd: 0,
-        studentPackBonusCs: 0,
         businessCardCashbackUsd: 0,
         businessCardCashbackCs: 0,
         studioIconUsd: 0,
@@ -126,8 +122,6 @@ export async function fetchPublicCsEconomyConfig(): Promise<PublicCsEconomyConfi
     return {
       welcomeBonusUsd: Math.max(0, Number(d.welcomeBonusUsd) || 0),
       welcomeBonusCs: Math.max(0, Math.floor(Number(d.welcomeBonusCs) || 0)),
-      studentPackUsd: Math.max(0, Number(d.studentPackUsd) || 0),
-      studentPackBonusCs: Math.max(0, Math.floor(Number(d.studentPackBonusCs) || 0)),
       businessCardCashbackUsd: Math.max(0, Number(d.businessCardCashbackUsd) || 0),
       businessCardCashbackCs: Math.max(0, Math.floor(Number(d.businessCardCashbackCs) || 0)),
       studioIconUsd: Math.max(0, Number(d.studioIconUsd) || 0),
@@ -138,8 +132,6 @@ export async function fetchPublicCsEconomyConfig(): Promise<PublicCsEconomyConfi
     return {
       welcomeBonusUsd: 0,
       welcomeBonusCs: 0,
-      studentPackUsd: 0,
-      studentPackBonusCs: 0,
       businessCardCashbackUsd: 0,
       businessCardCashbackCs: 0,
       studioIconUsd: 0,

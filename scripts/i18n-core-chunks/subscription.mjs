@@ -1,6 +1,6 @@
 import { L } from './_util.mjs';
 
-/** Suscripciones, pagos, canjes y mint (sub_*, redeem_*, mint_*). */
+/** Suscripciones, pagos, canjes y Promociones QR (sub_*, redeem_*, promotions_qr_*). */
 export const subscription = {
   sub_tier_free: L('Gratis', 'Free', 'Gratuito', 'Grátis', 'Gratuit', 'Kostenlos'),
   sub_tier_influencer: L('Influencer', 'Influencer', 'Influencer', 'Influencer', 'Influenceur', 'Influencer'),
@@ -559,7 +559,7 @@ export const subscription = {
     'Dein Vorteil ist jetzt bei Card-Social aktiv.',
   ),
 
-  mint_invalid_credits: L(
+  promotions_qr_invalid_credits: L(
     'Ingresa una cantidad válida de créditos',
     'Enter a valid credits amount',
     'Inserisci un importo crediti valido',
@@ -567,7 +567,7 @@ export const subscription = {
     'Saisissez un montant de crédits valide',
     'Geben Sie einen gültigen Credit-Betrag ein',
   ),
-  mint_max_months_gift: L(
+  promotions_qr_max_months_gift: L(
     'Máximo 3 meses de Premium por regalo',
     'Max 3 months of Premium per gift',
     'Massimo 3 mesi Premium per regalo',
@@ -575,7 +575,7 @@ export const subscription = {
     'Maximum 3 mois Premium par cadeau',
     'Max. 3 Monate Premium pro Geschenk',
   ),
-  mint_max_people: L(
+  promotions_qr_max_people: L(
     'Máximo 500 personas por código',
     'Max 500 people per code',
     'Massimo 500 persone per codice',
@@ -583,7 +583,7 @@ export const subscription = {
     '500 personnes max. par code',
     'Max. 500 Personen pro Code',
   ),
-  mint_max_validity_days: L(
+  promotions_qr_max_validity_days: L(
     'Máximo 90 días de validez',
     'Max 90 days of validity',
     'Massimo 90 giorni di validità',
@@ -591,17 +591,17 @@ export const subscription = {
     '90 jours de validité max.',
     'Max. 90 Tage Gültigkeit',
   ),
-  mint_access_denied_title: L('❌ Acceso denegado', '❌ Access denied', '❌ Accesso negato', '❌ Acesso negado', '❌ Accès refusé', '❌ Zugriff verweigert'),
-  mint_face_only_body: L(
-    'Solo tu cara puede acuñar monedas. Intenta de nuevo.',
-    'Only your face can mint coins. Try again.',
-    'Solo il tuo viso può coniare monete. Riprova.',
-    'Apenas seu rosto pode cunhar moedas. Tente de novo.',
-    'Seul votre visage peut frapper des pièces. Réessayez.',
-    'Nur Ihr Gesicht kann Münzen prägen. Erneut versuchen.',
+  promotions_qr_access_denied_title: L('❌ Acceso denegado', '❌ Access denied', '❌ Accesso negato', '❌ Acesso negado', '❌ Accès refusé', '❌ Zugriff verweigert'),
+  promotions_qr_face_only_body: L(
+    'Solo tu rostro puede crear Promociones QR. Intenta de nuevo.',
+    'Only your face can create Promotional QR codes. Try again.',
+    'Solo il tuo volto può creare i codici Promotions QR. Riprova.',
+    'Apenas seu rosto pode criar os QRs de promoções. Tente de novo.',
+    'Seul votre visage peut créer les QR promotionnels. Réessayez.',
+    'Nur Ihr Gesicht kann Aktions‑QR‑Codes erstellen. Erneut versuchen.',
   ),
-  mint_qr_generated_title: L('✅ ¡QR generado!', '✅ QR generated!', '✅ QR generato!', '✅ QR gerado!', '✅ QR généré !', '✅ QR erstellt!'),
-  mint_qr_generated_body: L(
+  promotions_qr_qr_generated_title: L('✅ ¡QR generado!', '✅ QR generated!', '✅ QR generato!', '✅ QR gerado!', '✅ QR généré !', '✅ QR erstellt!'),
+  promotions_qr_qr_generated_body: L(
     'Código: {{code}}\nTotal invertido: {{totalCs}} CS',
     'Code: {{code}}\nTotal: {{totalCs}} CS',
     'Codice: {{code}}\nTotale: {{totalCs}} CS',
@@ -609,7 +609,7 @@ export const subscription = {
     'Code : {{code}}\nTotal : {{totalCs}} CS',
     'Code: {{code}}\nGesamt: {{totalCs}} CS',
   ),
-  mint_generate_failed: L(
+  promotions_qr_generate_failed: L(
     'No se pudo generar el código',
     'Could not generate the code',
     'Impossibile generare il codice',
@@ -617,7 +617,7 @@ export const subscription = {
     'Impossible de générer le code',
     'Code konnte nicht erstellt werden',
   ),
-  mint_share_dialog_title: L(
+  promotions_qr_share_dialog_title: L(
     'Comparte tu QR de regalo',
     'Share your gift QR',
     'Condividi il QR regalo',
@@ -625,7 +625,7 @@ export const subscription = {
     'Partagez votre QR cadeau',
     'Geschenk-QR teilen',
   ),
-  mint_share_title: L(
+  promotions_qr_share_title: L(
     'QR de regalo exclusivo',
     'Exclusive gift QR',
     'QR regalo esclusivo',
@@ -633,7 +633,7 @@ export const subscription = {
     'QR cadeau exclusif',
     'Exklusives Geschenk-QR',
   ),
-  mint_share_message: L(
+  promotions_qr_share_message: L(
     '¡Pochobs te regala créditos! Escanea este código en Card-Social',
     'Pochobs is gifting you credits! Scan this code in Card-Social',
     'Pochobs ti regala crediti! Scansiona in Card-Social',
@@ -641,8 +641,8 @@ export const subscription = {
     'Pochobs vous offre des crédits ! Scannez dans Card-Social',
     'Pochobs schenkt dir Credits! In Card-Social scannen',
   ),
-  mint_downloaded_title: L('✅ Descargado', '✅ Downloaded', '✅ Scaricato', '✅ Baixado', '✅ Téléchargé', '✅ Heruntergeladen'),
-  mint_qr_saved_as: L(
+  promotions_qr_downloaded_title: L('✅ Descargado', '✅ Downloaded', '✅ Scaricato', '✅ Baixado', '✅ Téléchargé', '✅ Heruntergeladen'),
+  promotions_qr_qr_saved_as: L(
     'QR guardado como: {{fileName}}',
     'QR saved as: {{fileName}}',
     'QR salvato come: {{fileName}}',
@@ -650,7 +650,7 @@ export const subscription = {
     'QR enregistré sous : {{fileName}}',
     'QR gespeichert als: {{fileName}}',
   ),
-  mint_download_fail: L(
+  promotions_qr_download_fail: L(
     'No se pudo descargar el QR',
     'Could not download the QR',
     'Impossibile scaricare il QR',
@@ -658,7 +658,7 @@ export const subscription = {
     'Impossible de télécharger le QR',
     'QR konnte nicht heruntergeladen werden',
   ),
-  mint_export_fail: L(
+  promotions_qr_export_fail: L(
     'No se pudo exportar el QR',
     'Could not export the QR',
     'Impossibile esportare il QR',
@@ -666,15 +666,15 @@ export const subscription = {
     'Impossible d’exporter le QR',
     'QR konnte nicht exportiert werden',
   ),
-  mint_header_title: L(
-    'Acuñador de monedas (Mint)',
-    'Coin Minter (Mint)',
-    'Coniatore di monete (Mint)',
-    'Cunhador de moedas (Mint)',
-    'Frappe de pièces (Mint)',
-    'Münzprägung (Mint)',
+  promotions_qr_header_title: L(
+    'Promociones QR',
+    'Promotions QR',
+    'Promotions QR',
+    'Promotions QR',
+    'Promotions QR',
+    'Promotions QR',
   ),
-  mint_header_subtitle: L(
+  promotions_qr_header_subtitle: L(
     'Regala CS y Premium al instante',
     'Gift CS and Premium instantly',
     'Regala CS e Premium all’istante',
@@ -682,7 +682,7 @@ export const subscription = {
     'Offrez CS et Premium instantanément',
     'Verschenken Sie CS und Premium sofort',
   ),
-  mint_credits_per_person: L(
+  promotions_qr_credits_per_person: L(
     'Créditos por persona',
     'Credits per person',
     'Crediti per persona',
@@ -690,7 +690,7 @@ export const subscription = {
     'Crédits par personne',
     'Credits pro Person',
   ),
-  mint_credits_hint: L(
+  promotions_qr_credits_hint: L(
     'Cada usuario recibirá esta cantidad de CS',
     'Each user will receive this many CS',
     'Ogni utente riceverà questi CS',
@@ -698,8 +698,8 @@ export const subscription = {
     'Chaque utilisateur recevra ces crédits CS',
     'Jeder Nutzer erhält diese CS',
   ),
-  mint_months_premium: L('Meses de Premium', 'Months of Premium', 'Mesi Premium', 'Meses Premium', 'Mois Premium', 'Monate Premium'),
-  mint_max_months_austerity: L(
+  promotions_qr_months_premium: L('Meses de Premium', 'Months of Premium', 'Mesi Premium', 'Meses Premium', 'Mois Premium', 'Monate Premium'),
+  promotions_qr_max_months_austerity: L(
     'Máximo 3 meses (regla de austeridad)',
     'Max 3 months (austerity rule)',
     'Massimo 3 mesi (regola austerity)',
@@ -707,7 +707,7 @@ export const subscription = {
     '3 mois max. (règle d’austérité)',
     'Max. 3 Monate (Sparkurs)',
   ),
-  mint_num_people_label: L(
+  promotions_qr_num_people_label: L(
     'Cantidad de personas',
     'Number of people',
     'Numero di persone',
@@ -715,7 +715,7 @@ export const subscription = {
     'Nombre de personnes',
     'Anzahl Personen',
   ),
-  mint_validity_days_label: L(
+  promotions_qr_validity_days_label: L(
     'Validez (días)',
     'Validity (days)',
     'Validità (giorni)',
@@ -723,12 +723,12 @@ export const subscription = {
     'Validité (jours)',
     'Gültigkeit (Tage)',
   ),
-  mint_max_90_days: L('Máximo 90 días', 'Max 90 days', 'Massimo 90 giorni', 'No máximo 90 dias', '90 jours max.', 'Max. 90 Tage'),
-  mint_total_credits_label: L('Total de créditos:', 'Total credits:', 'Totale crediti:', 'Total de créditos:', 'Total crédits :', 'Credits gesamt:'),
-  mint_people_colon: L('Personas:', 'People:', 'Persone:', 'Pessoas:', 'Personnes :', 'Personen:'),
-  mint_valid_for_label: L('Válido por:', 'Valid for:', 'Valido per:', 'Válido por:', 'Valable :', 'Gültig:'),
-  mint_days: L('días', 'days', 'giorni', 'dias', 'jours', 'Tage'),
-  mint_validating_biometric: L(
+  promotions_qr_max_90_days: L('Máximo 90 días', 'Max 90 days', 'Massimo 90 giorni', 'No máximo 90 dias', '90 jours max.', 'Max. 90 Tage'),
+  promotions_qr_total_credits_label: L('Total de créditos:', 'Total credits:', 'Totale crediti:', 'Total de créditos:', 'Total crédits :', 'Credits gesamt:'),
+  promotions_qr_people_colon: L('Personas:', 'People:', 'Persone:', 'Pessoas:', 'Personnes :', 'Personen:'),
+  promotions_qr_valid_for_label: L('Válido por:', 'Valid for:', 'Valido per:', 'Válido por:', 'Valable :', 'Gültig:'),
+  promotions_qr_days: L('días', 'days', 'giorni', 'dias', 'jours', 'Tage'),
+  promotions_qr_validating_biometric: L(
     'Validando biometría…',
     'Validating biometrics…',
     'Biometria in corso…',
@@ -736,7 +736,7 @@ export const subscription = {
     'Biométrie…',
     'Biometrie wird geprüft…',
   ),
-  mint_generate_button: L(
+  promotions_qr_generate_button: L(
     'Generar QR de regalo',
     'Generate gift QR',
     'Genera QR regalo',
@@ -744,16 +744,16 @@ export const subscription = {
     'Générer le QR cadeau',
     'Geschenk-QR erzeugen',
   ),
-  mint_face_key_warning: L(
-    '⚠️ Tu cara es la llave. Face ID validará antes de acuñar.',
-    '⚠️ Your face is the key. Face ID will verify before minting.',
-    '⚠️ Il tuo viso è la chiave. Face ID verifica prima della coniazione.',
-    '⚠️ Seu rosto é a chave. Face ID validará antes de cunhar.',
-    '⚠️ Votre visage est la clé. Face ID vérifie avant la frappe.',
-    '⚠️ Ihr Gesicht ist der Schlüssel. Face ID prüft vor dem Prägen.',
+  promotions_qr_face_key_warning: L(
+    '⚠️ Tu cara es la llave. Face ID confirmará antes de generar cada Promoción QR.',
+    '⚠️ Your face is the key. Face ID will verify before each Promotions QR code is created.',
+    '⚠️ Il tuo volto è la chiave: Face ID verifica prima della generazione dei codici Promotions QR.',
+    '⚠️ Seu rosto é a chave. O Face ID confirma antes de gerar cada QR de promoções.',
+    '⚠️ Votre visage est la clé. Face ID vérifie avant chaque création de QR promotionnel.',
+    '⚠️ Ihr Gesicht ist der Schlüssel. Face ID prüft vor jeder Ausgabe eines Aktions‑QR.',
   ),
-  mint_security_title: L('Seguridad máxima', 'Maximum security', 'Sicurezza massima', 'Segurança máxima', 'Sécurité maximale', 'Maximale Sicherheit'),
-  mint_security_body: L(
+  promotions_qr_security_title: L('Seguridad máxima', 'Maximum security', 'Sicurezza massima', 'Segurança máxima', 'Sécurité maximale', 'Maximale Sicherheit'),
+  promotions_qr_security_body: L(
     'Solo tú (Pochobs) puedes generar QRs. Cada código es único, caducable y auditable.',
     'Only you (Pochobs) can generate QRs. Each code is unique, expirable, and auditable.',
     'Solo tu (Pochobs) puoi generare QR. Ogni codice è unico, scadibile e tracciabile.',
@@ -761,8 +761,8 @@ export const subscription = {
     'Seul vous (Pochobs) pouvez générer des QR. Chaque code est unique, expirable et auditable.',
     'Nur Sie (Pochobs) können QRs erzeugen. Jeder Code ist einzigartig, ablaufend und nachvollziehbar.',
   ),
-  mint_modal_title: L('🎁 QR de regalo generado', '🎁 Gift QR generated', '🎁 QR regalo creato', '🎁 QR de presente gerado', '🎁 QR cadeau généré', '🎁 Geschenk-QR erstellt'),
-  mint_scan_or_share: L(
+  promotions_qr_modal_title: L('🎁 QR de regalo generado', '🎁 Gift QR generated', '🎁 QR regalo creato', '🎁 QR de presente gerado', '🎁 QR cadeau généré', '🎁 Geschenk-QR erstellt'),
+  promotions_qr_scan_or_share: L(
     'Escanea o comparte este código',
     'Scan or share this code',
     'Scansiona o condividi il codice',
@@ -770,9 +770,9 @@ export const subscription = {
     'Scannez ou partagez ce code',
     'Code scannen oder teilen',
   ),
-  mint_download_png: L('Descargar PNG', 'Download PNG', 'Scarica PNG', 'Baixar PNG', 'Télécharger PNG', 'PNG herunterladen'),
-  mint_for_pdf: L('Para PDF', 'For PDF', 'Per PDF', 'Para PDF', 'Pour PDF', 'Für PDF'),
-  mint_share_whatsapp_telegram: L(
+  promotions_qr_download_png: L('Descargar PNG', 'Download PNG', 'Scarica PNG', 'Baixar PNG', 'Télécharger PNG', 'PNG herunterladen'),
+  promotions_qr_for_pdf: L('Para PDF', 'For PDF', 'Per PDF', 'Para PDF', 'Pour PDF', 'Für PDF'),
+  promotions_qr_share_whatsapp_telegram: L(
     'Compartir a WhatsApp o Telegram',
     'Share to WhatsApp or Telegram',
     'Condividi su WhatsApp o Telegram',

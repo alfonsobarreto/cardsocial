@@ -1,0 +1,227 @@
+import { NextResponse } from 'next/server';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+
+import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
+import { signStudioEmbedToken } from '@/lib/studioEmbedToken';
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
+
+export const runtime = 'nodejs';
+
+/** TTL del ticket `et` (solo hasta el exchange). Muy largo para uso desde la app; la sesión real es Firebase Auth. */
+const EMBED_TTL_SEC = 10 * 365 * 24 * 60 * 60;
+
+const VERIFY_TOKEN_TIMEOUT_MS = 12_000;
+
+function ts(): string {
+  return `[${new Date().toISOString()}]`;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`TIMEOUT after ${ms}ms: ${label}`));
+    }, ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+const POCHOBS_SUPERADMIN_EMAIL = 'pochobs@gmail.com';
+
+function normalizeFirestoreRole(raw: unknown): string {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, '_');
+}
+
+function hasMarketRadarUnlimitedAccess(firestoreRole: unknown, idTokenEmail: string): boolean {
+  const role = normalizeFirestoreRole(firestoreRole);
+  if (role === 'super_admin' || role === 'pochobs_admin') return true;
+  if (idTokenEmail === POCHOBS_SUPERADMIN_EMAIL) return true;
+  return false;
+}
+
+function normalizeLang(raw: unknown): string {
+  const s = String(raw || 'en').toLowerCase().split('-')[0] ?? 'en';
+  return s === 'es' || s === 'en' || s === 'it' || s === 'fr' || s === 'pt' || s === 'de' ? s : 'en';
+}
+
+function userErrorJson(req: Request, status: number, errorCode: string, extra?: Record<string, unknown>) {
+  const loc = pickLocaleFromHeaders(req.headers);
+  return NextResponse.json(
+    { ok: false, error: userFacingMessageForErrorCode(errorCode, loc), errorCode, ...extra },
+    { status },
+  );
+}
+
+function embedSecretIssue(secret: string | undefined): 'embed_secret_missing' | 'embed_secret_too_short' | null {
+  const s = secret?.trim() ?? '';
+  if (!s) return 'embed_secret_missing';
+  if (s.length < 16) return 'embed_secret_too_short';
+  return null;
+}
+
+function resolvePublicPageOrigin(req: Request, bodyPublicOrigin: unknown): string {
+  const reqUrl = new URL(req.url);
+  const requestOrigin = reqUrl.origin;
+
+  const hostHeader = (req.headers.get('host') || '').trim().toLowerCase();
+  const raw = typeof bodyPublicOrigin === 'string' ? bodyPublicOrigin.trim().replace(/\/+$/, '') : '';
+  if (raw && /^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (parsed.username || parsed.password) {
+        return requestOrigin;
+      }
+      if (!hostHeader || parsed.host.toLowerCase() !== hostHeader) {
+        return requestOrigin;
+      }
+      return `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      return requestOrigin;
+    }
+  }
+
+  const forwarded = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  if (forwarded) {
+    const rawProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+    const safeProto = rawProto === 'http' || rawProto === 'https' ? rawProto : 'https';
+    return `${safeProto}://${forwarded}`;
+  }
+
+  return requestOrigin;
+}
+
+const LOG_TAG = 'promotions-qr-market-radar';
+
+/**
+ * Emite un ticket opaco `et` para `/embed/market-radar` (TTL largo; tras `/api/embed/exchange` usa Firebase).
+ */
+export async function POST(req: Request) {
+  const reqStart = Date.now();
+  console.log(`${ts()} [${LOG_TAG}] >>> INICIO POST`);
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 1: leyendo STUDIO_EMBED_SECRET (+${Date.now() - reqStart}ms)`);
+  const secretRaw = process.env.STUDIO_EMBED_SECRET;
+  const secretIssue = embedSecretIssue(secretRaw);
+  if (secretIssue) {
+    console.error(`${ts()} [${LOG_TAG}] FALLO PASO 1 — embed secret: ${secretIssue}`);
+    if (shouldLogFirebaseAdmin()) {
+      console.error(`[${LOG_TAG}] 503 embed secret:`, secretIssue);
+    }
+    return userErrorJson(req, 503, secretIssue);
+  }
+  const secret = secretRaw!.trim();
+  console.log(`${ts()} [${LOG_TAG}] PASO 1 OK — secret len=${secret.length} (+${Date.now() - reqStart}ms)`);
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 2: resolveAdminApp() (+${Date.now() - reqStart}ms)`);
+  const admin = resolveAdminApp();
+  if (!admin.ok) {
+    console.error(
+      `${ts()} [${LOG_TAG}] FALLO PASO 2 — code=${admin.code} detail=${admin.detail} (+${Date.now() - reqStart}ms)`,
+    );
+    if (shouldLogFirebaseAdmin()) {
+      console.error(`[${LOG_TAG}] 503`, { error: admin.code, detail: admin.detail });
+    }
+    return userErrorJson(req, 503, admin.code);
+  }
+  console.log(`${ts()} [${LOG_TAG}] PASO 2 OK — Firebase Admin app listo (+${Date.now() - reqStart}ms)`);
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 3: extrayendo Bearer token (+${Date.now() - reqStart}ms)`);
+  const authHeader = req.headers.get('authorization') || '';
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
+  const idToken = match?.[1]?.trim();
+  if (!idToken) {
+    console.error(`${ts()} [${LOG_TAG}] FALLO PASO 3 — missing_bearer_token (+${Date.now() - reqStart}ms)`);
+    return userErrorJson(req, 401, 'missing_bearer_token');
+  }
+  console.log(`${ts()} [${LOG_TAG}] PASO 3 OK — token len=${idToken.length} (+${Date.now() - reqStart}ms)`);
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 4: getAuth().verifyIdToken() (+${Date.now() - reqStart}ms)`);
+  let uid: string;
+  let idTokenEmail = '';
+  try {
+    const decoded = await withTimeout(
+      getAuth(admin.app).verifyIdToken(idToken),
+      VERIFY_TOKEN_TIMEOUT_MS,
+      'getAuth().verifyIdToken()',
+    );
+    uid = decoded.uid;
+    idTokenEmail = String(decoded.email || '')
+      .trim()
+      .toLowerCase();
+    console.log(`${ts()} [${LOG_TAG}] PASO 4 OK — uid=${uid} (+${Date.now() - reqStart}ms)`);
+  } catch (e) {
+    const msg = (e as Error)?.message || String(e);
+    const isTimeout = msg.startsWith('TIMEOUT');
+    console.error(
+      `${ts()} [${LOG_TAG}] FALLO PASO 4 — ${isTimeout ? 'TIMEOUT verify' : 'error auth'}: ${msg} (+${Date.now() - reqStart}ms)`,
+    );
+    if (isTimeout) {
+      return userErrorJson(req, 504, 'verify_token_timeout');
+    }
+    return userErrorJson(req, 401, 'invalid_or_expired_id_token');
+  }
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 4.5: Market Radar access (+${Date.now() - reqStart}ms)`);
+  try {
+    const fsdb = getFirestore(admin.app);
+    const radarCfgSnap = await fsdb.collection('system_config').doc('market_radar').get();
+    const radarTrial =
+      radarCfgSnap.exists &&
+      (radarCfgSnap.data() as { radar_trial_enabled?: unknown }).radar_trial_enabled === true;
+
+    if (!radarTrial) {
+      const userSnap = await fsdb.collection('users').doc(uid).get();
+      const u = userSnap.exists ? userSnap.data() : {};
+      const unlimited = hasMarketRadarUnlimitedAccess((u as { role?: unknown }).role, idTokenEmail);
+      const bc = Number((u as { businessCardsOwnedCount?: unknown }).businessCardsOwnedCount ?? 0);
+      if (!unlimited && (!Number.isFinite(bc) || bc < 1)) {
+        return userErrorJson(req, 403, 'market_radar_requires_business_card');
+      }
+      const proActive = (u as { marketRadarProActive?: unknown }).marketRadarProActive === true;
+      const exp = (u as { marketRadarProExpiresAt?: { toMillis?: () => number } }).marketRadarProExpiresAt;
+      const proUntilOk = Boolean(exp && typeof exp.toMillis === 'function' && exp.toMillis() > Date.now());
+      if (!unlimited && !proActive && !proUntilOk) {
+        return userErrorJson(req, 403, 'market_radar_pro_required');
+      }
+    }
+  } catch (gateErr) {
+    console.error(`${ts()} [${LOG_TAG}] PASO 4.5 gate error`, gateErr);
+    return userErrorJson(req, 503, 'market_radar_gate_failed');
+  }
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 5: parseando body (+${Date.now() - reqStart}ms)`);
+  let lang = 'en';
+  let bodyPublicOrigin: unknown;
+  try {
+    const body = (await req.json()) as { lang?: string; publicOrigin?: string };
+    lang = normalizeLang(body?.lang);
+    bodyPublicOrigin = body?.publicOrigin;
+  } catch {
+    /* empty body OK */
+  }
+  console.log(`${ts()} [${LOG_TAG}] PASO 5 OK — lang=${lang} (+${Date.now() - reqStart}ms)`);
+
+  console.log(`${ts()} [${LOG_TAG}] PASO 6: signStudioEmbedToken + buildUrl (+${Date.now() - reqStart}ms)`);
+  const now = Math.floor(Date.now() / 1000);
+  const et = signStudioEmbedToken({ v: 1, uid, iat: now, exp: now + EMBED_TTL_SEC }, secret);
+
+  const origin = resolvePublicPageOrigin(req, bodyPublicOrigin);
+  const q = new URLSearchParams({ et, lang });
+  const url = `${origin.replace(/\/+$/, '')}/embed/market-radar?${q.toString()}`;
+  console.log(`${ts()} [${LOG_TAG}] PASO 6 OK — url origin=${origin} (+${Date.now() - reqStart}ms)`);
+
+  console.log(`${ts()} [${LOG_TAG}] <<< ÉXITO total en ${Date.now() - reqStart}ms`);
+  return NextResponse.json({ ok: true, url, expiresIn: EMBED_TTL_SEC });
+}

@@ -19,6 +19,9 @@ import { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
 import type { IssuerSmartCardPresentation } from '@/types/sharedCardPresentation';
 import type { PublicCardSlotPayload } from '@/services/qrApi';
 
+/** Radio estándar del Social Market (millas statute). Una sola fuente para la app y los defaults del servicio. */
+export const SOCIAL_MARKET_RADIUS_MILES = 25;
+
 /** Tarjetas recibidas/aceptadas (misma fuente que pestaña Contactos), con meta local opcional. */
 export type ReceivedContactForMarketSearch = {
   uid: string;
@@ -324,7 +327,7 @@ export async function searchSocialMarket(
   receivedContacts: ReceivedContactForMarketSearch[],
   userLatitude?: number,
   userLongitude?: number,
-  radiusMiles = 15,
+  radiusMiles = SOCIAL_MARKET_RADIUS_MILES,
 ): Promise<SocialMarketSearchSections> {
   const trimmed = String(queryRaw || '').trim();
   const contacts = trimmed ? searchReceivedContactsForMarket(trimmed, receivedContacts) : [];
@@ -415,7 +418,7 @@ export async function searchSocialMarket(
 export async function findNearbyBusinesses(
   userLatitude: number,
   userLongitude: number,
-  radiusMiles = 15,
+  radiusMiles = SOCIAL_MARKET_RADIUS_MILES,
   limit_results = 20,
 ): Promise<BusinessCardSearchResult[]> {
   try {

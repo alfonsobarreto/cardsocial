@@ -16,7 +16,7 @@ Card Social es una plataforma movil + panel admin para crear, administrar y comp
 
 La solucion integra:
 - App movil (experiencia de usuario final).
-- Panel administrativo (mint, publicacion, moderacion, configuracion de sistema).
+- Panel administrativo (promociones QR, publicación, moderación, configuración de sistema).
 - Backend y base de datos para sincronizacion de activos, reglas y auditoria.
 
 Objetivo de proteccion legal:

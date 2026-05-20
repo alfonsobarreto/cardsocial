@@ -38,7 +38,7 @@ function buildQrSvgString(data: string, widthPx: number): string {
   return QRSvg.render(qr, opts);
 }
 
-/** Misma idea que Gift Mint: el archivo no “aparece” solo; hay que abrir el panel del sistema. */
+/** Misma idea que los regalos por QR promocional: el archivo no “aparece” solo; hay que abrir el panel del sistema. */
 async function tryShareExportedFile(
   fileUri: string,
   opts: { mimeType: string; dialogTitle: string }

@@ -1,4 +1,4 @@
-# Manual de Uso Admin (The Mint)
+# Manual de Uso Admin (Promociones QR)
 
 Este documento resume como usar el panel admin y que permisos tiene cada modulo en Card Social.
 
@@ -22,9 +22,9 @@ Este documento resume como usar el panel admin y que permisos tiene cada modulo 
 
 ## 2) Rutas Admin Disponibles
 
-- `/admin/dashboard`  -> Landing principal (The Mint)
-- `/admin/mint`       -> Generacion y control de QR gifts
-- `/admin/stats`      -> Estadisticas de usuarios, coins y students
+- `/admin/dashboard`  -> Landing principal (Promociones QR)
+- `/admin/promotions-qr` / componente `PromotionsQrGenerator` -> Generación y control de QR de regalo
+- `/admin/stats`      -> Estadisticas de usuarios y coins CS
 - `/admin/moderation` -> Reportes, revisiones y baneo
 - `/admin/studio`     -> Uploaders de iconos, wallpapers y fuentes
 - `/admin/config`     -> Broadcast, feature flags y lectura de limites
@@ -34,7 +34,7 @@ Este documento resume como usar el panel admin y que permisos tiene cada modulo 
 
 ## 3) Permisos por Modulo
 
-## MINT
+## PROMOCIONES QR
 Permite:
 - Generar QR gifts.
 - Ver historial de QRs emitidos.
@@ -44,17 +44,16 @@ Impacta:
 - Lectura de historial/auditoria desde servicios de QR.
 
 Archivo:
-- `app/admin/mint.tsx`
+- `components/PromotionsQrGenerator.tsx`
 
 ## ESTADISTICAS
 Permite:
 - Consultar distribucion de usuarios (total, premium, business, vacias).
 - Ver metricas de CS Coins (mes, ano, historico).
-- Auditar grants de Student Pack.
 - Ver inventario de servicios/costos operativos (vista informativa).
 
 Impacta:
-- Lectura de `users`, `businessCards`, historial QR y auditoria Student Pack.
+- Lectura de `users`, `businessCards`, historial QR.
 
 Archivo:
 - `app/admin/stats.tsx`
@@ -90,7 +89,6 @@ Permite:
 - Ver limites Free Tier (solo lectura en panel).
 - Activar/desactivar broadcast global y editar mensaje.
 - Activar/desactivar feature flags:
-  - `studentPackEnabled`
   - `businessCardEnabled`
   - `iconStoreEnabled`
   - `maintenanceMode`
@@ -165,7 +163,7 @@ Escritura:
 | Modulo | Ver | Crear | Editar | Eliminar | Banear | Activar/Desactivar |
 |---|---|---|---|---|---|---|
 | Dashboard | Si | No | No | No | No | No |
-| Mint | Si | Si (QR gifts) | No directo | No directo | No | No |
+| Promociones QR | Si | Si (QR gifts) | No directo | No directo | No | No |
 | Estadisticas | Si | No | No | No | No | No |
 | Moderacion | Si | No | Si (estado reporte) | No fisico (desestimar) | Si | No |
 | Card-Studio | Si | Si (assets) | Si (reemplazos) | Segun uploader | No | No |

@@ -33,7 +33,7 @@ import {
 } from '@/services/searchLocationSession';
 import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
-import { searchSocialMarket } from '@/services/searchService';
+import { searchSocialMarket, SOCIAL_MARKET_RADIUS_MILES } from '@/services/searchService';
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import {
   devicePrefersMetricDistance,
@@ -77,9 +77,6 @@ const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
 const GROUP_DEFAULT = 'Random';
 /** Color de texto/icono del chip de distancia (alto contraste sobre fondo blanco semitransparente). */
 const MR_DISTANCE_CHIP_FG = '#0f172a';
-/** Radio de negocios en millas (búsqueda con ubicación y modo orden por distancia). */
-const MAX_MARKET_RADIUS_MILES = 20;
-
 type ContactMetaLite = { group?: string; icons?: Array<{ name: string; url: string }> };
 
 /** Fila "Contactos" en Mercado: negocio = datos `bc*` / logo, nunca avatar o nombre de perfil del emisor. */
@@ -551,7 +548,7 @@ export default function SearchScreen() {
           receivedRows,
           latitude,
           longitude,
-          MAX_MARKET_RADIUS_MILES,
+          SOCIAL_MARKET_RADIUS_MILES,
         );
         setSectionContacts(contacts);
         setSectionBusinesses(businesses);
@@ -643,7 +640,7 @@ export default function SearchScreen() {
             rows,
             cached?.lat,
             cached?.lng,
-            MAX_MARKET_RADIUS_MILES,
+            SOCIAL_MARKET_RADIUS_MILES,
           );
           if (cancelled) {
             return;

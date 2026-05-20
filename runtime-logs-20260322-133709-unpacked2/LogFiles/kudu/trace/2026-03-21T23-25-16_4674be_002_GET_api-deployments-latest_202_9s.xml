@@ -1,8 +1,0 @@
-<step title="Incoming Request" date="2026-03-21T23:25:16.713" instance="4674be" url="/api/deployments/latest" method="GET" type="request" pid="833,1,5" Accept="*/*" Host="card-social-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="gzip, deflate" Authorization="Bea..." x-ms-client-request-id="10781d77-257d-11f1-9d81-8c81b23041d5" X-ARR-LOG-ID="10781d77-257d-11f1-9d81-8c81b23041d5" CLIENT-IP="172.56.93.246:38669" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest" X-Client-IP="172.56.93.246" X-Client-Port="38669" >
-  <step title="DeploymentService.GetResult" date="2026-03-21T23:25:21.203" >
-    <step title="DeploymentService.GetLatestDeployment" date="2026-03-21T23:25:21.267" >
-      <step title="DeploymentManager.GetResults" date="2026-03-21T23:25:21.289" /><!-- duration: 2822ms -->
-    </step><!-- duration: 2975ms -->
-  </step><!-- duration: 3079ms -->
-  <step title="Outgoing response" date="2026-03-21T23:25:25.683" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 78ms -->
-</step><!-- duration: 9086ms -->

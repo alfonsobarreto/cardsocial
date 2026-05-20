@@ -72,10 +72,10 @@ Exports: generateToken(), verifyToken(), comparePassword(), hashPassword()
 Dependencies: jsonwebtoken, bcryptjs
 Security: HS256 signing, issuer validation, 30min expiry
 
-File: services/marketMintService.ts  
+File: backend/src/services/marketAssetDraftService.ts  
 Lines: 250
-Purpose: Mint assets, publish workflow, ID generation, preview rendering
-Exports: mintAsset(), publishAsset(), generatePreview(), listAssets(), getMarketStats()
+Purpose: crear borradores de activos, publicación, IDs, vistas previas
+Exports: createDraftAsset(), publishAsset(), generatePreview(), listAssets(), getMarketStats()
 Dependencies: UUID for auto-ID, multer for file upload
 Key Feature: Auto-generates sequential IDs like COLLECTIBLES_MARVEL-001
 
@@ -90,11 +90,11 @@ ROUTES (API Endpoints)
 File: routes/adminRoutes.ts
 Endpoints: 7
   POST   /admin/login                  → JWT token
-  POST   /admin/mint_asset             → Create draft
+  POST   /admin/market_asset_draft             → Create draft
   POST   /admin/publish_asset          → DRAFT → PUBLISHED
   GET    /admin/assets                 → List all
   GET    /admin/stats                  → Market statistics
-  GET    /admin/preview/:mint_id       → Canvas render
+  GET    /admin/preview/:draft_id       → Canvas render
   GET    /admin/health                 → Status check
 
 File: routes/syncRoutes.ts (NEW - Phase 5)
@@ -120,10 +120,10 @@ How to Use: Insert into MongoDB for testing sequential ID validation
 
 SCRIPTS (Executables)
 ────────────────────────────────────────────────────────────────────────────────
-File: scripts/testMarvelMint.ts (NEW - Phase 5)
-Purpose: End-to-end validation of entire mint-publish-verify flow
-Steps: 7 sequential tests (login → mint → verify ID → list → publish → confirm → stats)
-How to Run: npm run test:marvel-mint
+File: backend/src/scripts/testMarvelMarketDraft.ts (NEW - Phase 5)
+Purpose: End-to-end validation of draft→publish→verify flow
+Steps: 7 sequential tests (login → draft → verify ID → list → publish → confirm → stats)
+How to Run: use ts-node backend/src/scripts/testMarvelMarketDraft.ts (configure API_BASE)
 Output: "7/7 TESTS PASSED" if successful, detailed failures otherwise
 
 ENVIRONMENT
@@ -155,7 +155,7 @@ Lines: 800+
 Purpose: Main admin portal UI
 Sections:
   • Login form (centered card, error messages)
-  • Mint asset form (collection, name, rarity, price, file upload)
+  • Asset draft form (collection, name, rarity, price, file upload)
   • Asset listing (with filter by status)
   • Statistics dashboard (cards, charts)
   • Settings panel (session expiry, logout)
@@ -238,15 +238,15 @@ Sample Document:
 🧪 TESTING & VALIDATION
 ═════════════════════════════════════════════════════════════════════════════════
 
-Test Script: testMarvelMint.ts
+Test Script: backend/src/scripts/testMarvelMarketDraft.ts
 Location: card-social/backend/src/scripts/
-Execution: npm run test:marvel-mint
+Execution: ts-node backend/src/scripts/testMarvelMarketDraft.ts
 Duration: 5-10 seconds
 Exit Code: 0 if all pass, 1 if any fail
 
 Test Steps:
 1️⃣  Admin login → Get JWT token
-2️⃣  Mint MARVEL-001 → Creates draft with auto-ID
+2️⃣  Draft MARVEL-001 → Creates draft with auto-ID
 3️⃣  Validate ID format → Regex: COLLECTIBLES_MARVEL-\d{3}
 4️⃣  List assets → Verify asset appears in list
 5️⃣  Publish asset → DRAFT → PUBLISHED status transition
@@ -299,7 +299,7 @@ Response Times (Post-Deployment)
 ────────────────────────────────────────────────────────────────────────────────
 Load Admin Portal (Vercel):           1.5 - 2s
 admin/login endpoint:                 300 - 500ms
-admin/mint_asset endpoint:            800 - 1200ms
+admin/market_asset_draft endpoint:            800 - 1200ms
 admin/publish_asset endpoint:         400 - 600ms
 admin/assets (list):                  200 - 400ms
 sync/init-vault (mobile):             500 - 800ms
@@ -397,7 +397,7 @@ LATENCY GUARANTEE:
 ✅ Admin Dashboard
    • Login with 30min session
    • View market statistics  
-   • Create new assets (mint)
+   • Create new assets (draft in Card-Studio)
    • Edit asset properties
    • Upload preview images
    • Real-time canvas preview
@@ -447,7 +447,7 @@ card-social/
 │   └── src/
 │       ├── services/
 │       │   ├── adminAuthService.ts
-│       │   ├── marketMintService.ts
+│       │   ├── marketAssetDraftService.ts
 │       │   └── marketSyncService.ts
 │       ├── routes/
 │       │   ├── adminRoutes.ts
@@ -456,7 +456,7 @@ card-social/
 │       │   ├── seedBasicIcons.ts
 │       │   └── seedMarvelCollectible.ts
 │       └── scripts/
-│           └── testMarvelMint.ts
+│           └── testMarvelMarketDraft.ts
 │
 ├── frontend-admin/
 │   ├── package.json
@@ -485,7 +485,7 @@ card-social/
 □ Deploy: Backend to Azure (10 min)
 □ Config: MongoDB cluster & collections (5 min)
 □ Test: Login at cardsocial.me/admin (1 min)
-□ Mint: Create MARVEL-001 collectible (2 min)
+□ Card-Studio: Create MARVEL-001 collectible draft (2 min)
 □ Verify: ID format COLLECTIBLES_MARVEL-001 ✅
 □ Publish: Click Publish button (1 min)
 □ Test Mobile: Register user, see 10 free icons ✅
