@@ -13,7 +13,7 @@ import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
 import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
 import { installGhostLinkNotificationOpenHandlers, registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
-import { applyAndroidNavigationBarChrome } from '@/services/androidNavigationChrome';
+import { applyAndroidNavigationBarChrome, installAndroidNavigationBarImmersiveGuard } from '@/services/androidNavigationChrome';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { checkInactivitySignOutWithoutTouch, enforceInactivitySignOutIfNeeded } from '@/services/sessionInactivity';
@@ -123,13 +123,14 @@ function RootNavigator() {
     };
   }, [enqueueInactivitySignOutReplace]);
 
-  /** Contraste de ◀ ● □ sobre fondo de app en Android (edge-to-edge). */
+  /** Android: intenta mantener ◀ ● □ en modo inmersivo y con contraste correcto. */
   useEffect(() => {
     if (Platform.OS !== 'android') {
       return;
     }
     const darkBg = isDark;
     void applyAndroidNavigationBarChrome(darkBg);
+    return installAndroidNavigationBarImmersiveGuard(darkBg);
   }, [isDark]);
 
   useEffect(() => {

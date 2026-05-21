@@ -9,7 +9,7 @@ import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
-import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { trackMarketplaceCardClick, trackMarketplaceSearch } from '@/services/analyticsService';
 import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
@@ -957,8 +957,8 @@ export default function SearchScreen() {
               {facets.length > 0 ? (
                 <ScrollView
                   horizontal
+                  {...verticalScrollInteractionProps}
                   showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
                   contentContainerStyle={styles.searchFacetRow}
                 >
                   {facets.slice(0, 14).map((f, idx) => (

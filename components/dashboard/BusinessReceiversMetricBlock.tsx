@@ -1,3 +1,4 @@
+import { verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { dashboardReceiversStrings } from '@/constants/dashboardReceiversI18n';
 import type { AppLanguage } from '@/services/language';
 import { intlLocaleTagForAppLanguage } from '@/services/language';
@@ -305,6 +306,7 @@ export function BusinessReceiversMetricBlock({
             ) : (
               <ScrollView
                 horizontal
+                {...verticalScrollInteractionProps}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.barsScrollContent}
                 style={styles.chartScroll}

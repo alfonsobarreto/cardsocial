@@ -51,7 +51,7 @@ import { useCreationT } from '@/services/creationI18n';
 import { useCoreT } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { ModerationRejectedError, deleteVaultFileWithModeration, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
 import { syncVaultLinkToMongoCardsAfterSave } from '@/services/syncVaultLinkToMongoCards';
 import { emitVaultLinkSaved } from '@/services/vaultLinkSavedBus';
@@ -1965,18 +1965,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         Alert.alert(tcx('form_err_title'), tcx('form_bad_user'));
         return;
       }
-      console.log('[Vault] handleCreate: Antes de AsyncStorage.getItem');
-      const existingData = await readVaultJsonWithLegacyMigration(userId);
-      console.log('[Vault] handleCreate: Después de AsyncStorage.getItem');
+      console.log('[Vault] handleCreate: Antes de lectura cloud para duplicados');
       let dataArray: any[] = [];
-      if (existingData) {
-        try {
-          const parsed = JSON.parse(existingData);
-          dataArray = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          dataArray = [];
-        }
-      }
       try {
         const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
         const cloudItems = (await decodeVaultFirestoreQueryDocs(
@@ -1985,7 +1975,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         )) as Link[];
         dataArray = cloudItems as any[];
       } catch (cloudReadErr) {
-        console.warn('[Vault] duplicate check cloud read skipped:', cloudReadErr);
+        console.warn('[Vault] duplicate check cloud read failed; aborting save:', cloudReadErr);
+        Alert.alert(
+          tcx('form_upload_err'),
+          userFacingAlertMessage(cloudReadErr, language, tcx('form_save_retry_q')),
+          [{ text: tcx('form_retry'), onPress: () => void handleCreate() }],
+        );
+        return;
       }
       const normalizedTitle = dataName.trim().toLowerCase();
       const duplicateByTitle = dataArray.find((item: any) => {
@@ -2017,6 +2013,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const shouldUploadFile =
         dataType === 'Documento' && normalizedValue.startsWith('file://');
       let finalValue = normalizedValue;
+      let uploadedVaultFileRef: string | null = null;
       let vaultMimeForPayload: string | undefined;
       if (shouldUploadFile) {
         let fileUriToUpload = normalizedValue;
@@ -2046,6 +2043,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           return;
         }
         finalValue = resolvedUrl;
+        uploadedVaultFileRef = resolvedUrl;
         const mergedMime = String(uploadedMime || mimeForUpload || '').trim();
         if (mergedMime) {
           vaultMimeForPayload = mergedMime.slice(0, 120);
@@ -2147,6 +2145,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             console.warn('[Vault] mongo sync after cloud failed:', mongoSyncErr);
           }
         } catch (cloudError) {
+          if (uploadedVaultFileRef) {
+            try {
+              await deleteVaultFileWithModeration({ uid: userId, fileIdOrUrl: uploadedVaultFileRef });
+            } catch (cleanupErr) {
+              console.warn('[Vault] uploaded file cleanup after cloud failure failed:', cleanupErr);
+            }
+          }
           console.warn('[Vault] Cloud sync failed before local success:', cloudError);
           Alert.alert(
             tcx('form_upload_err'),

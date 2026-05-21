@@ -128,7 +128,7 @@ export default function PremiumDataPanelHost() {
         <ScrollView
           style={styles.sovereignScroll}
           {...verticalScrollInteractionProps}
-          contentContainerStyle={styles.sovereignScrollContent}
+          contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.sovereignScrollContent]}
         >
           {(() => {
             const { headline, body: bodyRest } = splitSovereignText(String(p.body || ''));

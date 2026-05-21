@@ -17,7 +17,7 @@ import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { buildLegalConsentHashBundle } from '@/services/legalConsentHash';
 import { useLookMode } from '@/services/lookMode';
-import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { deleteVaultFileWithModeration, ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { upsertSuccessfulReferralAttribution } from '@/services/referralsFirestoreService';
 import { fetchSignupFieldAvailability } from '@/services/studioAuthPublicApi';
@@ -33,7 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, deleteUser, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -166,14 +166,14 @@ export default function RegisterScreen() {
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
-  /** Android: confirmar foto de perfil en modal antes de aplicar. */
-  const [androidPhotoPending, setAndroidPhotoPending] = useState<null | { kind: 'profile'; uri: string }>(null);
   const [photoUri, setPhotoUri] = useState('');
+  const [isPhotoPickerBusy, setIsPhotoPickerBusy] = useState(false);
   const [cropperVisible, setCropperVisible] = useState(false);
   const [rawPhotoUri, setRawPhotoUri] = useState('');
   const [rawPhotoWidth, setRawPhotoWidth] = useState(1080);
   const [rawPhotoHeight, setRawPhotoHeight] = useState(1080);
   const cropperRetryFnRef = React.useRef<() => void>(() => {});
+  const photoPickerBusyRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -284,6 +284,10 @@ export default function RegisterScreen() {
   const [pickerYear, setPickerYear] = useState(2000);
   const [pickerMonth, setPickerMonth] = useState(1);
   const [pickerDay, setPickerDay] = useState(1);
+  const pickerDayCount = useMemo(
+    () => new Date(pickerYear, pickerMonth, 0).getDate(),
+    [pickerYear, pickerMonth],
+  );
   const [isAutofillingLocation, setIsAutofillingLocation] = useState(false);
   const router = useRouter();
   const signupParams = useLocalSearchParams<{ invite?: string | string[] }>();
@@ -299,6 +303,12 @@ export default function RegisterScreen() {
 
   const formatBirthDateUs = (month: number, day: number, year: number) =>
     `${pad2(month)}-${pad2(day)}-${String(year).padStart(4, '0')}`;
+
+  useEffect(() => {
+    if (pickerDay > pickerDayCount) {
+      setPickerDay(pickerDayCount);
+    }
+  }, [pickerDay, pickerDayCount]);
 
   const formatBirthDateInput = (raw: string) => {
     const digits = String(raw || '').replace(/\D/g, '').slice(0, 8);
@@ -630,72 +640,99 @@ export default function RegisterScreen() {
     return age;
   };
 
-  const requestGalleryPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permission.status !== 'granted') {
-      Alert.alert(
-        t('register_alert_permission_denied'),
-        t('register_alert_gallery_needed')
-      );
-      return;
+  const startPhotoPickerGuard = () => {
+    if (photoPickerBusyRef.current || cropperVisible || isSubmitting) {
+      return false;
+    }
+    photoPickerBusyRef.current = true;
+    setIsPhotoPickerBusy(true);
+    return true;
+  };
+
+  const stopPhotoPickerGuard = () => {
+    photoPickerBusyRef.current = false;
+    setIsPhotoPickerBusy(false);
+  };
+
+  const openProfilePhotoCropper = async (
+    asset: ImagePicker.ImagePickerAsset,
+    retry: () => void,
+  ) => {
+    const uri = String(asset.uri || '').trim();
+    if (!uri) return;
+    cropperRetryFnRef.current = retry;
+
+    let width = Number(asset.width || 0);
+    let height = Number(asset.height || 0);
+    if (!width || !height) {
+      try {
+        const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+          Image.getSize(uri, (w, h) => resolve({ width: w, height: h }), reject);
+        });
+        width = size.width;
+        height = size.height;
+      } catch {
+        width = 1080;
+        height = 1080;
+      }
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: Platform.OS !== 'android',
-      ...(Platform.OS !== 'android' ? { aspect: [1, 1] as [number, number] } : {}),
-      quality: 0.8,
-    });
+    setRawPhotoUri(uri);
+    setRawPhotoWidth(Math.max(1, Math.round(width)));
+    setRawPhotoHeight(Math.max(1, Math.round(height)));
+    setCropperVisible(true);
+  };
 
-    if (!result.canceled && result.assets[0]?.uri) {
-      const uri = result.assets[0].uri;
-      if (Platform.OS === 'android') {
-        setAndroidPhotoPending({ kind: 'profile', uri });
-      } else {
-        setPhotoUri(uri);
-        clearFieldError('photo');
+  const requestGalleryPhoto = async () => {
+    if (!startPhotoPickerGuard()) return;
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          t('register_alert_permission_denied'),
+          t('register_alert_gallery_needed')
+        );
+        return;
       }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        await openProfilePhotoCropper(result.assets[0], () => void requestGalleryPhoto());
+      }
+    } finally {
+      stopPhotoPickerGuard();
     }
   };
 
   const requestCameraPhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.status !== 'granted') {
-      Alert.alert(
-        t('register_alert_permission_denied'),
-        t('register_alert_camera_needed')
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      cameraType: ImagePicker.CameraType.front,
-      allowsEditing: Platform.OS !== 'android',
-      ...(Platform.OS !== 'android' ? { aspect: [1, 1] as [number, number] } : {}),
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]?.uri) {
-      const uri = result.assets[0].uri;
-      if (Platform.OS === 'android') {
-        setAndroidPhotoPending({ kind: 'profile', uri });
-      } else {
-        setPhotoUri(uri);
-        clearFieldError('photo');
+    if (!startPhotoPickerGuard()) return;
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          t('register_alert_permission_denied'),
+          t('register_alert_camera_needed')
+        );
+        return;
       }
+
+      const result = await ImagePicker.launchCameraAsync({
+        cameraType: ImagePicker.CameraType.front,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        await openProfilePhotoCropper(result.assets[0], () => void requestCameraPhoto());
+      }
+    } finally {
+      stopPhotoPickerGuard();
     }
-  };
-
-  const cancelAndroidPhotoPending = () => {
-    setAndroidPhotoPending(null);
-  };
-
-  const confirmAndroidPhotoPending = async () => {
-    const pending = androidPhotoPending;
-    if (!pending || pending.kind !== 'profile') return;
-    setPhotoUri(pending.uri);
-    cancelAndroidPhotoPending();
-    clearFieldError('photo');
   };
 
   const inferMimeType = (uri: string, fallbackName?: string) => {
@@ -1002,6 +1039,9 @@ export default function RegisterScreen() {
 
     setFieldErrors({});
     const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
+    const onboardingOwner = `onboarding-${nicknameLower || Date.now()}`;
+    let uploadedPhotoFileId: string | null = null;
+    let createdPasswordAuthUser = false;
 
     setIsSubmitting(true);
     setUploadModalVisible(false);
@@ -1009,8 +1049,6 @@ export default function RegisterScreen() {
     setUploadStageKey('register_upload_starting');
     try {
       await checkUniqueness(normalizedNickname, emailLower, phoneNormalized, auth.currentUser?.uid);
-
-      const onboardingOwner = `onboarding-${nicknameLower || Date.now()}`;
 
       setUploadStageKey('register_upload_validating_photo');
       const { fileId: moderatedPhotoFileId, publicUrl: moderatedPhotoPublicUrl } = await uploadWithSafety(
@@ -1020,6 +1058,7 @@ export default function RegisterScreen() {
         `profile-${Date.now()}.jpg`,
         inferMimeType(photoUri, 'profile.jpg')
       );
+      uploadedPhotoFileId = moderatedPhotoFileId;
 
       setUploadProgress(0.25);
 
@@ -1027,6 +1066,7 @@ export default function RegisterScreen() {
       if (!socialProviderId) {
         const authResult = await createUserWithEmailAndPassword(auth, emailLower, password);
         uid = authResult.user.uid;
+        createdPasswordAuthUser = true;
         await saveCachedCredentials(emailLower, password);
       }
 
@@ -1213,6 +1253,27 @@ export default function RegisterScreen() {
       setUploadModalVisible(false);
       setIsSubmitting(false);
 
+      if (uploadedPhotoFileId) {
+        try {
+          await deleteVaultFileWithModeration({ fileIdOrUrl: uploadedPhotoFileId, uid: onboardingOwner });
+        } catch (cleanupError) {
+          console.warn('[register] profile photo cleanup failed:', cleanupError);
+        }
+      }
+
+      if (createdPasswordAuthUser && auth.currentUser) {
+        try {
+          await deleteUser(auth.currentUser);
+        } catch (authCleanupError) {
+          console.warn('[register] auth user cleanup failed:', authCleanupError);
+          try {
+            await signOut(auth);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
@@ -1262,10 +1323,26 @@ export default function RegisterScreen() {
             style={fieldErrors.photo ? { borderWidth: 1, borderColor: REGISTER_FIELD_ERROR_BORDER, borderRadius: 12, padding: 8, marginBottom: 8 } : null}
           >
             <View style={styles.photoRow}>
-              <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestCameraPhoto}>
+              <TouchableOpacity
+                style={[
+                  styles.photoButton,
+                  { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder },
+                  isPhotoPickerBusy && styles.photoButtonDisabled,
+                ]}
+                onPress={requestCameraPhoto}
+                disabled={isPhotoPickerBusy}
+              >
                 <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_open_camera')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestGalleryPhoto}>
+              <TouchableOpacity
+                style={[
+                  styles.photoButton,
+                  { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder },
+                  isPhotoPickerBusy && styles.photoButtonDisabled,
+                ]}
+                onPress={requestGalleryPhoto}
+                disabled={isPhotoPickerBusy}
+              >
                 <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_choose_image')}</Text>
               </TouchableOpacity>
             </View>
@@ -1791,49 +1868,6 @@ export default function RegisterScreen() {
           </View>
         </Modal>
 
-        <Modal
-          visible={Platform.OS === 'android' && androidPhotoPending != null}
-          transparent
-          animationType="fade"
-          onRequestClose={cancelAndroidPhotoPending}
-        >
-          <View style={styles.androidPhotoConfirmOverlay}>
-            <View style={styles.androidPhotoConfirmCard}>
-              <Text style={styles.androidPhotoConfirmTitle}>
-                {t('register_android_photo_title')}
-              </Text>
-              <Text style={styles.androidPhotoConfirmHint}>
-                {t('register_android_photo_hint')}
-              </Text>
-              {androidPhotoPending ? (
-                <Image
-                  source={{ uri: androidPhotoPending.uri }}
-                  style={styles.androidPhotoConfirmPreview}
-                  resizeMode="contain"
-                />
-              ) : null}
-              <View style={styles.androidPhotoConfirmActions}>
-                <TouchableOpacity
-                  style={[styles.androidPhotoConfirmButton, styles.androidPhotoConfirmButtonSecondary]}
-                  onPress={cancelAndroidPhotoPending}
-                >
-                  <Text style={styles.androidPhotoConfirmButtonSecondaryText}>
-                    {t('common_cancel')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.androidPhotoConfirmButton, styles.androidPhotoConfirmButtonPrimary]}
-                  onPress={() => void confirmAndroidPhotoPending()}
-                >
-                  <Text style={styles.androidPhotoConfirmButtonPrimaryText}>
-                    {t('common_accept')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
         <LuxuryModerationModal
           visible={moderationAlertVisible}
           title={t('register_moderation_modal_title')}
@@ -1938,7 +1972,7 @@ export default function RegisterScreen() {
                     selectedValue={pickerDay}
                     onValueChange={(value) => setPickerDay(Number(value))}
                   >
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    {Array.from({ length: pickerDayCount }, (_, i) => i + 1).map((day) => (
                       <Picker.Item key={`d-${day}`} label={pad2(day)} value={day} />
                     ))}
                   </Picker>
@@ -2030,6 +2064,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#7BC2EC',
     alignItems: 'center',
+  },
+  photoButtonDisabled: {
+    opacity: 0.55,
   },
   photoButtonText: {
     color: '#E9C349',

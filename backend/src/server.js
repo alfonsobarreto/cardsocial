@@ -310,6 +310,104 @@ const otpHash = (emailLower, code) => {
     }
   });
 
+  /**
+   * Registro móvil: disponibilidad de nickname/email/teléfono con Admin SDK.
+   * Evita que la app dependa de lecturas Firestore cliente, bloqueadas por reglas
+   * para proteger PII de otros usuarios.
+   */
+  app.post("/api/auth/signup-availability", gatewayKeyMiddleware, async (req, res) => {
+    try {
+      const body = req.body || {};
+      const nicknameRaw = String(body.nickname || "").trim().replace(/^@+/u, "");
+      const nicknameLower = nicknameRaw.toLowerCase();
+      const emailLower = String(body.emailLower || body.email || "").trim().toLowerCase();
+      const phoneNormalized = String(body.phoneNormalized || body.phone || "").trim().replace(/[^\d+]/g, "");
+      const ignoreUid = String(body.ignoreUid || "").trim();
+
+      if (!nicknameLower && !emailLower && !phoneNormalized) {
+        return res.status(400).json({ ok: false, error: "field_required" });
+      }
+
+      const { getFirestoreOptional } = require('./lib/firebaseAdminApp');
+      const fs = getFirestoreOptional();
+      if (!fs) {
+        return res.status(503).json(buildUserFacingJson(req, "network_unreachable", "network_unreachable"));
+      }
+
+      const out = {};
+      const docOwnedByOther = (snap) => {
+        if (!snap.exists) return false;
+        const uid = String(snap.data()?.uid || "").trim();
+        return Boolean(uid && (!ignoreUid || uid !== ignoreUid));
+      };
+      const userHitOwnedByOther = (snap) => {
+        if (snap.empty) return false;
+        const uid = String(snap.docs[0].id || snap.docs[0].data()?.uid || "").trim();
+        return !ignoreUid || uid !== ignoreUid;
+      };
+      const collidesUserField = async (field, value) => {
+        const v = String(value || "").trim();
+        if (!v) return false;
+        const snap = await fs.collection("users").where(field, "==", v).limit(1).get();
+        return userHitOwnedByOther(snap);
+      };
+      const collidesUniqueKey = async (type, value) => {
+        const v = String(value || "").trim();
+        if (!v) return false;
+        const snap = await fs.collection("unique_user_keys").doc(`${type}:${v}`).get();
+        return docOwnedByOther(snap);
+      };
+      const collidesMongoUser = async (filter) => {
+        try {
+          const user = await db.collection("users").findOne(filter, { projection: { uid: 1, _id: 1 } });
+          if (!user) return false;
+          const uid = String(user.uid || user._id || "").trim();
+          return !ignoreUid || uid !== ignoreUid;
+        } catch (mongoError) {
+          console.warn("[signup-availability] Mongo fallback skipped", mongoError?.message || mongoError);
+          return false;
+        }
+      };
+      const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      if (nicknameLower) {
+        const nickRe = new RegExp(`^${escapeRe(nicknameRaw)}$`, "iu");
+        const taken =
+          (await collidesUniqueKey("nickname", nicknameLower)) ||
+          (await collidesUserField("userNickNameLower", nicknameLower)) ||
+          (await collidesUserField("nicknameLower", nicknameLower)) ||
+          (await collidesUserField("userNickName", nicknameRaw)) ||
+          (await collidesUserField("nickname", nicknameRaw)) ||
+          (await collidesMongoUser({ $or: [{ userNickName: nickRe }, { nickname: nickRe }] }));
+        out.nickname = taken ? "taken" : "available";
+      }
+
+      if (emailLower) {
+        const emailRe = new RegExp(`^${escapeRe(emailLower)}$`, "iu");
+        const taken =
+          (await collidesUniqueKey("email", emailLower)) ||
+          (await collidesUserField("emailLower", emailLower)) ||
+          (await collidesUserField("email", emailLower)) ||
+          (await collidesMongoUser({ $or: [{ emailLower }, { email: emailRe }] }));
+        out.email = taken ? "taken" : "available";
+      }
+
+      if (phoneNormalized) {
+        const taken =
+          (await collidesUniqueKey("phone", phoneNormalized)) ||
+          (await collidesUserField("phoneNormalized", phoneNormalized)) ||
+          (await collidesUserField("phone", phoneNormalized)) ||
+          (await collidesMongoUser({ $or: [{ phoneNormalized }, { phone: phoneNormalized }] }));
+        out.phone = taken ? "taken" : "available";
+      }
+
+      return res.status(200).json({ ok: true, ...out });
+    } catch (error) {
+      console.error("[/api/auth/signup-availability]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
+    }
+  });
+
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
       const uid = String(req.body?.uid || "").trim();

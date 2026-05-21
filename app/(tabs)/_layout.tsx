@@ -207,8 +207,16 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const tabInactiveMuted = resolvedMode === 'noche' ? 'rgba(235,235,245,0.42)' : 'rgba(60,60,67,0.42)';
   const dashboardTabVisible = shouldShowDashboardTab(userHasBusinessCardWithBId, radarTrialRemote);
   const insets = useSafeAreaInsets();
-  const tabBarInnerVerticalPad = 10;
   const tabBarBottomInset = useTabBarBottomInset();
+  const tabBarTopPad = Platform.OS === 'ios' ? 6 : 8;
+  const tabBarBottomPad =
+    Platform.OS === 'ios'
+      ? Math.max(6, Math.min(tabBarBottomInset - 18, 14))
+      : 8 + tabBarBottomInset;
+  const tabBarMinHeight =
+    Platform.OS === 'ios'
+      ? 58 + tabBarTopPad + tabBarBottomPad
+      : 58 + tabBarTopPad + tabBarBottomPad;
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
   const headerAvatarFsUnsubRef = useRef<(() => void) | undefined>(undefined);
@@ -901,12 +909,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           },
           tabBarStyle: {
             backgroundColor: shell.surface,
-            minHeight:
-              Platform.OS === 'ios'
-                ? 72 + tabBarInnerVerticalPad * 2 + tabBarBottomInset
-                : 64 + tabBarInnerVerticalPad * 2 + tabBarBottomInset,
-            paddingTop: tabBarInnerVerticalPad,
-            paddingBottom: tabBarInnerVerticalPad + tabBarBottomInset,
+            minHeight: tabBarMinHeight,
+            paddingTop: tabBarTopPad,
+            paddingBottom: tabBarBottomPad,
             borderTopWidth: 0,
             marginHorizontal: 0,
             width: '100%' as const,

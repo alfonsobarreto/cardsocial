@@ -1,3 +1,4 @@
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useState, useRef } from 'react';
 import {
@@ -165,7 +166,8 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.contentContainer]}
+      {...verticalScrollInteractionProps}
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>

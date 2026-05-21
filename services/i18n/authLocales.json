@@ -1240,28 +1240,28 @@
     "de": "Geben Sie Ihre Nummer zur Prüfung ein."
   },
   "register_validation_network_nickname": {
-    "es": "No pudimos verificar este alias. Revisa tu conexión e inténtalo de nuevo.",
-    "en": "We couldn’t verify this nickname. Check your connection and try again.",
-    "it": "Impossibile verificare questo nickname. Controlla la connessione e riprova.",
-    "pt": "Não foi possível verificar este apelido. Verifique a conexão e tente novamente.",
-    "fr": "Impossible de vérifier ce pseudo. Vérifiez votre connexion et réessayez.",
-    "de": "Dieser Alias konnte nicht geprüft werden. Verbindung prüfen und erneut versuchen."
+    "es": "El servicio de registro no pudo verificar este alias. Intenta de nuevo en unos segundos.",
+    "en": "The registration service could not verify this nickname. Try again in a few seconds.",
+    "it": "Il servizio di registrazione non ha potuto verificare questo nickname. Riprova tra qualche secondo.",
+    "pt": "O serviço de registro não conseguiu verificar este apelido. Tente novamente em alguns segundos.",
+    "fr": "Le service d’inscription n’a pas pu vérifier ce pseudo. Réessayez dans quelques secondes.",
+    "de": "Der Registrierungsdienst konnte diesen Alias nicht prüfen. Bitte in wenigen Sekunden erneut versuchen."
   },
   "register_validation_network_email": {
-    "es": "No pudimos verificar este correo. Revisa tu conexión e inténtalo de nuevo.",
-    "en": "We couldn’t verify this email. Check your connection and try again.",
-    "it": "Impossibile verificare questa email. Controlla la connessione e riprova.",
-    "pt": "Não foi possível verificar este e-mail. Verifique a conexão e tente novamente.",
-    "fr": "Impossible de vérifier cet e-mail. Vérifiez votre connexion et réessayez.",
-    "de": "Diese E-Mail konnte nicht geprüft werden. Verbindung prüfen und erneut versuchen."
+    "es": "El servicio de registro no pudo verificar este correo. Intenta de nuevo en unos segundos.",
+    "en": "The registration service could not verify this email. Try again in a few seconds.",
+    "it": "Il servizio di registrazione non ha potuto verificare questa email. Riprova tra qualche secondo.",
+    "pt": "O serviço de registro não conseguiu verificar este e-mail. Tente novamente em alguns segundos.",
+    "fr": "Le service d’inscription n’a pas pu vérifier cet e-mail. Réessayez dans quelques secondes.",
+    "de": "Der Registrierungsdienst konnte diese E-Mail nicht prüfen. Bitte in wenigen Sekunden erneut versuchen."
   },
   "register_validation_network_phone": {
-    "es": "No pudimos verificar este número. Revisa tu conexión e inténtalo de nuevo.",
-    "en": "We couldn’t verify this phone number. Check your connection and try again.",
-    "it": "Impossibile verificare questo numero. Controlla la connessione e riprova.",
-    "pt": "Não foi possível verificar este número. Verifique a conexão e tente novamente.",
-    "fr": "Impossible de vérifier ce numéro. Vérifiez votre connexion et réessayez.",
-    "de": "Diese Nummer konnte nicht geprüft werden. Verbindung prüfen und erneut versuchen."
+    "es": "El servicio de registro no pudo verificar este número. Intenta de nuevo en unos segundos.",
+    "en": "The registration service could not verify this phone number. Try again in a few seconds.",
+    "it": "Il servizio di registrazione non ha potuto verificare questo numero. Riprova tra qualche secondo.",
+    "pt": "O serviço de registro não conseguiu verificar este número. Tente novamente em alguns segundos.",
+    "fr": "Le service d’inscription n’a pas pu vérifier ce numéro. Réessayez dans quelques secondes.",
+    "de": "Der Registrierungsdienst konnte diese Nummer nicht prüfen. Bitte in wenigen Sekunden erneut versuchen."
   },
   "register_field_error_required_first_name": {
     "es": "Indica tu nombre.",
@@ -1432,28 +1432,28 @@
     "de": "Bitte AGB und Datenschutz akzeptieren."
   },
   "register_nick_error_network": {
-    "es": "No se pudo comprobar el alias. Revisa tu conexión.",
-    "en": "Couldn’t verify the nickname. Check your connection.",
-    "it": "Impossibile verificare il nickname. Controlla la connessione.",
-    "pt": "Não foi possível verificar o apelido. Verifique a conexão.",
-    "fr": "Vérification du pseudo impossible. Vérifiez la connexion.",
-    "de": "Alias konnte nicht geprüft werden. Verbindung prüfen."
+    "es": "Servicio de registro no disponible. Se verificará al continuar.",
+    "en": "Registration service unavailable. We will verify when you continue.",
+    "it": "Servizio di registrazione non disponibile. Verificheremo quando continui.",
+    "pt": "Serviço de registro indisponível. Vamos verificar ao continuar.",
+    "fr": "Service d’inscription indisponible. Nous vérifierons en continuant.",
+    "de": "Registrierungsdienst nicht verfügbar. Wir prüfen beim Fortfahren."
   },
   "register_email_error_network": {
-    "es": "No se pudo comprobar el correo. Revisa tu conexión.",
-    "en": "Couldn’t verify the email. Check your connection.",
-    "it": "Impossibile verificare l’email. Controlla la connessione.",
-    "pt": "Não foi possível verificar o e-mail. Verifique a conexão.",
-    "fr": "Vérification de l’e-mail impossible. Vérifiez la connexion.",
-    "de": "E-Mail konnte nicht geprüft werden. Verbindung prüfen."
+    "es": "Servicio de registro no disponible. Se verificará al continuar.",
+    "en": "Registration service unavailable. We will verify when you continue.",
+    "it": "Servizio di registrazione non disponibile. Verificheremo quando continui.",
+    "pt": "Serviço de registro indisponível. Vamos verificar ao continuar.",
+    "fr": "Service d’inscription indisponible. Nous vérifierons en continuant.",
+    "de": "Registrierungsdienst nicht verfügbar. Wir prüfen beim Fortfahren."
   },
   "register_phone_error_network": {
-    "es": "No se pudo comprobar el número. Revisa tu conexión.",
-    "en": "Couldn’t verify the phone number. Check your connection.",
-    "it": "Impossibile verificare il numero. Controlla la connessione.",
-    "pt": "Não foi possível verificar o número. Verifique a conexão.",
-    "fr": "Vérification du numéro impossible. Vérifiez la connexion.",
-    "de": "Nummer konnte nicht geprüft werden. Verbindung prüfen."
+    "es": "Servicio de registro no disponible. Se verificará al continuar.",
+    "en": "Registration service unavailable. We will verify when you continue.",
+    "it": "Servizio di registrazione non disponibile. Verificheremo quando continui.",
+    "pt": "Serviço de registro indisponível. Vamos verificar ao continuar.",
+    "fr": "Service d’inscription indisponible. Nous vérifierons en continuant.",
+    "de": "Registrierungsdienst nicht verfügbar. Wir prüfen beim Fortfahren."
   },
   "register_label_birth": {
     "es": "Fecha de nacimiento",
@@ -1576,12 +1576,12 @@
     "de": "REGISTRIERUNG BESTÄTIGEN"
   },
   "register_legal_checkbox": {
-    "es": "Documentos legales aceptados (tocar aquí)",
-    "en": "Legal documents accepted (tap here)",
-    "it": "Documenti legali accettati (toccare qui)",
-    "pt": "Documentos legais aceitos (toque aqui)",
-    "fr": "Documents légaux acceptés (appuyer ici)",
-    "de": "Rechtstexte akzeptiert (hier antippen)"
+    "es": "Revisar y aceptar Términos, Privacidad y Uso",
+    "en": "Review and accept Terms, Privacy, and Use",
+    "it": "Rivedi e accetta Termini, Privacy e Uso",
+    "pt": "Revisar e aceitar Termos, Privacidade e Uso",
+    "fr": "Lire et accepter Conditions, Confidentialité et Usage",
+    "de": "AGB, Datenschutz und Nutzung lesen und akzeptieren"
   },
   "register_legal_unchecked_hint": {
     "es": "Abre la ventana anterior y marca el acuerdo tras leer Términos, Privacidad y Uso dentro de la app.",

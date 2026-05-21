@@ -6,7 +6,7 @@
  */
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useCoreT } from '@/services/coreI18n';
 import { intlLocaleTagForAppLanguage, useLanguage, type AppLanguage } from '@/services/language';
 import type { CardSubscriberRow } from '@/services/qrApi';
@@ -514,6 +514,7 @@ export default function ReceptorScreenModal({
             </Text>
             <ScrollView
               horizontal
+              {...verticalScrollInteractionProps}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.carouselContent}
             >

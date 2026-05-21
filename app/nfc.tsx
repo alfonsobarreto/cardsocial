@@ -821,7 +821,7 @@ export default function NfcScreen() {
             <Text style={styles.heroText}>
               {t('nfc_mount_modal_sub')}
             </Text>
-            <ScrollView style={{ marginTop: 6 }}>
+            <ScrollView style={{ marginTop: 6 }} {...verticalScrollInteractionProps} contentContainerStyle={SCROLL_CONTENT_MIN_FILL}>
               {mountOptions.length === 0 ? (
                 <Text style={[styles.heroText, { marginTop: 14 }]}>
                   {t('nfc_no_mount_options')}

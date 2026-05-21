@@ -1,3 +1,4 @@
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
@@ -184,7 +185,7 @@ export default function AdminConfigScreen() {
         <View style={{ width: 36 }} />
       </LinearGradient>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentPad} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.contentPad]} showsVerticalScrollIndicator={false}>
 
         {/* ── FREE TIER LIMITS (read-only) ── */}
         <View style={styles.card}>

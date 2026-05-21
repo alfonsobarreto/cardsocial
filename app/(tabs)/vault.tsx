@@ -217,20 +217,17 @@ const VaultScreen = () => {
       /* ignore */
     }
 
-    // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
+    // 1. Leer cache local solo como fallback offline; no mostrarla antes de Firestore.
+    // Evita items fantasma que aparecen milisegundos y luego desaparecen al llegar la nube.
     let cachedJsonForCompare = '';
-    let cachedNormalized: Link[] = [];
     let withBuiltinLocal: Link[] = [];
     try {
       const raw = await readVaultJsonWithLegacyMigration(userId);
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
-      cachedNormalized = Array.isArray(cached) ? cached : [];
+      const cachedNormalized = Array.isArray(cached) ? cached : [];
       withBuiltinLocal = (await mergeBuiltinGhostLinkIntoVault(userId, cachedNormalized)) as Link[];
       cachedJsonForCompare = JSON.stringify(withBuiltinLocal);
-      if (withBuiltinLocal.length > 0) {
-        setLinks(sortLinks(withBuiltinLocal));
-      }
-    } catch { /* ignora — la nube actualiza a continuación */ }
+    } catch { /* ignora - la nube actualiza a continuacion */ }
 
     // 2. Refresco silencioso — Firestore es autoridad cuando responde.
     // Esto permite que borrados hechos desde Studio Web eliminen también el caché local.
@@ -245,10 +242,13 @@ const VaultScreen = () => {
       const cloudJson = JSON.stringify(authoritative);
       if (cloudJson !== cachedJsonForCompare) {
         await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
-        setLinks(authoritative);
       }
+      setLinks(authoritative);
       setVaultCloudReady(true);
     } catch (cloudError) {
+      if (withBuiltinLocal.length > 0) {
+        setLinks(sortLinks(withBuiltinLocal));
+      }
       console.warn('Cloud read failed, keeping cached data:', cloudError);
       Toast.show({
         type: 'error',
@@ -886,11 +886,6 @@ const VaultScreen = () => {
         return;
       }
 
-      if (normalizedType === 'enlaces' || isLikelyUrl(rawValue)) {
-        await openUrlWithNativeFallback(rawValue);
-        return;
-      }
-
       if (
         normalizedType === 'documento' ||
         normalizedType === 'imagen' ||
@@ -899,6 +894,11 @@ const VaultScreen = () => {
       ) {
         await openDocumentViewer(link);
         triggerSuccessHaptic();
+        return;
+      }
+
+      if (normalizedType === 'enlaces' || isLikelyUrl(rawValue)) {
+        await openUrlWithNativeFallback(rawValue);
         return;
       }
 

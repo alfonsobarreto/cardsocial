@@ -5,6 +5,7 @@
  */
 
 import appPalette from '@/app/theme';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { MedalRatingModal } from '@/components/MedalRatingModal';
 import {
     IsolatedWireframeCard,
@@ -860,7 +861,7 @@ export function MyCardsPreviewModal({
                 </KeyboardAwareScrollView>
               ) : (
                 <>
-                  <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
+                  <ScrollView style={incomingStyles.sheetList} {...verticalScrollInteractionProps} contentContainerStyle={SCROLL_CONTENT_MIN_FILL}>
                     {incomingGroups.map((g) => (
                       <TouchableOpacity
                         key={g}
@@ -984,7 +985,7 @@ export function MyCardsPreviewModal({
                 </KeyboardAwareScrollView>
               ) : (
                 <>
-                  <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
+                  <ScrollView style={incomingStyles.sheetList} {...verticalScrollInteractionProps} contentContainerStyle={SCROLL_CONTENT_MIN_FILL}>
                     {receiverGroups.map((g) => (
                       <TouchableOpacity
                         key={g}

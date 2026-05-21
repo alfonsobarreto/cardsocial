@@ -3,7 +3,7 @@
  * Estética alineada al landing corporativo: negro, oro y sans geométrico (system UI).
  */
 import { CURRENT_ONBOARDING_VERSION } from '@/constants/onboarding';
-import { verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { auth, db } from '@/services/firebaseConfig';
 import { type CoreLocaleKey, coreT, useAppLanguage } from '@/services/coreI18n';
 import type { AppLanguage } from '@/services/language';
@@ -256,7 +256,7 @@ export default function OnboardingScreen() {
         <ScrollView
           style={styles.copyScroll}
           {...verticalScrollInteractionProps}
-          contentContainerStyle={styles.copyScrollContent}
+          contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.copyScrollContent]}
           showsVerticalScrollIndicator={false}
           bounces
         >
@@ -305,6 +305,8 @@ export default function OnboardingScreen() {
         data={SLIDES}
         keyExtractor={(item) => item.id}
         horizontal
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}

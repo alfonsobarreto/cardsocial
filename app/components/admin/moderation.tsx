@@ -1,3 +1,4 @@
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import { isSuperAdmin } from '@/services/roleService';
@@ -201,7 +202,7 @@ export default function AdminModerationScreen() {
         ))}
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentPad} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.contentPad]} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="shield-check" size={48} color="#27AE60" />

@@ -36,6 +36,8 @@ export type PublicCardSlot = {
   iconName?: string;
   /** Custom icon URL (http/https) when the user picked a non-glyph icon. */
   icon?: string;
+  /** MIME hint for Vault documents/images proxied without a file extension. */
+  vaultMimeType?: string;
 };
 
 /** Denormalized facet used by Social Market search (business-only). */

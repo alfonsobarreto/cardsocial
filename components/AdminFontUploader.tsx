@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import {
   ActivityIndicator,
   Alert,
@@ -95,7 +96,7 @@ const AdminFontUploader: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.content]} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.header}>
         <MaterialCommunityIcons name="format-font" size={28} color="#C5A065" />
         <Text style={styles.headerTitle}>{tr('Font Uploader', 'Font Uploader')}</Text>

@@ -1,3 +1,4 @@
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import { getQRHistory } from '@/services/qrGiftService';
@@ -182,7 +183,7 @@ export default function AdminStatsScreen() {
       </LinearGradient>
 
       {/* SUB-TABS */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabBar}>
+      <ScrollView horizontal {...verticalScrollInteractionProps} showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabBar}>
         {TABS.map(tab => (
           <TouchableOpacity
             key={tab.key}
@@ -195,7 +196,7 @@ export default function AdminStatsScreen() {
         ))}
       </ScrollView>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentPad} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.contentPad]} showsVerticalScrollIndicator={false}>
 
         {/* ── USUARIOS ── */}
         {activeTab === 'users' && (

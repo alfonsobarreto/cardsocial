@@ -1,3 +1,4 @@
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useRef, useState, useEffect } from 'react';
 import {
@@ -138,7 +139,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
             <ScrollView
               style={styles.content}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
+              {...verticalScrollInteractionProps}
+              contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollContent]}
             >
               {/* Header Icon */}
               <View style={styles.iconContainer}>

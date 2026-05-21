@@ -77,8 +77,7 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
       if (!id) {
         continue;
       }
-      const rawRow: Record<string, unknown> = { id: itemDoc.id, ...itemDoc.data() };
-      const cloudRow = (await decodeVaultLink(id, rawRow, null)) as unknown as Record<string, unknown>;
+      const cloudRow = (await decodeVaultLink(id, itemDoc.data() as Record<string, unknown>, null)) as unknown as Record<string, unknown>;
       const existing = byId.get(id);
       if (!existing) {
         byId.set(id, cloudRow);
@@ -97,8 +96,7 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
       const cloudItems = await Promise.all(
         cloudSnapshot.docs.map(async (itemDoc) => {
           const id = String(itemDoc.id || '').trim();
-          const raw = { id: itemDoc.id, ...itemDoc.data() } as Record<string, unknown>;
-          return (await decodeVaultLink(id, raw, null)) as unknown;
+          return (await decodeVaultLink(id, itemDoc.data() as Record<string, unknown>, null)) as unknown;
         }),
       );
       itemsMigrated = migrateVaultIconsForStorage(cloudItems as unknown[]);

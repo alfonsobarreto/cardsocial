@@ -3,6 +3,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import {
   Modal,
   Pressable,
@@ -111,7 +112,7 @@ function LegacyGoalsPremiumModal(props: {
             onPress={() => {}}
             accessibilityViewIsModal
           >
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={styles.modalScrollInner}>
+            <ScrollView showsVerticalScrollIndicator={false} {...verticalScrollInteractionProps} bounces={false} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.modalScrollInner]}>
               <View style={[styles.modalIconRing, unlocked && styles.modalIconRingActive]}>
                 <MaterialCommunityIcons name={tier.modalIconName as MaterialCommunityGlyph} size={40} color={tier.modalIconTint} />
               </View>

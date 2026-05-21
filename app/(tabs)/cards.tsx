@@ -1,5 +1,6 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import { formKeyboardScrollViewProps, listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import ReceptorScreenModal from '@/components/ReceptorScreenModal';
 import {
@@ -283,6 +284,9 @@ function vaultItemFromPublicCardSlot(slot: PublicCardSlot): VaultItem {
     value: String(slot.value || '').trim(),
     iconName: gn || 'link-variant',
     ...(slot.icon != null && String(slot.icon).trim() ? { icon: String(slot.icon).trim() } : {}),
+    ...(slot.vaultMimeType != null && String(slot.vaultMimeType).trim()
+      ? { vaultMimeType: String(slot.vaultMimeType).trim().slice(0, 120) }
+      : {}),
     isFavorite: false,
   };
 }
@@ -1380,11 +1384,6 @@ export default function CardsFactoryScreen() {
         InteractionManager.runAfterInteractions(() => {
           void loadSmartCards();
         });
-        return;
-      }
-
-      const createOk = await requireBiometricIfPolicyEnabled(t('biometric_reason_create_smart_card'));
-      if (!createOk) {
         return;
       }
 
@@ -3803,7 +3802,7 @@ export default function CardsFactoryScreen() {
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             key="cards-reorder-portrait"
-            contentContainerStyle={styles.cardsList}
+            contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.cardsList]}
             bounces={false}
             overScrollMode="never"
             activationDistance={12}
@@ -3821,8 +3820,7 @@ export default function CardsFactoryScreen() {
             }
             return renderCard({ item: item.card });
           }}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
+          {...listScrollInteractionProps}
           horizontal={isLandscape}
           pagingEnabled={isLandscape}
           snapToAlignment={isLandscape ? 'start' : undefined}
@@ -3830,7 +3828,7 @@ export default function CardsFactoryScreen() {
           decelerationRate={isLandscape ? 'fast' : 'normal'}
           showsHorizontalScrollIndicator={false}
           key={isLandscape ? 'cards-landscape' : 'cards-portrait'}
-          contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
+          contentContainerStyle={[!isLandscape && SCROLL_CONTENT_MIN_FILL, styles.cardsList, isLandscape && styles.cardsListLandscape]}
           bounces={false}
           overScrollMode="never"
           onScrollBeginDrag={closeAllCardSwipes}
@@ -3943,12 +3941,10 @@ export default function CardsFactoryScreen() {
                 >
                 <KeyboardAwareScrollView
                   style={{ flex: 1 }}
-                  contentContainerStyle={{ flexGrow: 1 }}
+                  contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
                   bottomOffset={42}
-                  keyboardDismissMode="on-drag"
-                  keyboardShouldPersistTaps="handled"
+                  {...formKeyboardScrollViewProps}
                   showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled
                 >
 
                   {/* Header */}
@@ -4046,9 +4042,8 @@ export default function CardsFactoryScreen() {
                         <ScrollView
                           style={styles.factoryPreviewInnerScroll}
                           contentContainerStyle={styles.factoryPreviewInnerScrollContent}
-                          keyboardShouldPersistTaps="handled"
+                          {...verticalScrollInteractionProps}
                           showsVerticalScrollIndicator
-                          nestedScrollEnabled
                           bounces
                         >
                           {editSlots.filter((s) => s.item !== null).length === 0 ? (
@@ -4157,10 +4152,9 @@ export default function CardsFactoryScreen() {
             <KeyboardAwareScrollView
               style={{ flex: 1 }}
               bottomOffset={42}
-              keyboardDismissMode="on-drag"
-              keyboardShouldPersistTaps="handled"
+              {...formKeyboardScrollViewProps}
+              contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
               showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
             >
             <View style={styles.dataSelectorToolsRow}>
               <View
@@ -4238,6 +4232,7 @@ export default function CardsFactoryScreen() {
                 data={filteredVaultItemsForSelector}
                 keyExtractor={(item) => item.id}
                 numColumns={3}
+                {...listScrollInteractionProps}
                 bounces={false}
                 overScrollMode="never"
                 renderItem={({ item }) => {
@@ -4286,7 +4281,7 @@ export default function CardsFactoryScreen() {
                   );
                 }}
                 style={styles.selectorGrid}
-                contentContainerStyle={styles.selectorGridContent}
+                contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.selectorGridContent]}
               />
             )}
 
@@ -4345,7 +4340,8 @@ export default function CardsFactoryScreen() {
 
                 <ScrollView
                   style={styles.themesLockerScroll}
-                  contentContainerStyle={styles.themesLockerScrollContent}
+                  contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.themesLockerScrollContent]}
+                  {...verticalScrollInteractionProps}
                   showsVerticalScrollIndicator={false}
                   bounces={false}
                   overScrollMode="never"
@@ -4511,8 +4507,10 @@ export default function CardsFactoryScreen() {
             <FlatList
               data={vaultItems}
               keyExtractor={(item) => item.id}
+              {...listScrollInteractionProps}
               bounces={false}
               overScrollMode="never"
+              contentContainerStyle={SCROLL_CONTENT_MIN_FILL}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.slotPickerRow} onPress={() => assignVaultItemToSlot(item.id)}>
                   {renderVaultMiniIcon(item, 18)}

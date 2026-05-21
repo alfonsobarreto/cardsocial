@@ -1,3 +1,4 @@
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useEffect, useState } from 'react';
 import {
@@ -233,7 +234,8 @@ const AdminIconUploader: React.FC = () => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.contentContainer]}
+      {...verticalScrollInteractionProps}
       showsVerticalScrollIndicator={false}
     >
       {/* HEADER */}

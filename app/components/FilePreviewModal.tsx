@@ -227,6 +227,9 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                       <ScrollView
                         style={styles.imageScroll}
                         contentContainerStyle={styles.imageScrollContent}
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled
+                        scrollEventThrottle={16}
                         maximumZoomScale={6}
                         minimumZoomScale={1}
                         bounces={false}

@@ -46,7 +46,7 @@ import { getCardRowTheme } from '@/services/useActiveTheme';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import * as Clipboard from 'expo-clipboard';
 import { getThemeById } from '@/constants/themeChest';
-import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -1406,6 +1406,7 @@ export default function DashboardScreen() {
           <View style={styles.carouselShell}>
             <FlatList
               horizontal
+              {...listScrollInteractionProps}
               snapToInterval={snapInterval}
               decelerationRate="fast"
               data={cards}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import {
   View,
   Text,
@@ -106,7 +107,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollContent]} showsVerticalScrollIndicator={false}>
       {/* ── HEADER ─────────────────────────────────────────── */}
       <LinearGradient colors={['#020D1A', '#0A2540']} style={styles.header}>
         <View style={styles.headerRow}>

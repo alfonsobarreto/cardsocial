@@ -327,6 +327,9 @@ export function VaultDocumentViewerModal({ visible, item, onClose, fallbackMuted
             isVaultDocumentImage(item.value, item.vaultMimeType) ? (
               <TouchableWithoutFeedback onLongPress={() => void handleLongPressImageQr()} delayLongPress={1800}>
                 <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  scrollEventThrottle={16}
                   maximumZoomScale={6}
                   minimumZoomScale={1}
                   contentContainerStyle={styles.viewerZoomContainer}

@@ -175,6 +175,62 @@ export type SignupFieldKey = 'nickname' | 'email' | 'phone';
 
 export type SignupFieldAvailabilityMap = Partial<Record<SignupFieldKey, 'available' | 'taken'>>;
 
+function parseSignupAvailabilityJson(j: unknown): SignupFieldAvailabilityMap | null {
+  if (!j || typeof j !== 'object') return null;
+  const rec = j as {
+    nickname?: 'available' | 'taken';
+    email?: 'available' | 'taken';
+    phone?: 'available' | 'taken';
+  };
+  const out: SignupFieldAvailabilityMap = {};
+  if (rec.nickname === 'available' || rec.nickname === 'taken') out.nickname = rec.nickname;
+  if (rec.email === 'available' || rec.email === 'taken') out.email = rec.email;
+  if (rec.phone === 'available' || rec.phone === 'taken') out.phone = rec.phone;
+  return Object.keys(out).length ? out : null;
+}
+
+async function fetchSignupAvailabilityViaBackend(params: {
+  nickname?: string;
+  emailLower?: string;
+  phoneNormalized?: string;
+  ignoreUid?: string;
+}): Promise<SignupFieldAvailabilityMap | null> {
+  const gatewayKey = resolveModerationGatewayKey();
+  if (!gatewayKey) return null;
+
+  let baseUrl: string;
+  try {
+    baseUrl = resolveExpoPublicApiBaseUrl();
+  } catch {
+    return null;
+  }
+  if (!baseUrl) return null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const r = await fetch(`${normalizeOrigin(baseUrl)}/api/auth/signup-availability`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'x-api-gateway-key': gatewayKey,
+      },
+      body: JSON.stringify(params),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const j: unknown = await r.json().catch(() => null);
+    if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+      return parseSignupAvailabilityJson(j);
+    }
+    return null;
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
+}
+
 async function fetchSignupAvailabilityFirestoreFallback(params: {
   nickname?: string;
   emailLower?: string;
@@ -259,6 +315,16 @@ export async function fetchSignupFieldAvailability(params: {
     return null;
   }
 
+  const viaBackend = await fetchSignupAvailabilityViaBackend({
+    nickname: params.nickname,
+    emailLower: params.emailLower,
+    phoneNormalized: params.phoneNormalized,
+    ignoreUid: params.ignoreUid ?? auth.currentUser?.uid,
+  });
+  if (viaBackend) {
+    return viaBackend;
+  }
+
   for (const base of collectSignupAvailabilityOrigins()) {
     try {
       const uid = auth.currentUser?.uid;
@@ -279,16 +345,8 @@ export async function fetchSignupFieldAvailability(params: {
         clearTimeout(timeoutId);
         const j: unknown = await r.json().catch(() => null);
         if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
-          const rec = j as {
-            nickname?: 'available' | 'taken';
-            email?: 'available' | 'taken';
-            phone?: 'available' | 'taken';
-          };
-          const out: SignupFieldAvailabilityMap = {};
-          if (rec.nickname === 'available' || rec.nickname === 'taken') out.nickname = rec.nickname;
-          if (rec.email === 'available' || rec.email === 'taken') out.email = rec.email;
-          if (rec.phone === 'available' || rec.phone === 'taken') out.phone = rec.phone;
-          if (Object.keys(out).length) return out;
+          const out = parseSignupAvailabilityJson(j);
+          if (out) return out;
         }
       } catch (error) {
         clearTimeout(timeoutId);
@@ -297,6 +355,10 @@ export async function fetchSignupFieldAvailability(params: {
     } catch (e) {
       console.warn('[studioAuthPublicApi] signup-availability HTTP failed', base, e);
     }
+  }
+
+  if (!auth.currentUser) {
+    return null;
   }
 
   return fetchSignupAvailabilityFirestoreFallback({
