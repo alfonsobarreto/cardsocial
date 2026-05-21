@@ -293,6 +293,41 @@ function createMongoStorage({ uri, dbName }) {
     return currentDb.collection(VAULT_REGISTRY).findOne({ fileId: id });
   }
 
+  async function deleteVaultFilePrivate(fileId, uid) {
+    const currentDb = await connect();
+    const id = String(fileId || "").trim();
+    const ownerUid = String(uid || "").trim();
+    if (!id || !ownerUid) {
+      return { ok: false, reason: "invalid" };
+    }
+
+    const meta = await currentDb.collection(VAULT_REGISTRY).findOne({ fileId: id });
+    if (!meta) {
+      return { ok: true, deleted: false, reason: "not_found" };
+    }
+    if (String(meta.uid || "").trim() !== ownerUid) {
+      return { ok: false, reason: "forbidden" };
+    }
+    if (!spaces) {
+      return { ok: false, reason: "spaces_unavailable" };
+    }
+
+    await spaces.send(new DeleteObjectCommand({
+      Bucket: meta.spacesBucket,
+      Key: meta.spacesKey,
+    }));
+    await currentDb.collection(VAULT_REGISTRY).deleteOne({ fileId: id });
+    await currentDb.collection("moderation_audit").insertOne({
+      type: "vault_file_deleted",
+      uid: ownerUid,
+      vaultFileId: id,
+      spacesBucket: meta.spacesBucket,
+      spacesKey: meta.spacesKey,
+      createdAt: new Date(),
+    });
+    return { ok: true, deleted: true };
+  }
+
   /**
    * Stream de S3 → Express response. Resuelve false si no hay registro o error.
    */
@@ -433,6 +468,7 @@ function createMongoStorage({ uri, dbName }) {
     deleteFromSpacesByPublicUrl,
     saveModerationAudit,
     uploadVaultFilePrivate,
+    deleteVaultFilePrivate,
     findVaultFileRecord,
     pipeVaultFileToResponse,
     isSpacesConfigured: () => Boolean(spaces),

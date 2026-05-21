@@ -27,6 +27,29 @@ export type ComplianceUser = {
   raw: Record<string, unknown>;
 };
 
+export type LegalConsentEvent = {
+  id: string;
+  eventType: string;
+  uid: string;
+  acceptedAt?: unknown;
+  createdAt?: unknown;
+  legalConsentBundleVersion?: string;
+  locale?: string;
+  appLanguage?: string;
+  timezone?: string;
+  platform?: string;
+  source?: string;
+  hashAlgorithm?: string;
+  canonicalization?: string;
+  termsHash?: string;
+  privacyHash?: string;
+  usageHash?: string;
+  bundleHash?: string;
+  legalTextSnapshot?: Record<string, unknown>;
+  acceptedDocuments?: Record<string, unknown>;
+  raw: Record<string, unknown>;
+};
+
 function pickString(data: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const value = data[key];
@@ -52,6 +75,38 @@ function normalizeUser(uid: string, data: Record<string, unknown>): ComplianceUs
     legalConsentBundleVersion:
       typeof data.legalConsentBundleVersion === 'string' ? data.legalConsentBundleVersion.trim() || undefined : undefined,
     isDeleted: Boolean(data.isDeleted),
+    raw: data,
+  };
+}
+
+function normalizeLegalConsentEvent(id: string, data: Record<string, unknown>): LegalConsentEvent {
+  return {
+    id,
+    eventType: pickString(data, ['eventType']) || 'LEGAL_CONSENT_ACCEPTED',
+    uid: pickString(data, ['uid']),
+    acceptedAt: data.acceptedAt,
+    createdAt: data.createdAt,
+    legalConsentBundleVersion:
+      typeof data.legalConsentBundleVersion === 'string' ? data.legalConsentBundleVersion.trim() || undefined : undefined,
+    locale: pickString(data, ['locale']),
+    appLanguage: pickString(data, ['appLanguage']),
+    timezone: pickString(data, ['timezone']),
+    platform: pickString(data, ['platform']),
+    source: pickString(data, ['source']),
+    hashAlgorithm: pickString(data, ['hashAlgorithm']),
+    canonicalization: pickString(data, ['canonicalization']),
+    termsHash: pickString(data, ['termsHash']),
+    privacyHash: pickString(data, ['privacyHash']),
+    usageHash: pickString(data, ['usageHash']),
+    bundleHash: pickString(data, ['bundleHash']),
+    legalTextSnapshot:
+      data.legalTextSnapshot && typeof data.legalTextSnapshot === 'object'
+        ? (data.legalTextSnapshot as Record<string, unknown>)
+        : undefined,
+    acceptedDocuments:
+      data.acceptedDocuments && typeof data.acceptedDocuments === 'object'
+        ? (data.acceptedDocuments as Record<string, unknown>)
+        : undefined,
     raw: data,
   };
 }
@@ -111,11 +166,41 @@ export async function getUserExportData(uid: string) {
     throw new Error('Usuario no encontrado');
   }
 
+  const legalConsentEvents = await listLegalConsentEvents(uid);
+
   return {
     exportedAt: new Date().toISOString(),
     uid,
     user: snap.data(),
+    legalConsentEvents,
   };
+}
+
+export async function listLegalConsentEvents(uid: string): Promise<LegalConsentEvent[]> {
+  const snapshot = await getDocs(collection(db, 'users', uid, 'legalConsentEvents'));
+  return snapshot.docs
+    .map((eventDoc) => normalizeLegalConsentEvent(eventDoc.id, eventDoc.data() as Record<string, unknown>))
+    .sort((a, b) => {
+      const aMs = valueToMs(a.acceptedAt || a.createdAt);
+      const bMs = valueToMs(b.acceptedAt || b.createdAt);
+      return bMs - aMs;
+    });
+}
+
+function valueToMs(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'string') {
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  if (typeof value === 'object' && value && 'toDate' in value && typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  if (typeof value === 'object' && value && 'seconds' in value && typeof value.seconds === 'number') {
+    return value.seconds * 1000;
+  }
+  return 0;
 }
 
 export function downloadUserDataJson(uid: string, data: unknown) {

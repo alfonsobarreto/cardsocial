@@ -128,3 +128,34 @@ export async function uploadFileWithModeration(params: {
   }
   }, { maxRetries: 2, baseDelayMs: 1500 });
 }
+
+const VAULT_PROXY_FILE_RE = /\/vault-proxy\/file\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i;
+
+export function extractVaultProxyFileId(value: string | null | undefined): string | null {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const match = raw.match(VAULT_PROXY_FILE_RE);
+  return match?.[1] ?? null;
+}
+
+export async function deleteVaultFileWithModeration(params: {
+  fileIdOrUrl: string;
+  uid: string;
+}): Promise<{ deleted: boolean }> {
+  const fileId = extractVaultProxyFileId(params.fileIdOrUrl) ?? String(params.fileIdOrUrl || '').trim();
+  if (!fileId) return { deleted: false };
+
+  const baseUrl = getApiBaseUrl();
+  const gatewayKey = getGatewayKey();
+  const uploadToken = await getUploadJwtToken(baseUrl, params.uid, gatewayKey);
+  const response = await axios.delete(`${baseUrl}/api/upload/vault-file/${encodeURIComponent(fileId)}`, {
+    headers: {
+      'x-api-gateway-key': gatewayKey,
+      Authorization: `Bearer ${uploadToken}`,
+    },
+    data: { uid: params.uid },
+    timeout: MODERATION_HTTP_TIMEOUT_MS,
+  });
+
+  return { deleted: Boolean(response.data?.deleted) };
+}

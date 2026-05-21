@@ -101,11 +101,8 @@ export default function SignInScreen() {
   };
 
   const resolveSignInEmails = async (rawTrimmed: string): Promise<string[]> => {
-    if (identifierMode === 'email') {
-      const lower = rawTrimmed.toLowerCase();
-      if (!SIGN_IN_EMAIL_LIKE.test(lower)) return [];
-      return [lower];
-    }
+    const lower = rawTrimmed.toLowerCase();
+    if (SIGN_IN_EMAIL_LIKE.test(lower)) return [lower];
     const list = await resolveEmailCandidatesForSignIn(rawTrimmed);
     return list?.length ? list : [];
   };
@@ -127,20 +124,15 @@ export default function SignInScreen() {
         return;
       }
 
-      if (identifierMode === 'email' && !SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())) {
-        setIsSubmitting(false);
-        Alert.alert(t('signin_alert_access_error_title'), t('signin_alert_email_invalid'));
-        return;
-      }
-
       const candidates = await resolveSignInEmails(normalizedIdentifier);
       if (!candidates?.length) {
         setIsSubmitting(false);
+        const looksLikeInvalidEmail = normalizedIdentifier.includes('@') && !normalizedIdentifier.trim().startsWith('@');
         Alert.alert(
-          identifierMode === 'email'
+          looksLikeInvalidEmail
             ? t('signin_alert_access_error_title')
             : t('signin_alert_user_not_found_title'),
-          identifierMode === 'email'
+          looksLikeInvalidEmail
             ? t('signin_alert_email_invalid')
             : t('signin_alert_user_not_found_body'),
         );
@@ -283,9 +275,9 @@ export default function SignInScreen() {
     setRecoveryEmail('');
     setMaskedRecoveryEmail('');
     if (normalizedIdentifier) {
-      if (identifierMode === 'email' && SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())) {
+      if (SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())) {
         setMaskedRecoveryEmail(maskEmail(normalizedIdentifier.toLowerCase()));
-      } else if (identifierMode === 'username') {
+      } else {
         const list = await resolveEmailCandidatesForSignIn(normalizedIdentifier).catch(() => null);
         if (list?.length) setMaskedRecoveryEmail(maskEmail(list[0]));
       }
@@ -344,18 +336,17 @@ export default function SignInScreen() {
     const candidates =
       fromPending && EMAIL_LIKE.test(fromPending)
         ? [fromPending]
-        : identifierMode === 'email' &&
-            normalizedIdentifier &&
-            SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())
+        : normalizedIdentifier && SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())
           ? [normalizedIdentifier.trim().toLowerCase()]
           : ((await resolveSignInEmails(normalizedIdentifier)) || []);
 
     if (!candidates.length) {
+      const looksLikeInvalidEmail = normalizedIdentifier.includes('@') && !normalizedIdentifier.trim().startsWith('@');
       Alert.alert(
-        identifierMode === 'email'
+        looksLikeInvalidEmail
           ? t('signin_alert_access_error_title')
           : t('signin_alert_username_resend_title'),
-        identifierMode === 'email' ? t('signin_alert_email_invalid') : t('signin_alert_username_resend_body'),
+        looksLikeInvalidEmail ? t('signin_alert_email_invalid') : t('signin_alert_username_resend_body'),
       );
       return;
     }

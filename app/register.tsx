@@ -15,6 +15,7 @@ import { saveCachedCredentials } from '@/services/credentialVault';
 import { createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
 import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
+import { buildLegalConsentHashBundle } from '@/services/legalConsentHash';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
@@ -1044,6 +1045,10 @@ export default function RegisterScreen() {
       const nicknameKeyRef = doc(db, 'unique_user_keys', `nickname:${nicknameLower}`);
       const emailKeyRef = doc(db, 'unique_user_keys', `email:${emailLower}`);
       const phoneKeyRef = doc(db, 'unique_user_keys', `phone:${phoneNormalized}`);
+      const legalConsentEventRef = acceptedLegal
+        ? doc(collection(userRef, 'legalConsentEvents'))
+        : null;
+      const legalConsentHashBundle = acceptedLegal ? buildLegalConsentHashBundle(language) : null;
 
       await runTransaction(db, async (tx) => {
         const [nicknameKeyDoc, emailKeyDoc, phoneKeyDoc] = await Promise.all([
@@ -1133,6 +1138,29 @@ export default function RegisterScreen() {
         tx.set(nicknameKeyRef, { uid, type: 'nickname', value: nicknameLower, updatedAt: serverTimestamp() }, { merge: true });
         tx.set(emailKeyRef, { uid, type: 'email', value: emailLower, updatedAt: serverTimestamp() }, { merge: true });
         tx.set(phoneKeyRef, { uid, type: 'phone', value: phoneNormalized, updatedAt: serverTimestamp() }, { merge: true });
+        if (legalConsentEventRef) {
+          tx.set(legalConsentEventRef, {
+            schemaVersion: 1,
+            eventType: 'LEGAL_CONSENT_ACCEPTED',
+            uid,
+            emailLower,
+            nicknameLower,
+            acceptedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+            legalConsentBundleVersion: LEGAL_CONSENT_BUNDLE_VERSION,
+            acceptedDocuments: {
+              termsOfService: true,
+              privacyPolicy: true,
+              acceptableUsePolicy: true,
+            },
+            ...(legalConsentHashBundle || {}),
+            locale: language,
+            appLanguage: language,
+            timezone,
+            platform: Platform.OS,
+            source: 'mobile_register',
+          });
+        }
       });
 
       // Zero-balance inicial; bono bienvenida: `system_config/cs_economy` al confirmar pago.

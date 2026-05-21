@@ -2,10 +2,12 @@ import { type FormEvent, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import {
   type ComplianceUser,
+  type LegalConsentEvent,
   downloadUserDataJson,
   executeLegalDeletion,
   findComplianceUser,
   getUserExportData,
+  listLegalConsentEvents,
 } from '../services/complianceService';
 
 type Toast = { type: 'success' | 'error'; message: string };
@@ -75,10 +77,92 @@ function ConsentMetaRow({
   );
 }
 
+function LegalConsentEventRow({ event }: { event: LegalConsentEvent }) {
+  const [snapshotOpen, setSnapshotOpen] = useState(false);
+  const docs = event.acceptedDocuments
+    ? Object.entries(event.acceptedDocuments)
+        .filter(([, value]) => Boolean(value))
+        .map(([key]) => key)
+        .join(', ')
+    : 'No registrado';
+
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-emerald-950">{event.eventType}</p>
+          <p className="mt-1 text-xs text-emerald-800">{formatDate(event.acceptedAt || event.createdAt)}</p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800">
+          Append-only
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 text-xs text-emerald-900 md:grid-cols-2">
+        <p>
+          <strong>Versión:</strong> {event.legalConsentBundleVersion || 'No registrado'}
+        </p>
+        <p>
+          <strong>Idioma:</strong> {event.locale || event.appLanguage || 'No registrado'}
+        </p>
+        <p>
+          <strong>Plataforma:</strong> {event.platform || 'No registrado'}
+        </p>
+        <p>
+          <strong>Fuente:</strong> {event.source || 'No registrado'}
+        </p>
+        <p className="md:col-span-2">
+          <strong>Documentos:</strong> {docs}
+        </p>
+        <p className="break-all font-mono text-[11px] text-emerald-700 md:col-span-2">
+          users/{event.uid}/legalConsentEvents/{event.id}
+        </p>
+      </div>
+      <div className="mt-3 rounded-2xl border border-white/80 bg-white/80 p-3">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Hashes legales</p>
+        <div className="mt-2 grid gap-1 text-[11px] text-emerald-950">
+          <p>
+            <strong>Algoritmo:</strong> {event.hashAlgorithm || 'No registrado'} ·{' '}
+            <strong>Canonicalización:</strong> {event.canonicalization || 'No registrado'}
+          </p>
+          <p className="break-all font-mono">
+            <strong>Bundle:</strong> {event.bundleHash || 'No registrado'}
+          </p>
+          <p className="break-all font-mono">
+            <strong>Términos:</strong> {event.termsHash || 'No registrado'}
+          </p>
+          <p className="break-all font-mono">
+            <strong>Privacidad:</strong> {event.privacyHash || 'No registrado'}
+          </p>
+          <p className="break-all font-mono">
+            <strong>Uso:</strong> {event.usageHash || 'No registrado'}
+          </p>
+        </div>
+        {event.legalTextSnapshot && (
+          <div className="mt-3">
+            <button
+              type="button"
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+              onClick={() => setSnapshotOpen((value) => !value)}
+            >
+              {snapshotOpen ? 'Ocultar texto legal aceptado' : 'Ver texto legal aceptado'}
+            </button>
+            {snapshotOpen && (
+              <pre className="mt-3 max-h-80 overflow-auto rounded-2xl bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">
+                {JSON.stringify(event.legalTextSnapshot, null, 2)}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Compliance() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [foundUser, setFoundUser] = useState<ComplianceUser | null>(null);
+  const [legalConsentEvents, setLegalConsentEvents] = useState<LegalConsentEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
   const [toast, setToast] = useState<Toast | null>(null);
@@ -93,6 +177,7 @@ export default function Compliance() {
     setLoading(true);
     setToast(null);
     setFoundUser(null);
+    setLegalConsentEvents([]);
 
     try {
       const result = await findComplianceUser(search);
@@ -106,6 +191,7 @@ export default function Compliance() {
       }
       setFoundUser(result);
       setRequestedByEmail(result.email);
+      setLegalConsentEvents(await listLegalConsentEvents(result.uid));
     } catch (error) {
       console.error('[Compliance] Search failed:', error);
       setToast({ type: 'error', message: 'No se pudo completar la búsqueda legal.' });
@@ -147,6 +233,7 @@ export default function Compliance() {
       setDeleteConfirmation('');
       const refreshed = await findComplianceUser(foundUser.uid);
       setFoundUser(refreshed);
+      setLegalConsentEvents(await listLegalConsentEvents(foundUser.uid));
     } catch (error) {
       console.error('[Compliance] Legal deletion failed:', error);
       setToast({ type: 'error', message: 'No se pudo ejecutar la eliminación legal.' });
@@ -255,6 +342,24 @@ export default function Compliance() {
                   label="Versión legal aceptada (bundle)"
                   valueText={foundUser.legalConsentBundleVersion || 'No registrado'}
                 />
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-semibold text-slate-950">Histórico legal append-only</h2>
+              <p className="mt-2 text-xs text-slate-500">
+                Eventos inmutables guardados en `users/{foundUser.uid}/legalConsentEvents`. Estos eventos no se editan
+                ni se borran desde reglas de Firestore.
+              </p>
+              <div className="mt-5 grid gap-3">
+                {legalConsentEvents.length > 0 ? (
+                  legalConsentEvents.map((event) => <LegalConsentEventRow key={event.id} event={event} />)
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    No hay eventos append-only para este usuario. Si es una cuenta creada antes de esta implementación,
+                    usa los campos superiores como registro legacy.
+                  </div>
+                )}
               </div>
             </section>
           </div>

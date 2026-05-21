@@ -63,8 +63,10 @@ import {
   vaultCategorySectionTitle,
 } from '@/services/vaultCategoriesService';
 import {
+  decodeVaultFirestoreQueryDocs,
   encodeVaultLink,
   type VaultLinkLogical,
+  vaultAppEncryptionKeyNever,
 } from '@/services/vaultFirestoreCodec';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { premiumTheme } from '@/styles/_premiumTheme';
@@ -1975,6 +1977,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           dataArray = [];
         }
       }
+      try {
+        const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
+        const cloudItems = (await decodeVaultFirestoreQueryDocs(
+          cloudSnapshot.docs,
+          vaultAppEncryptionKeyNever,
+        )) as Link[];
+        dataArray = cloudItems as any[];
+      } catch (cloudReadErr) {
+        console.warn('[Vault] duplicate check cloud read skipped:', cloudReadErr);
+      }
       const normalizedTitle = dataName.trim().toLowerCase();
       const duplicateByTitle = dataArray.find((item: any) => {
         const sameId = editingData?.id && item?.id === editingData.id;
@@ -2116,20 +2128,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         // CREAR: agregar nuevo elemento
         dataArray.push(dataPayload);
       }
-      console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
-      await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
-      console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
-      const qualifiesPremiumSensory = await viewerQualifiesVaultFerrariSensory(userId);
-      await runVaultMagneticSaveFeedback(qualifiesPremiumSensory);
-      Toast.show({
-        type: 'success',
-        text1: tcx('form_saved_title'),
-        text2: tcx('form_saved_local'),
-        position: 'bottom',
-        visibilityTime: 3000,
-        autoHide: true,
-      });
 
+      const qualifiesPremiumSensory = await viewerQualifiesVaultFerrariSensory(userId);
       if (userId) {
         try {
           console.log('[Vault] handleCreate: Cloud sync start (await before close)');
@@ -2146,16 +2146,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           } catch (mongoSyncErr) {
             console.warn('[Vault] mongo sync after cloud failed:', mongoSyncErr);
           }
-          Toast.show({
-            type: 'success',
-            text1: tcx('form_cloud_done_title'),
-            text2: tcx('form_cloud_done_sub'),
-            position: 'bottom',
-            visibilityTime: 2200,
-            autoHide: true,
-          });
         } catch (cloudError) {
-          console.warn('[Vault] Cloud sync failed, local data kept:', cloudError);
+          console.warn('[Vault] Cloud sync failed before local success:', cloudError);
           Alert.alert(
             tcx('form_upload_err'),
             userFacingAlertMessage(cloudError, language, tcx('form_save_retry_q')),
@@ -2167,6 +2159,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           return;
         }
       }
+
+      console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
+      await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
+      console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
+      await runVaultMagneticSaveFeedback(qualifiesPremiumSensory);
+      Toast.show({
+        type: 'success',
+        text1: tcx('form_saved_title'),
+        text2: tcx('form_cloud_done_sub'),
+        position: 'bottom',
+        visibilityTime: 2600,
+        autoHide: true,
+      });
 
       emitVaultLinkSaved({
         uid: userId,

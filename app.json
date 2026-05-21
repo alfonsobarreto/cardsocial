@@ -74,7 +74,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",
-      "versionCode": 18
+      "versionCode": 19
       ,
       "intentFilters": [
         {

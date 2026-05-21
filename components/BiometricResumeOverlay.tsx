@@ -3,6 +3,7 @@ import {
   getPresidentialSecurityEnabled,
   hardLockCheck,
 } from '@/services/biometricAuth';
+import { isBiometricResumeSuppressed } from '@/services/biometricResumeSuppression';
 import { useCoreT } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import { auth } from '@/services/firebaseConfig';
@@ -38,6 +39,9 @@ export default function BiometricResumeOverlay() {
         return;
       }
       void (async () => {
+        if (isBiometricResumeSuppressed()) {
+          return;
+        }
         const policyOn = await getPresidentialSecurityEnabled();
         if (!policyOn || !auth.currentUser) {
           return;

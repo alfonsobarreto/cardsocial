@@ -1,8 +1,8 @@
 /**
  * Bóveda Studio ↔ app: mismos documentos `users/{uid}/links/*` que el cliente móvil.
- * Campos sensibles title, value, category, vaultMimeType van a `securePayload` (AES-GCM-256) con clave de sesión;
- * metadatos (type, icon*, iconVaultId, favorito, fechas, uid) permanecen en claro.
- * cuando el navegador tiene sesión de clave derivada por passphrase (ver `studioVaultE2eSession.ts`).
+ * Con clave AES nula, campos sensibles se leen y escriben en claro; los documentos con `securePayload`
+ * legacy se muestran bloqueados (ver `vaultFirestoreCodec.decodeVaultLink`).
+ * Metadatos (type, icon*, iconVaultId, favorito, fechas, uid) permanecen en claro.
  */
 import {
   BUILTIN_GHOST_LINK_ITEM_ID,

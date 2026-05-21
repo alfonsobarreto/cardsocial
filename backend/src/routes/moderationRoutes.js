@@ -176,6 +176,32 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
     }
   });
 
+  router.delete("/upload/vault-file/:fileId", ...middlewares, express.json(), async (req, res) => {
+    try {
+      const fileId = String(req.params.fileId || "").trim();
+      const uid = String(req.body?.uid || req.auth?.sub || "").trim();
+      if (!fileId || !uid) {
+        return res.status(400).json(buildUserFacingJson(req, "invalid_body", "REQUIRED_FIELDS_MISSING"));
+      }
+      if (!storage.deleteVaultFilePrivate) {
+        return res.status(503).json(buildUserFacingJson(req, "service_unavailable", "SERVER_INTERNAL_ERROR"));
+      }
+
+      const result = await storage.deleteVaultFilePrivate(fileId, uid);
+      if (!result.ok && result.reason === "forbidden") {
+        return res.status(403).json(buildUserFacingJson(req, "auth_forbidden", "AUTH_FORBIDDEN"));
+      }
+      if (!result.ok) {
+        return res.status(503).json(buildUserFacingJson(req, "service_unavailable", "SERVER_INTERNAL_ERROR"));
+      }
+
+      return res.status(200).json({ ok: true, deleted: Boolean(result.deleted) });
+    } catch (error) {
+      console.error("[DELETE /api/upload/vault-file/:fileId]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
+    }
+  });
+
   return router;
 }
 

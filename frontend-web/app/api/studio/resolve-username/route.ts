@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   const loc = pickLocaleFromHeaders(req.headers);
   try {
     const body = (await req.json()) as { username?: string };
-    const username = String(body?.username || '').trim();
+    const username = String(body?.username || '').trim().replace(/^@+/u, '').trim();
     if (!username || username.length > 80) {
       return NextResponse.json(
         { ok: false, error: userFacingMessageForErrorCode('invalid', loc), errorCode: 'invalid' },

@@ -1871,54 +1871,6 @@
     "fr": "modifier les données du Bunker",
     "de": "Búnker-Daten bearbeiten"
   },
-  "vault_e2e_hint": {
-    "es": "Frase de la bóveda: descifra título y contenido cifrados en la nube (la misma que uses al guardar con cifrado).",
-    "en": "Vault passphrase: decrypts title and content stored encrypted in the cloud (use the same passphrase when saving with encryption).",
-    "it": "Passphrase del caveau: decifra titolo e contenuto cifrati nel cloud.",
-    "pt": "Frase da bóveda: descriptografa título e conteúdo na nuvem.",
-    "fr": "Phrase du coffre : déchiffre le titre et le contenu chiffrés dans le cloud.",
-    "de": "Tresor-Passphrase: entschlüsselt Titel und Inhalt in der Cloud."
-  },
-  "vault_e2e_passphrase_placeholder": {
-    "es": "Frase de la bóveda",
-    "en": "Vault passphrase",
-    "it": "Passphrase del caveau",
-    "pt": "Frase da bóveda",
-    "fr": "Phrase du coffre",
-    "de": "Tresor-Passphrase"
-  },
-  "vault_e2e_unlock": {
-    "es": "Desbloquear",
-    "en": "Unlock",
-    "it": "Sblocca",
-    "pt": "Desbloquear",
-    "fr": "Déverrouiller",
-    "de": "Entsperren"
-  },
-  "vault_e2e_unlocked": {
-    "es": "Cifrado de bóveda activo en esta sesión.",
-    "en": "Vault encryption unlocked for this session.",
-    "it": "Crittografia caveau attiva per questa sessione.",
-    "pt": "Criptografia da bóveda ativa nesta sessão.",
-    "fr": "Chiffrement du coffre actif pour cette session.",
-    "de": "Tresor-Verschlüsselung für diese Sitzung aktiv."
-  },
-  "vault_e2e_passphrase_required": {
-    "es": "Introduce la frase de la bóveda.",
-    "en": "Enter your vault passphrase.",
-    "it": "Inserisci la passphrase del caveau.",
-    "pt": "Digite a frase da bóveda.",
-    "fr": "Saisissez la phrase du coffre.",
-    "de": "Bitte Tresor-Passphrase eingeben."
-  },
-  "vault_e2e_unlock_failed": {
-    "es": "No se pudo activar el descifrado. Comprueba la frase.",
-    "en": "Could not unlock decryption. Check your passphrase.",
-    "it": "Impossibile sbloccare la decrittografia. Controlla la passphrase.",
-    "pt": "Não foi possível desbloquear. Verifique a frase.",
-    "fr": "Échec du déchiffrement. Vérifiez la phrase.",
-    "de": "Entschlüsselung fehlgeschlagen. Passphrase prüfen."
-  },
   "vault_badge_link": {
     "es": "Enlace",
     "en": "Link",

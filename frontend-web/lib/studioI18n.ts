@@ -31,11 +31,6 @@ const EN: Record<string, string> = {
   'vault.counter': '{n} / {max}',
   'vault.fab': 'New information',
   'vault.counterUnlimited': '{n} · Unlimited',
-  'vault.crypto.banner':
-    'Optional: enter your vault passphrase to decrypt fields stored with E2E encryption (same as in the app).',
-  'vault.crypto.unlocked': 'Vault passphrase loaded for this browser tab.',
-  'vault.crypto.pass': 'Vault passphrase',
-  'vault.crypto.unlock': 'Unlock',
   'vault.menu.favorite': 'Favorite',
   'vault.menu.edit': 'Edit',
   'vault.menu.delete': 'Delete',
@@ -306,11 +301,6 @@ const ES: Record<string, string> = {
   'vault.empty': 'Aún no hay icon-datas. Pulsa + para crear.',
   'vault.fab': 'Nueva información',
   'vault.counterUnlimited': '{n} · Ilimitado',
-  'vault.crypto.banner':
-    'Opcional: frase de la bóveda para descifrar campos con cifrado E2E (la misma que en la app).',
-  'vault.crypto.unlocked': 'Frase de la bóveda cargada en esta pestaña.',
-  'vault.crypto.pass': 'Frase de la bóveda',
-  'vault.crypto.unlock': 'Desbloquear',
   'vault.menu.favorite': 'Favorito',
   'vault.menu.edit': 'Editar',
   'vault.menu.delete': 'Eliminar',

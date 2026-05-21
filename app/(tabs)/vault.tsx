@@ -5,6 +5,7 @@ import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/const
 import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants/scrollInteraction';
 import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
+import { beginBiometricResumeSuppression } from '@/services/biometricResumeSuppression';
 import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
 import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { db } from '@/services/firebaseConfig';
@@ -38,11 +39,11 @@ import {
 import { preloadMagneticVaultClosureSound } from '@/services/magneticVaultSaveFeedback';
 import { syncVaultDeletionToMongoCards } from '@/services/syncVaultLinkToMongoCards';
 import { VAULT_LINK_SAVED_EVENT, type VaultLinkSavedPayload } from '@/services/vaultLinkSavedBus';
-import { mergeLocalAndCloudVaultItems } from '@/services/vaultLocalCloudMerge';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { presentDetectedQrFromT, scanQrFromImageUri } from '@/services/vaultImageQrScan';
+import { deleteVaultFileWithModeration, extractVaultProxyFileId } from '@/services/moderationApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -240,8 +241,7 @@ const VaultScreen = () => {
         vaultAppEncryptionKeyNever,
       )) as Link[];
 
-      const merged = mergeLocalAndCloudVaultItems(cachedNormalized, cloudItems) as Link[];
-      const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, merged)) as Link[]);
+      const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
       const cloudJson = JSON.stringify(authoritative);
       if (cloudJson !== cachedJsonForCompare) {
         await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
@@ -266,6 +266,11 @@ const VaultScreen = () => {
     loadVaultDataRef.current = loadVaultData;
   });
 
+  useEffect(() => {
+    if (!formModalVisible) return undefined;
+    return beginBiometricResumeSuppression();
+  }, [formModalVisible]);
+
   const saveVaultData = async (items: Link[]) => {
     const uid = await getActiveUserId();
     if (uid) {
@@ -285,22 +290,11 @@ const VaultScreen = () => {
         collection(db, 'users', userId, 'links'),
         (snapshot) => {
           void (async () => {
-            let cachedNormalizedSnap: Link[] = [];
-            try {
-              const raw = await AsyncStorage.getItem(vaultStorageKey(userId));
-              const parsed = raw ? (JSON.parse(raw) as unknown) : null;
-              if (Array.isArray(parsed)) {
-                cachedNormalizedSnap = parsed as Link[];
-              }
-            } catch {
-              cachedNormalizedSnap = [];
-            }
             const cloudItems = (await decodeVaultFirestoreQueryDocs(
               snapshot.docs,
               vaultAppEncryptionKeyNever,
             )) as Link[];
-            const merged = mergeLocalAndCloudVaultItems(cachedNormalizedSnap, cloudItems) as Link[];
-            const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, merged)) as Link[]);
+            const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
             await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(authoritative));
             if (!cancelled) {
               setLinks(authoritative);
@@ -451,23 +445,38 @@ const VaultScreen = () => {
       if (!gated) {
         return;
       }
-      const updated = links.filter((item) => item.id !== link.id);
-      await saveVaultData(updated);
-      await runAirEvaporationDeleteFeedback();
-
-      let cloudOk = false;
-      try {
-        const userId = await getActiveUserId();
-        if (userId) {
-          await deleteDoc(doc(db, 'users', userId, 'links', link.id));
-          await syncVaultDeleteAcrossCards(userId, link.id);
-          await syncVaultDeletionToMongoCards(userId, link.id);
-          cloudOk = true;
-        }
-      } catch (cloudError) {
-        console.warn('Cloud delete failed, kept local cache update:', cloudError);
+      const userId = await getActiveUserId();
+      if (!userId) {
+        Alert.alert(t('vault_warn_error_title'), t('vault_user_unknown'));
+        return;
       }
 
+      const fileId = extractVaultProxyFileId(link.value);
+      if (fileId) {
+        await deleteVaultFileWithModeration({ uid: userId, fileIdOrUrl: fileId });
+      }
+
+      const updated = links.filter((item) => item.id !== link.id);
+      let cloudOk = true;
+      try {
+        await deleteDoc(doc(db, 'users', userId, 'links', link.id));
+        await syncVaultDeleteAcrossCards(userId, link.id);
+        await syncVaultDeletionToMongoCards(userId, link.id);
+      } catch (cloudError) {
+        cloudOk = false;
+        console.warn('Cloud delete failed; local cache left untouched:', cloudError);
+        Toast.show({
+          type: 'error',
+          text1: t('vault_delete_fail_toast'),
+          position: 'bottom',
+          visibilityTime: 3000,
+          autoHide: true,
+        });
+        return;
+      }
+
+      await saveVaultData(updated);
+      await runAirEvaporationDeleteFeedback();
       Toast.show({
         type: 'success',
         text1: t('vault_delete_toast_title'),

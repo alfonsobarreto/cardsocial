@@ -243,39 +243,67 @@ const otpHash = (emailLower, code) => {
       const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
       const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-      const lookupPrimaryEmailFromUserDoc = async (filter) => {
-        const user = await db.collection("users").findOne(filter, {
-          projection: { emailLower: 1, email: 1 },
-        });
-        if (!user) return null;
-        const em = String(user.emailLower || user.email || "")
+      const pickSignInEmails = (user) => {
+        const primary = String(user?.emailLower || user?.email || "")
           .trim()
           .toLowerCase();
-        if (!EMAIL_LIKE.test(em)) {
-          return null;
-        }
-        return em;
+        const pending = String(user?.pendingEmailLower || user?.pendingEmail || "")
+          .trim()
+          .toLowerCase();
+        return Array.from(new Set([primary, pending].filter((email) => EMAIL_LIKE.test(email))));
       };
 
-      let email = null;
+      const lookupPrimaryEmailFromMongoUserDoc = async (filter) => {
+        const user = await db.collection("users").findOne(filter, {
+          projection: { emailLower: 1, email: 1, pendingEmailLower: 1, pendingEmail: 1 },
+        });
+        const emails = pickSignInEmails(user);
+        return emails.length ? emails : null;
+      };
+
+      const lookupPrimaryEmailFromFirestoreUserDoc = async (field, value) => {
+        try {
+          const { getFirestoreOptional } = require('./lib/firebaseAdminApp');
+          const fs = getFirestoreOptional();
+          if (!fs) return null;
+          const snap = await fs.collection("users").where(field, "==", value).limit(1).get();
+          if (snap.empty) return null;
+          const emails = pickSignInEmails(snap.docs[0].data());
+          return emails.length ? emails : null;
+        } catch (firestoreError) {
+          console.warn("[resolve-sign-in-email] Firestore lookup skipped", field, firestoreError?.message || firestoreError);
+          return null;
+        }
+      };
+
+      let emails = null;
 
       if (raw.includes("@")) {
         const lower = raw.toLowerCase();
-        email = await lookupPrimaryEmailFromUserDoc({
+        emails =
+          (await lookupPrimaryEmailFromFirestoreUserDoc("emailLower", lower)) ||
+          (await lookupPrimaryEmailFromFirestoreUserDoc("email", lower)) ||
+          (await lookupPrimaryEmailFromMongoUserDoc({
           $or: [{ emailLower: lower }, { email: new RegExp(`^${escapeRe(lower)}$`, "iu") }],
-        });
+        }));
       } else {
-        const nickRe = new RegExp(`^${escapeRe(raw.replace(/^@+/u, ""))}$`, "iu");
-        email = await lookupPrimaryEmailFromUserDoc({
+        const lower = raw.toLowerCase();
+        const nickRe = new RegExp(`^${escapeRe(raw)}$`, "iu");
+        emails =
+          (await lookupPrimaryEmailFromFirestoreUserDoc("userNickNameLower", lower)) ||
+          (await lookupPrimaryEmailFromFirestoreUserDoc("nicknameLower", lower)) ||
+          (await lookupPrimaryEmailFromFirestoreUserDoc("userNickName", raw)) ||
+          (await lookupPrimaryEmailFromFirestoreUserDoc("nickname", raw)) ||
+          (await lookupPrimaryEmailFromMongoUserDoc({
           $or: [{ userNickName: nickRe }, { nickname: nickRe }],
-        });
+        }));
       }
 
-      if (!email) {
+      if (!emails?.length) {
         return res.status(404).json({ ok: false, error: "not_found" });
       }
 
-      return res.status(200).json({ ok: true, emails: [email], email });
+      return res.status(200).json({ ok: true, emails, email: emails[0] });
     } catch (error) {
       console.error("[/api/auth/resolve-sign-in-email]", error?.message || error, error?.stack);
       return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));

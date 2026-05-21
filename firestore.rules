@@ -102,6 +102,23 @@ service cloud.firestore {
       allow write: if isOwner(uid);
     }
 
+    match /users/{uid}/legalConsentEvents/{eventId} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.eventType == 'LEGAL_CONSENT_ACCEPTED'
+        && request.resource.data.legalConsentBundleVersion is string
+        && request.resource.data.acceptedDocuments is map
+        && request.resource.data.hashAlgorithm == 'SHA-256'
+        && request.resource.data.canonicalization == 'json-stable-v1'
+        && request.resource.data.termsHash is string
+        && request.resource.data.privacyHash is string
+        && request.resource.data.usageHash is string
+        && request.resource.data.bundleHash is string
+        && request.resource.data.legalTextSnapshot is map;
+      allow update, delete: if false;
+    }
+
     match /users/{uid}/private_app_state/{document=**} {
       allow read, write: if isOwner(uid);
     }

@@ -44,7 +44,7 @@ function resolveModerationGatewayKey(): string | null {
   return key || null;
 }
 
-async function resolveSignInEmailsViaModerationMongo(rawUsername: string): Promise<string[] | null> {
+async function resolveSignInEmailsViaBackend(rawUsername: string): Promise<string[] | null> {
   const gatewayKey = resolveModerationGatewayKey();
   let baseUrl: string;
   try {
@@ -127,14 +127,36 @@ function collectResolveUsernameOrigins(): string[] {
  * Resuelve nick (o email) → emails candidatos para Firebase Auth email/password.
  */
 export async function resolveEmailCandidatesForSignIn(rawUsername: string): Promise<string[] | null> {
-  const t = rawUsername.trim();
+  const raw = rawUsername.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const lower = raw.toLowerCase();
+  if (SIGN_IN_EMAIL_LIKE.test(lower)) {
+    return [lower];
+  }
+
+  if (raw.includes('@') && !raw.startsWith('@')) {
+    return null;
+  }
+
+  const t = raw.replace(/^@+/u, '').trim();
   if (!t) {
     return null;
   }
-  if (t.includes('@')) {
-    const lower = t.toLowerCase();
-    if (!SIGN_IN_EMAIL_LIKE.test(lower)) return null;
-    return [lower];
+
+  /**
+   * Producción móvil: backend canónico con gateway key.
+   * Este camino evita depender de `/api/studio/*`, que puede colgar si el proxy Next no responde.
+   */
+  try {
+    const viaBackend = await resolveSignInEmailsViaBackend(t);
+    if (viaBackend?.length) {
+      return viaBackend;
+    }
+  } catch (e) {
+    console.warn('[studioAuthPublicApi] resolve-sign-in-email gateway failed', e);
   }
 
   for (const origin of collectResolveUsernameOrigins()) {
@@ -144,18 +166,6 @@ export async function resolveEmailCandidatesForSignIn(rawUsername: string): Prom
     } catch (e) {
       console.warn('[studioAuthPublicApi] resolve-username HTTP failed', origin, e);
     }
-  }
-
-  /**
-   * Último recurso (producción móvil): Mongo del backend moderation con gateway key.
-   */
-  try {
-    const viaMongo = await resolveSignInEmailsViaModerationMongo(t);
-    if (viaMongo?.length) {
-      return viaMongo;
-    }
-  } catch (e) {
-    console.warn('[studioAuthPublicApi] resolve-sign-in-email gateway failed', e);
   }
 
   return null;
