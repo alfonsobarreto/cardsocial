@@ -23,7 +23,7 @@ import {
     type CardTheme,
     type ThemeTier
 } from '@/constants/themeChest';
-import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import { themeLockerScrollContentStyle, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -162,11 +162,12 @@ export default function ThemeChest({ onNavigateToForge, hideChromeHeader = false
       <ScrollView
         style={styles.scroll}
         {...verticalScrollInteractionProps}
-        contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollContent]}
+        contentContainerStyle={[themeLockerScrollContentStyle, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"
       >
+        <View style={styles.scrollBody}>
         {/* ── Current theme banner ──────────────────────────────────────── */}
         <View style={styles.bannerWrap}>
           <LinearGradient
@@ -222,6 +223,7 @@ export default function ThemeChest({ onNavigateToForge, hideChromeHeader = false
         </TouchableOpacity>
 
         <View style={{ height: 30 }} />
+        </View>
       </ScrollView>
 
       {/* ── Long-press preview modal ──────────────────────────────────── */}
@@ -349,6 +351,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: GRID_PADDING,
     paddingTop: 16,
   },
+  scrollBody: {
+    width: '100%',
+    flexGrow: 1,
+  },
 
   // ── Tier ──
   tierSection: {
@@ -379,6 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: THEME_LOCKER_TILE_GAP,
+    width: '100%',
   },
 
   // ── La Fragua ──

@@ -4,6 +4,7 @@
  */
 
 import { type CardTheme } from '@/constants/themeChest';
+import { useCreationT } from '@/services/creationI18n';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,6 +49,7 @@ export function ThemeLockerThemeTile({
   onLongPress,
   showNameBelow = true,
 }: Props) {
+  const tcx = useCreationT();
   const cardHeight = tileWidth * 1.22;
 
   const shadowProps =
@@ -117,7 +119,7 @@ export function ThemeLockerThemeTile({
               ]}
               numberOfLines={1}
             >
-              Card
+              {tcx('create_theme_tile_card')}
             </Text>
 
             <Text
@@ -132,7 +134,7 @@ export function ThemeLockerThemeTile({
               ]}
               numberOfLines={1}
             >
-              Social
+              {tcx('create_theme_tile_social')}
             </Text>
 
             <View
@@ -165,7 +167,7 @@ export function ThemeLockerThemeTile({
               ]}
               numberOfLines={1}
             >
-              Icon
+              {tcx('create_theme_tile_icon')}
             </Text>
           </View>
 

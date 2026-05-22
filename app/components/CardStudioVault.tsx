@@ -53,6 +53,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sanitizeMaterialIconName } from './iconNameValidation';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -410,6 +411,7 @@ export default function CardStudioVault({
   const language = useAppLanguage();
   const tcx = useCreationT();
   const modalFooterBottomPad = useModalFooterBottomPad();
+  const insets = useSafeAreaInsets();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const [cmsIconCreditCs, setCmsIconCreditCs] = useState(0);
   const [bundleCreditPrices, setBundleCreditPrices] = useState<Record<string, number>>({});
@@ -884,6 +886,8 @@ export default function CardStudioVault({
         visible={visible}
         transparent
         animationType="slide"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         onRequestClose={onClose}
         onShow={() => {
           // onShow dispara DESPUÉS de que la animación del Modal termina.
@@ -896,9 +900,9 @@ export default function CardStudioVault({
                 style={[
                   styles.sheet,
                   {
-                    maxHeight: SCREEN_HEIGHT * 0.88,
                     backgroundColor: theme.sheetBg,
                     borderTopColor: theme.border,
+                    paddingTop: insets.top,
                     paddingBottom: modalFooterBottomPad,
                   },
                 ]}
@@ -1100,7 +1104,6 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
   },
   sheet: {
     borderTopWidth: 1.5,
@@ -1116,7 +1119,7 @@ const styles = StyleSheet.create({
   },
   dragHandleWrap: {
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: 6,
     paddingBottom: 4,
   },
   dragHandle: {

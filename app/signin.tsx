@@ -72,7 +72,6 @@ export default function SignInScreen() {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => authScreenLook(isNight), [isNight]);
-  const [identifierMode, setIdentifierMode] = useState<'username' | 'email'>('username');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -495,49 +494,16 @@ export default function SignInScreen() {
 
             <Text style={[styles.socialTitle, { color: look.socialTitle }]}>{t('signin_section_password')}</Text>
 
-            <View style={styles.modeRow}>
-              <TouchableOpacity
-                style={[
-                  styles.modeChip,
-                  { borderColor: look.inputWrapBorder, backgroundColor: look.inputWrapBg },
-                  identifierMode === 'username' && { borderColor: look.primaryBtnBg, backgroundColor: 'rgba(251,208,122,0.18)' },
-                ]}
-                onPress={() => {
-                  setIdentifierMode('username');
-                }}
-              >
-                <User size={15} color={look.iconColor} />
-                <Text style={[styles.modeChipText, { color: identifierMode === 'username' ? look.primaryBtnBg : look.inputText }]}>
-                  {t('signin_mode_username')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modeChip,
-                  { borderColor: look.inputWrapBorder, backgroundColor: look.inputWrapBg },
-                  identifierMode === 'email' && { borderColor: look.primaryBtnBg, backgroundColor: 'rgba(251,208,122,0.18)' },
-                ]}
-                onPress={() => {
-                  setIdentifierMode('email');
-                }}
-              >
-                <Mail size={15} color={look.iconColor} />
-                <Text style={[styles.modeChipText, { color: identifierMode === 'email' ? look.primaryBtnBg : look.inputText }]}>
-                  {t('signin_mode_email')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             <View style={[styles.inputWrap, { backgroundColor: look.inputWrapBg, borderColor: look.inputWrapBorder }]}>
-              {identifierMode === 'email' ? <Mail size={16} color={look.iconColor} /> : <User size={16} color={look.iconColor} />}
+              {username.includes('@') ? <Mail size={16} color={look.iconColor} /> : <User size={16} color={look.iconColor} />}
               <TextInput
                 style={[styles.input, { color: look.inputText }]}
-                placeholder={identifierMode === 'email' ? t('signin_placeholder_email') : t('signin_placeholder_username')}
+                placeholder={t('signin_placeholder_username_or_email')}
                 placeholderTextColor={look.placeholderColor}
-                keyboardType={identifierMode === 'email' ? 'email-address' : 'default'}
+                keyboardType={username.includes('@') ? 'email-address' : 'default'}
                 autoCapitalize="none"
                 autoComplete="off"
-                textContentType={identifierMode === 'email' ? 'emailAddress' : 'username'}
+                textContentType="username"
                 importantForAutofill="no"
                 value={username}
                 onChangeText={setUsername}
@@ -833,29 +799,6 @@ const styles = StyleSheet.create({
     color: '#4A4A4A',
     textAlign: 'center',
     fontWeight: '600',
-  },
-  modeRow: {
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'center',
-    marginBottom: 12,
-    marginTop: -2,
-    flexWrap: 'wrap',
-  },
-  modeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    minWidth: 116,
-    justifyContent: 'center',
-  },
-  modeChipText: {
-    fontSize: 13,
-    fontWeight: '800',
   },
   footerLinkWrap: {
     marginTop: 18,

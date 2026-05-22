@@ -7,8 +7,8 @@ import {
   THEME_LOCKER_TILE_GAP,
   ThemeLockerThemeTile,
 } from '@/components/ThemeLockerThemeTile';
-import { getThemeById, getThemesByTier, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
-import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import { getThemeById, getThemesByTier, TIER_META, vaultSelectorSlotChrome, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
+import { listScrollInteractionProps, modalBoundedScrollStyle, themeLockerScrollContentStyle, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
@@ -34,10 +34,15 @@ import {
   activateOrRenewBusinessLicense,
   hasActiveBusinessLicense,
 } from '@/services/businessLicenseService';
+import {
+  isBusinessCardAppTestModeActive,
+  resolveBusinessCardTrialDaysFromTierPolicy,
+  shouldShowBusinessCardCreateTrialAlert,
+} from '@/services/businessCardCreateTrialAlert';
 import { db } from '@/services/firebaseConfig';
 import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
-import { useCreationT } from '@/services/creationI18n';
+import { useCreationT, vaultDataTypeCreationLabel } from '@/services/creationI18n';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
@@ -64,13 +69,13 @@ import {
   InteractionManager,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -314,7 +319,7 @@ export default function CreateBusinessCardScreen() {
   const isChestThemeUnlocked = (t: ChestCardTheme) => !t.locked || unlockedIds.has(t.id);
   const [bizThemesModalContentW, setBizThemesModalContentW] = useState<number | null>(null);
   const bizThemesTileWidth = useMemo(() => {
-    const boxOuter = Math.min(380, windowWidth * 0.85);
+    const boxOuter = Math.min(400, windowWidth * 0.92);
     const fallbackInner = Math.max(200, boxOuter - 32);
     const inner = bizThemesModalContentW ?? fallbackInner;
     return computeThemeLockerTileWidth(inner);
@@ -1032,10 +1037,14 @@ export default function CreateBusinessCardScreen() {
     setGeocodeLabels([]);
   };
 
-  const resolveLogoForSave = async (uid: string): Promise<string | null> => {
+  const resolveLogoForSave = async (
+    uid: string,
+    options?: { profileAvatarFallback?: boolean },
+  ): Promise<string | null> => {
     console.log('[BusinessCard] resolveLogoForSave', {
       hayPendiente: Boolean(bcLogo),
       haySubido: Boolean(bcLogoUrl),
+      profileAvatarFallback: Boolean(options?.profileAvatarFallback),
     });
     if (bcLogo) {
       try {
@@ -1066,6 +1075,15 @@ export default function CreateBusinessCardScreen() {
     if (bcLogoUrl) {
       console.log('[BusinessCard] reutilizando logo ya subido (sin nuevo pending)');
       return bcLogoUrl;
+    }
+    // Solo al crear tarjeta nueva: si el usuario no eligió logo, persistir su avatar de perfil
+    // (la preview ya lo muestra vía displayLogoUri; aquí lo guardamos en bcLogoUrl).
+    if (options?.profileAvatarFallback) {
+      const avatarUri = toRenderableImageUri(profilePhotoUrl);
+      if (avatarUri && /^https?:\/\//i.test(avatarUri)) {
+        console.log('[BusinessCard] creación sin logo custom → bcLogoUrl = avatar de perfil');
+        return avatarUri;
+      }
     }
     console.log('[BusinessCard] sin logo pendiente ni URL previa → bcLogoUrl vacío');
     return null;
@@ -1135,7 +1153,10 @@ export default function CreateBusinessCardScreen() {
       }
 
       console.log('[BusinessCard] handleCreate: resolviendo logo…');
-      const resolvedLogo = await resolveLogoForSave(uid);
+      const isNewCard = !idFromState;
+      const resolvedLogo = await resolveLogoForSave(uid, {
+        profileAvatarFallback: isNewCard,
+      });
       const resolvedBcLogoUrl = resolvedLogo ?? '';
       console.log('[BusinessCard] handleCreate: bcLogoUrl length=', resolvedBcLogoUrl.length);
 
@@ -1216,11 +1237,17 @@ export default function CreateBusinessCardScreen() {
 
         notifyMyBusinessCardsInventoryChanged();
 
+        if (resolvedBcLogoUrl) {
+          setBcLogoUrl(resolvedBcLogoUrl);
+          setBcLogo(null);
+        }
         setCreatedBId(card.bId);
         setUidState(uid);
         setMarketVisible(false);
         setSubscriptionStatus('trial');
-        formBaselineRef.current = computeFormSnapshot();
+        setTimeout(() => {
+          formBaselineRef.current = computeFormSnapshot();
+        }, 0);
 
         // Activate trial license in Firestore (deliberately kept there for now).
         let licenseWarning = false;
@@ -1245,7 +1272,15 @@ export default function CreateBusinessCardScreen() {
           });
         }
 
-        Alert.alert(tcx('create_done_title'), tcx('create_card_created_body'), [{ text: tcx('create_ok'), onPress: goToCardsTab }]);
+        const testModeActive = isBusinessCardAppTestModeActive();
+        const tierTrialDays = await resolveBusinessCardTrialDaysFromTierPolicy();
+        if (shouldShowBusinessCardCreateTrialAlert({ testModeActive, tierTrialDays })) {
+          Alert.alert(tcx('create_done_title'), tcx('create_card_created_body', { days: tierTrialDays }), [
+            { text: tcx('create_ok'), onPress: goToCardsTab },
+          ]);
+        } else {
+          goToCardsTab();
+        }
         void refreshCreatedCardMeta();
       }
     } catch (e: any) {
@@ -1402,7 +1437,9 @@ export default function CreateBusinessCardScreen() {
               <MaterialCommunityIcons name="close" size={26} color={border} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.title, { color: text }]}>{tcx('create_business_card_title')}</Text>
+          <Text style={[styles.title, { color: text }]}>
+            {editingBId ? tcx('create_edit_business_card_title') : tcx('create_business_card_title')}
+          </Text>
           <Text style={[styles.sub, { color: sub }]}>
             {tcx('create_zero_trust_intro')}
           </Text>
@@ -1920,14 +1957,16 @@ export default function CreateBusinessCardScreen() {
               renderItem={({ item }) => {
                 const selectedOrder = tempVaultLinkIds.indexOf(item.id) + 1;
                 const isSelected = selectedOrder > 0;
-                const tileBorder = isNight ? 'rgba(184,231,255,0.18)' : '#CFEFFF';
-                const tileBg = isNight ? 'rgba(255,255,255,0.05)' : '#FFFFFF';
+                const slotChrome = vaultSelectorSlotChrome(businessSelectorTheme, isSelected);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.vaultTile,
-                      { borderColor: tileBorder, backgroundColor: tileBg },
-                      isSelected && [styles.vaultTileSelected, { backgroundColor: isNight ? 'rgba(197,160,101,0.14)' : '#FFFBF0' }],
+                      {
+                        borderColor: slotChrome.tileBorderColor,
+                        borderWidth: slotChrome.tileBorderWidth,
+                        backgroundColor: slotChrome.tileBackgroundColor,
+                      },
                     ]}
                     onPress={() => toggleVaultLinkInSelector(item.id)}
                     activeOpacity={0.75}
@@ -1941,19 +1980,33 @@ export default function CreateBusinessCardScreen() {
                       style={[
                         styles.vaultTileIconCircle,
                         {
-                          backgroundColor: businessSelectorTheme.bubble.backgroundColor,
-                          borderColor: businessSelectorTheme.border.color,
-                          borderWidth: Math.max(1, businessSelectorTheme.border.width * 0.5),
+                          backgroundColor: slotChrome.bubbleBackgroundColor,
+                          borderColor: slotChrome.bubbleBorderColor,
+                          borderWidth: slotChrome.bubbleBorderWidth,
+                          borderRadius: slotChrome.bubbleBorderRadius,
                         },
                       ]}
                     >
-                      {renderVaultLinkTileIcon(item, 26, iconVaultById, businessSelectorTheme.icon.color)}
+                      {renderVaultLinkTileIcon(item, 26, iconVaultById, slotChrome.iconGlyphColor)}
                     </View>
-                    <Text style={[styles.vaultTileTitle, { color: businessSelectorTheme.title.color }]} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.vaultTileTitle,
+                        {
+                          color: slotChrome.labelColor,
+                          fontWeight: slotChrome.labelFontWeight,
+                          fontStyle: slotChrome.labelFontStyle,
+                        },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {item.title}
                     </Text>
-                    <Text style={[styles.vaultTileType, { color: businessSelectorTheme.subtitle.color }]} numberOfLines={1}>
-                      {item.type}
+                    <Text
+                      style={[styles.vaultTileType, { color: slotChrome.typeColor }]}
+                      numberOfLines={1}
+                    >
+                      {vaultDataTypeCreationLabel(item.type, tcx)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -1987,12 +2040,16 @@ export default function CreateBusinessCardScreen() {
       animationType="fade"
       onRequestClose={() => setThemesPickerVisible(false)}
     >
-      <TouchableWithoutFeedback onPress={() => setThemesPickerVisible(false)}>
-        <View style={styles.themesPopupOverlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={[styles.themesPopupBox, { backgroundColor: card, borderColor: border }]}>
-              <View style={[styles.bizThemeModalHeader, { borderBottomColor: border }]}>
-                <Text style={[styles.vaultSelectorTitle, { color: text, flex: 1 }]}>
+      <View style={styles.themesPopupOverlay}>
+        <Pressable
+          style={StyleSheet.absoluteFillObject}
+          onPress={() => setThemesPickerVisible(false)}
+          accessibilityRole="button"
+          accessibilityLabel={tcx('create_close')}
+        />
+        <View style={[styles.themesPopupBox, { backgroundColor: card, borderColor: shell.modalBorder }]}>
+              <View style={styles.factoryHeaderRow}>
+                <Text style={[styles.factoryTitle, { color: shell.modalTitle, marginBottom: 0 }]}>
                   {tcx('create_card_themes_title')}
                 </Text>
                 <TouchableOpacity
@@ -2000,14 +2057,16 @@ export default function CreateBusinessCardScreen() {
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityLabel={tcx('create_close')}
                 >
-                  <MaterialCommunityIcons name="close" size={22} color={sub} />
+                  <MaterialCommunityIcons name="close" size={22} color={shell.sectionLabel} />
                 </TouchableOpacity>
               </View>
               <ScrollView
-                style={{ maxHeight: 440 }}
+                style={styles.themesLockerScroll}
+                contentContainerStyle={[themeLockerScrollContentStyle, styles.themesLockerScrollContent]}
                 {...verticalScrollInteractionProps}
-                contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, { paddingBottom: 8 }]}
                 showsVerticalScrollIndicator={false}
+                bounces={false}
+                overScrollMode="never"
                 onLayout={(e) => {
                   const w = e.nativeEvent.layout.width;
                   if (w > 0) {
@@ -2015,24 +2074,29 @@ export default function CreateBusinessCardScreen() {
                   }
                 }}
               >
+                <View style={styles.themesLockerScrollBody}>
                 {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
                   const meta = TIER_META[tier];
                   const tierThemes = getThemesByTier(tier);
                   return (
-                    <View key={tier} style={styles.bizThemesTierSection}>
-                      <View style={styles.bizThemesTierHeader}>
-                        <Text style={styles.bizThemesTierEmoji}>{meta.emoji}</Text>
-                        <Text style={[styles.bizThemesTierLabel, { color: text }]}>
-                          {language === 'en' || language === 'de' ? meta.label[1] : meta.label[0]}
+                    <View key={tier} style={styles.themesLockerTierSection}>
+                      <View style={styles.themesLockerTierHeader}>
+                        <Text style={styles.themesLockerTierEmoji}>{meta.emoji}</Text>
+                        <Text style={[styles.themesLockerTierLabel, { color: text }]}>
+                          {tier === 'fresh'
+                            ? tcx('create_theme_tier_fresh')
+                            : tier === 'moderno'
+                              ? tcx('create_theme_tier_moderno')
+                              : tcx('create_theme_tier_luxury')}
                         </Text>
                         <View
                           style={[
-                            styles.bizThemesTierLine,
-                            { backgroundColor: tier === 'luxury' ? '#E9C349' : border },
+                            styles.themesLockerTierLine,
+                            { backgroundColor: tier === 'luxury' ? '#E9C349' : shell.divider },
                           ]}
                         />
                       </View>
-                      <View style={[styles.bizThemesTierGrid, { gap: THEME_LOCKER_TILE_GAP }]}>
+                      <View style={[styles.themesLockerTierGrid, { gap: THEME_LOCKER_TILE_GAP }]}>
                         {tierThemes.map((t) => (
                           <ThemeLockerThemeTile
                             key={t.id}
@@ -2060,17 +2124,19 @@ export default function CreateBusinessCardScreen() {
                     </View>
                   );
                 })}
+                </View>
               </ScrollView>
               <TouchableOpacity
-                style={[styles.vaultConfirmBtn, { backgroundColor: border, marginTop: 12 }]}
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: shell.btnPrimary, marginTop: 12, marginBottom: modalFooterBottomPad },
+                ]}
                 onPress={() => setThemesPickerVisible(false)}
               >
-                <Text style={styles.vaultConfirmBtnText}>{tcx('create_accept')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.btnPrimaryText }]}>{tcx('create_accept')}</Text>
               </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
     </>
   );
@@ -2136,52 +2202,82 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.25)',
   },
   themesPopupBox: {
-    width: '85%',
-    maxWidth: 380,
+    width: '92%',
+    maxWidth: 400,
     borderRadius: 18,
     borderWidth: 1,
     padding: 16,
+    maxHeight: '82%',
+    zIndex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 10,
   },
-  bizThemeModalHeader: {
+  factoryHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 10,
-    marginBottom: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  bizThemesTierSection: {
+  factoryTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  themesLockerScroll: {
+    ...modalBoundedScrollStyle,
+    maxHeight: 440,
+  },
+  themesLockerScrollContent: {
+    paddingBottom: 8,
+  },
+  themesLockerScrollBody: {
+    width: '100%',
+    flexGrow: 1,
+  },
+  themesLockerTierSection: {
     marginBottom: 16,
   },
-  bizThemesTierHeader: {
+  themesLockerTierHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 10,
   },
-  bizThemesTierEmoji: {
+  themesLockerTierEmoji: {
     fontSize: 18,
   },
-  bizThemesTierLabel: {
+  themesLockerTierLabel: {
     fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
-  bizThemesTierLine: {
+  themesLockerTierLine: {
     flex: 1,
     height: 1,
     marginLeft: 8,
   },
-  bizThemesTierGrid: {
+  themesLockerTierGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     alignContent: 'flex-start',
+    width: '100%',
+  },
+  saveBtn: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: '#E9C349',
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   label: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
   input: {

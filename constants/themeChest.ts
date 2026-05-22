@@ -277,5 +277,23 @@ export function getThemesByTier(tier: ThemeTier): CardTheme[] {
   return CARD_THEMES.filter((t) => t.tier === tier);
 }
 
+/** Chrome del modal “Selecciona datos”: fondo de tarjeta + burbuja + labels como en la preview. */
+export function vaultSelectorSlotChrome(theme: CardTheme, selected: boolean) {
+  return {
+    tileBackgroundColor: theme.background[1],
+    tileBorderColor: selected ? '#C5A065' : theme.border.color,
+    tileBorderWidth: selected ? 2 : Math.max(1, theme.border.width * 0.35),
+    bubbleBackgroundColor: theme.bubble.backgroundColor,
+    bubbleBorderColor: theme.border.color,
+    bubbleBorderRadius: Math.min(theme.bubble.borderRadius, 22),
+    bubbleBorderWidth: Math.max(1, theme.border.width * 0.5),
+    iconGlyphColor: theme.icon.color,
+    labelColor: theme.iconLabel.color,
+    labelFontWeight: theme.iconLabel.fontWeight,
+    labelFontStyle: theme.iconLabel.fontStyle,
+    typeColor: theme.subtitle.color,
+  };
+}
+
 /** Todos los IDs del cofre (p. ej. desbloqueo global). */
 export const ALL_CARD_THEME_IDS: string[] = CARD_THEMES.map((t) => t.id);

@@ -1702,7 +1702,10 @@ export type CardAnalyticsPeriodSummary = CardAnalyticsSummary & {
   labels: string[];
   points: number[];
   totalClicks: number;
+  /** Clics en slots públicos (excluye guardados de contacto). */
+  engagementClicks: number;
   clickRate: number;
+  contactSaves?: { app: number; phone: number };
   periodMode: CardAnalyticsPeriodMode;
   periodOffset: number;
   startAt: string;
@@ -1943,6 +1946,8 @@ export async function trackCardAnalyticsEvent(params: {
   );
 }
 
+import { resolveAnalyticsCardIdentity } from '@/services/analyticsCardIdentity';
+
 export async function trackCardAnalyticsAction(params: {
   uid: string;
   cardId: string;
@@ -1953,18 +1958,24 @@ export async function trackCardAnalyticsAction(params: {
   const auth = await getScopedJwtToken(params.uid, 'qr.access');
   const cardId = String(params.cardId || '').trim();
   if (!cardId) return;
-  const sourceBId = String(params.metadata?.bId || '').trim();
-  const sourceSid = String(params.metadata?.sid || '').trim();
-  const bId = sourceBId || (!sourceSid ? cardId : '');
+  const slotId = String(params.metadata?.slotId || params.metadata?.itemId || '').trim();
+  const subTypeRaw = String(params.subType || params.metadata?.subType || params.metadata?.iconType || params.actionType).trim();
+  const subType = slotId || subTypeRaw;
+  const { sid, bId } = resolveAnalyticsCardIdentity(
+    cardId,
+    params.metadata?.sid as string | null | undefined,
+    params.metadata?.bId as string | null | undefined,
+  );
+
   await axios.post(
     `${auth.baseUrl}/api/qr/analytics/track`,
     {
-      cardId,
+      ...(sid ? { sid } : {}),
       ...(bId ? { bId } : {}),
-      ...(sourceSid ? { sid: sourceSid } : {}),
       type: params.actionType,
       actionType: params.actionType,
-      subType: String(params.subType || params.metadata?.subType || params.actionType),
+      subType,
+      ...(slotId ? { slotId } : {}),
       source: String(params.metadata?.source || 'app'),
       timestamp: new Date().toISOString(),
     },
@@ -2040,7 +2051,14 @@ export async function getCardAnalyticsPeriodSummary(params: {
     cardId: String(response?.data?.cardId || params.cardRef),
     totalViews: Number(response?.data?.totalViews || 0) || 0,
     totalClicks: Number(response?.data?.totalClicks || 0) || 0,
+    engagementClicks: Number(response?.data?.engagementClicks ?? response?.data?.totalClicks ?? 0) || 0,
     clickRate: Number(response?.data?.clickRate || 0) || 0,
+    contactSaves: response?.data?.contactSaves
+      ? {
+          app: Number(response.data.contactSaves.app || 0) || 0,
+          phone: Number(response.data.contactSaves.phone || 0) || 0,
+        }
+      : undefined,
     periodMode: (response?.data?.periodMode || params.periodMode) as CardAnalyticsPeriodMode,
     periodOffset: Number(response?.data?.periodOffset || params.periodOffset) || 0,
     startAt: String(response?.data?.startAt || ''),

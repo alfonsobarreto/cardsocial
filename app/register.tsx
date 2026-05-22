@@ -48,7 +48,6 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -812,39 +811,40 @@ export default function RegisterScreen() {
       phoneNormalized,
       ignoreUid,
     });
-    if (
-      fromApi?.nickname &&
-      fromApi?.email &&
-      fromApi?.phone
-    ) {
-      if (fromApi.nickname === 'taken') {
-        throw new Error(t('register_err_nickname_in_use'));
-      }
-      if (fromApi.email === 'taken') {
-        throw new Error(t('register_err_email_in_use'));
-      }
-      if (fromApi.phone === 'taken') {
-        throw new Error(t('register_err_phone_in_use'));
-      }
+    if (fromApi?.nickname && fromApi?.email && fromApi?.phone) {
+      if (fromApi.nickname === 'taken') throw new Error(t('register_err_nickname_in_use'));
+      if (fromApi.email === 'taken') throw new Error(t('register_err_email_in_use'));
+      if (fromApi.phone === 'taken') throw new Error(t('register_err_phone_in_use'));
       return;
     }
 
+    // API unavailable — skip unauthenticated Firestore queries (rules block them for
+    // anonymous users). The atomic transaction is the final uniqueness guard via
+    // unique_user_keys; no need to risk a permission-denied crash here.
+    if (!auth.currentUser) {
+      console.warn('[register] checkUniqueness: API returned null and user is unauthenticated; skipping Firestore fallback');
+      return;
+    }
+
+    // Authenticated path (social flow): fall back to direct Firestore queries.
     const usersRef = collection(db, 'users');
     const nicknameLower = normalizedNicknameForCheck.toLowerCase();
-    const [nickDoc, emailSnap, phoneSnap] = await Promise.all([
-      firestoreFirstUserDocByNickLower(db, nicknameLower),
-      getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1))),
-      getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
-    ]);
-
-    if (nickDoc && nickDoc.id !== ignoreUid) {
-      throw new Error(t('register_err_nickname_in_use'));
-    }
-    if (!emailSnap.empty && emailSnap.docs[0].id !== ignoreUid) {
-      throw new Error(t('register_err_email_in_use'));
-    }
-    if (!phoneSnap.empty && phoneSnap.docs[0].id !== ignoreUid) {
-      throw new Error(t('register_err_phone_in_use'));
+    try {
+      const [nickDoc, emailSnap, phoneSnap] = await Promise.all([
+        firestoreFirstUserDocByNickLower(db, nicknameLower),
+        getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1))),
+        getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
+      ]);
+      if (nickDoc && nickDoc.id !== ignoreUid) throw new Error(t('register_err_nickname_in_use'));
+      if (!emailSnap.empty && emailSnap.docs[0].id !== ignoreUid) throw new Error(t('register_err_email_in_use'));
+      if (!phoneSnap.empty && phoneSnap.docs[0].id !== ignoreUid) throw new Error(t('register_err_phone_in_use'));
+    } catch (fsErr) {
+      const code = (fsErr as any)?.code ?? '';
+      if (code === 'permission-denied' || code === 'unauthenticated') {
+        console.warn('[register] checkUniqueness: Firestore fallback denied; relying on transaction guard', fsErr);
+        return;
+      }
+      throw fsErr;
     }
   };
 
@@ -1277,37 +1277,37 @@ export default function RegisterScreen() {
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
-        Alert.alert(
-          t('register_alert_registration_error_title'),
-          userFacingAlertMessage(
-            error,
-            language,
-            t('register_alert_registration_error_fallback'),
-          ),
-        );
+        console.error('[register] handleRegister error:', error);
+        const fallback = t('register_alert_registration_error_fallback');
+        const translatedMsg = userFacingAlertMessage(error, language, '');
+        // Show translated message if available, otherwise the raw error.message (already
+        // translated for custom throws like nick/email/phone in use), then the generic fallback.
+        const displayMsg =
+          translatedMsg ||
+          (error instanceof Error && error.message ? error.message : fallback);
+        Alert.alert(t('register_alert_registration_error_title'), displayMsg);
       }
     }
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <LinearGradient
-          colors={[...look.gradient]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientBg}
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[...look.gradient]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBg}
+      >
+        <KeyboardAwareScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={[styles.inner, SCROLL_CONTENT_MIN_FILL]}
+          bottomOffset={42}
+          {...formKeyboardScrollViewProps}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
         >
-          <KeyboardAwareScrollView
-            ref={scrollViewRef}
-            style={{ flex: 1 }}
-            contentContainerStyle={[styles.inner, SCROLL_CONTENT_MIN_FILL]}
-            bottomOffset={42}
-            {...formKeyboardScrollViewProps}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            overScrollMode="never"
-          >
           <Text style={[styles.title, { color: look.title }]}>{t('register_title')}</Text>
 
           {/* Social login buttons hidden for MVP - only native registration enabled */}
@@ -1990,8 +1990,7 @@ export default function RegisterScreen() {
             </View>
           </View>
         </Modal>
-      </View>
-    </TouchableWithoutFeedback>
+    </View>
   );
 }
 
@@ -2002,7 +2001,11 @@ const styles = StyleSheet.create({
   gradientBg: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   inner: {
+    flexGrow: 1,
     paddingTop: 40,
     paddingBottom: 40,
     padding: 30,

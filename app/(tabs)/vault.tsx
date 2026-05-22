@@ -6,7 +6,7 @@ import { listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL } from '@/constants
 import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
 import { beginBiometricResumeSuppression } from '@/services/biometricResumeSuppression';
-import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
+import { runPresidentialBiometricGate } from '@/services/biometricAuth';
 import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
@@ -441,7 +441,7 @@ const VaultScreen = () => {
         );
         return;
       }
-      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_vault_delete_item'));
+      const gated = await runPresidentialBiometricGate(t('biometric_reason_vault_delete_item'));
       if (!gated) {
         return;
       }

@@ -222,8 +222,14 @@ export function MyCardsPreviewModal({
   const issuerUidForMedals = ghostTargetUid ?? incomingRedeem?.issuerUid ?? null;
   const analyticsBId = sourceBId ?? incomingRedeem?.bId ?? null;
   const analyticsSid = sourceSid ?? incomingRedeem?.sid ?? null;
-  const analyticsCardId =
-    [analyticsBId, analyticsSid].find((v) => v != null && String(v).trim()) ?? null;
+  const analyticsCardId = (() => {
+    const smart = analyticsSid != null ? String(analyticsSid).trim() : '';
+    const biz = analyticsBId != null ? String(analyticsBId).trim() : '';
+    if (ratingCardType === 'business') {
+      return biz || smart || null;
+    }
+    return smart || biz || null;
+  })();
   const mirrorBizOwnerUid = useMemo(() => {
     if (variant === 'incoming' && incomingRedeem?.issuerUid) {
       return String(incomingRedeem.issuerUid).trim();
@@ -619,7 +625,7 @@ export function MyCardsPreviewModal({
         /* no bloquear */
       }
       const issuerCardBId = String(bId || '').trim();
-      if (issuerCardBId) {
+      if (issuerCardBId && mode !== 'business_permanent') {
         void trackCardAction(issuerCardBId, 'icon_click', {
           subType: CONTACT_SAVE_ANALYTICS_APP,
           source: 'bunker_incoming',
@@ -662,14 +668,16 @@ export function MyCardsPreviewModal({
     async (item: WireframeVaultItem) => {
       const cardId = analyticsCardId != null ? String(analyticsCardId).trim() : '';
       if (variant !== 'issuer' && cardId) {
-        const subType = String(item.type || item.iconName || item.title || 'unknown').trim() || 'unknown';
+        const slotId = String(item.id || '').trim();
+        const subType =
+          slotId || String(item.type || item.iconName || item.title || 'unknown').trim() || 'unknown';
         const bizBIdTap = analyticsBId != null ? String(analyticsBId).trim() : '';
         void (async () => {
           await trackCardAction(cardId, 'icon_click', {
             subType,
             iconType: subType,
             source: variant,
-            slotId: item.id,
+            slotId,
             slotTitle: item.title,
             ...(analyticsBId ? { bId: analyticsBId } : {}),
             ...(analyticsSid ? { sid: analyticsSid } : {}),
@@ -681,7 +689,7 @@ export function MyCardsPreviewModal({
             mirrorBizOwnerUid &&
             bizBIdTap === String(cardId).trim()
           ) {
-            mirrorNotifyPublicBizIconClick(mirrorBizOwnerUid, bizBIdTap, { subType });
+            mirrorNotifyPublicBizIconClick(mirrorBizOwnerUid, bizBIdTap, { subType, slotId });
           }
         })();
       }

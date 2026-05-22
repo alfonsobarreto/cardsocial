@@ -33,7 +33,7 @@ import {
   unblockRelationship,
 } from '@/services/qrApi';
 import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
-import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
+import { runPresidentialBiometricGate } from '@/services/biometricAuth';
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
@@ -564,7 +564,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               const actorUid = await getActiveUserId();
               if (!actorUid) return;
 
-              const biometricPassed = await requireBiometricIfPolicyEnabled(
+              const biometricPassed = await runPresidentialBiometricGate(
                 tr('Confirmar eliminación permanente', 'Confirm permanent deletion'),
               );
               if (!biometricPassed) return;
@@ -1257,7 +1257,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       style={styles.drawerItem}
                       onPress={() => {
                         void (async () => {
-                          const ok = await requireBiometricIfPolicyEnabled(
+                          const ok = await runPresidentialBiometricGate(
                             tr('Gestión de Relaciones', 'Relationship Manager'),
                           );
                           if (!ok) return;

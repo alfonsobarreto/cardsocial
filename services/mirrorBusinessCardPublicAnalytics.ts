@@ -47,10 +47,15 @@ export function mirrorNotifyPublicBizView(ownerUid: string, bId: string, dedupeK
   });
 }
 
-export function mirrorNotifyPublicBizIconClick(ownerUid: string, bId: string, opts: { subType: string }): void {
+export function mirrorNotifyPublicBizIconClick(
+  ownerUid: string,
+  bId: string,
+  opts: { subType: string; slotId?: string },
+): void {
   const u = String(ownerUid || '').trim();
   const b = String(bId || '').trim();
-  const rawSub = String(opts.subType || 'unknown').trim().slice(0, 160);
+  const slotId = String(opts.slotId || '').trim();
+  const rawSub = String(opts.subType || slotId || 'unknown').trim().slice(0, 160);
   if (!u || !b || !rawSub) return;
 
   postPublicAnalytics({
@@ -58,6 +63,7 @@ export function mirrorNotifyPublicBizIconClick(ownerUid: string, bId: string, op
     bId: b,
     eventType: 'click',
     subType: rawSub,
+    ...(slotId ? { slotId } : {}),
     source: 'mirror_app',
     timestamp: new Date().toISOString(),
   });

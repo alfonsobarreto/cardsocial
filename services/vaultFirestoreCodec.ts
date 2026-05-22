@@ -109,25 +109,49 @@ function structuralWrite(link: VaultLinkLogical): Omit<FirestoreWrite, 'title' |
   const w: FirestoreWrite = {
     id: link.id,
     type: link.type,
-    icon: link.icon,
     iconName: link.iconName,
     isFavorite: link.isFavorite,
-    vaultProtected: link.vaultProtected,
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
   };
-  if (link.uid != null && String(link.uid).trim() !== '') {
-    w.uid = link.uid;
-  }
-  if (link.iconVaultId != null && String(link.iconVaultId).trim() !== '') {
-    w.iconVaultId = link.iconVaultId;
-  }
+  // Never write `undefined` to Firestore — SDK v9 rejects it with "Unsupported field value: undefined".
+  // Only include optional fields when they have a concrete value.
+  if (link.icon != null && String(link.icon).trim() !== '') w.icon = link.icon;
+  if (link.vaultProtected != null) w.vaultProtected = link.vaultProtected;
+  if (link.createdAt != null) w.createdAt = link.createdAt;
+  if (link.updatedAt != null) w.updatedAt = link.updatedAt;
+  if (link.uid != null && String(link.uid).trim() !== '') w.uid = link.uid;
+  if (link.iconVaultId != null && String(link.iconVaultId).trim() !== '') w.iconVaultId = link.iconVaultId;
   return w;
+}
+
+/** deleteField() is only valid with updateDoc / setDoc({ merge: true }) — never bare setDoc. */
+function clearLegacySecureFields(): Pick<FirestoreWrite, 'securePayload' | 'secureIv' | 'vaultCipherVersion'> {
+  return {
+    securePayload: deleteField(),
+    secureIv: deleteField(),
+    vaultCipherVersion: deleteField(),
+  };
+}
+
+function hasIconVaultId(link: VaultLinkLogical): boolean {
+  return link.iconVaultId != null && String(link.iconVaultId).trim() !== '';
+}
+
+function stripUndefinedFields(obj: FirestoreWrite): FirestoreWrite {
+  const out: FirestoreWrite = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out;
 }
 
 /**
  * Interceptor de escritura: empaqueta title/value/category/vaultMimeType en securePayload cuando hay clave.
  * iconVaultId, type, icon*, favorito y fechas permanecen en claro. Elimina rastro del texto sensible con deleteField().
+ *
+ * Callers MUST persist with `setDoc(ref, encoded, { merge: true })` (or updateDoc) — never bare setDoc,
+ * because deleteField() throws when merge is false.
  */
 export async function encodeVaultLink(
   link: VaultLinkLogical,
@@ -136,17 +160,17 @@ export async function encodeVaultLink(
   const structural = structuralWrite(link);
 
   if (isGhostLinkVaultType(link.type)) {
-    return {
+    return stripUndefinedFields({
       ...structural,
       title: link.title,
       value: link.value,
       ...(link.category ? { category: link.category } : {}),
       ...(link.vaultMimeType ? { vaultMimeType: link.vaultMimeType } : {}),
-    };
+    });
   }
 
   if (!vaultEncryptionKey || vaultEncryptionKey.length !== VAULT_AES_KEY_BYTES) {
-    return {
+    return stripUndefinedFields({
       ...structural,
       title: link.title,
       value: link.value,
@@ -154,10 +178,10 @@ export async function encodeVaultLink(
       ...(link.vaultMimeType != null && link.vaultMimeType !== ''
         ? { vaultMimeType: link.vaultMimeType }
         : {}),
-      securePayload: deleteField(),
-      secureIv: deleteField(),
-      vaultCipherVersion: deleteField(),
-    };
+      ...clearLegacySecureFields(),
+      // Merge write: drop stale catalog key when saving favicon / legacy glyph-only rows.
+      ...(!hasIconVaultId(link) ? { iconVaultId: deleteField() } : {}),
+    });
   }
 
   const inner: VaultSecureInnerV1 = {
@@ -167,7 +191,7 @@ export async function encodeVaultLink(
     vaultMimeType: link.vaultMimeType ?? '',
   };
   const { ciphertext, iv } = await encryptPayload(JSON.stringify(inner), vaultEncryptionKey);
-  return {
+  return stripUndefinedFields({
     ...structural,
     securePayload: ciphertext,
     secureIv: iv,
@@ -176,7 +200,8 @@ export async function encodeVaultLink(
     value: deleteField(),
     category: deleteField(),
     vaultMimeType: deleteField(),
-  };
+    ...(!hasIconVaultId(link) ? { iconVaultId: deleteField() } : {}),
+  });
 }
 
 /** @deprecated Usar encodeVaultLink. */

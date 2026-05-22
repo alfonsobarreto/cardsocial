@@ -13,7 +13,7 @@ import type { MirrorOpenPlan, MirrorOpenPlanContext } from '@card-social/service
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
 import { openUrlInNewTabReliably } from '@/lib/openUrlInNewTab';
-import { notifyPublicBusinessCardIconClick } from '@/lib/publicBusinessCardAnalytics';
+import { notifyPublicBusinessCardIconClick, notifyPublicSmartCardIconClick } from '@/lib/publicBusinessCardAnalytics';
 
 function buildContext(card: CardData): MirrorOpenPlanContext {
   return {
@@ -35,10 +35,13 @@ export type RunPublicWebSlotResult =
 export function runPublicWebSlotAction(card: CardData, slot: PublicSlot): RunPublicWebSlotResult {
   const ownerUid = String(card.uid || '').trim();
   const bizId = String(card.bId || '').trim();
+  const smartSid = String(card.sid || '').trim();
+  const slotId = String(slot.itemId || '').trim();
+  const subType = slotId || String(slot.type || slot.label || 'unknown').trim() || 'unknown';
   if (ownerUid && bizId) {
-    notifyPublicBusinessCardIconClick(ownerUid, bizId, {
-      subType: String(slot.type || slot.label || 'unknown').trim() || 'unknown',
-    });
+    notifyPublicBusinessCardIconClick(ownerUid, bizId, { subType, slotId });
+  } else if (ownerUid && smartSid) {
+    notifyPublicSmartCardIconClick(ownerUid, smartSid, { subType, slotId });
   }
 
   const plan = getMirrorVaultOpenPlan(

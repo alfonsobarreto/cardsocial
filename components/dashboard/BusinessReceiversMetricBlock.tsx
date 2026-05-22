@@ -25,6 +25,7 @@ export type ReceiversMetricChrome = {
   panel: string;
   panelBorder: string;
   gold: string;
+  goldReadable: string;
   iconGold: string;
   analyticsCardBg: string;
   analyticsCardBorder: string;
@@ -170,18 +171,25 @@ export function BusinessReceiversMetricBlock({
           colors={
             chrome.isNight
               ? ['rgba(233,195,73,0.22)', 'rgba(30,28,24,0.95)', 'rgba(18,16,12,0.98)']
-              : ['rgba(255,248,220,0.95)', 'rgba(255,252,240,0.98)', 'rgba(246,234,190,0.42)']
+              : ['#FAFAF8', '#F5F3EE', '#EBE6DA']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.heroInner}>
-          <View style={[styles.heroIconWrap, { backgroundColor: chrome.isNight ? 'rgba(233,195,73,0.18)' : 'rgba(233,195,73,0.25)' }]}>
+          <View
+            style={[
+              styles.heroIconWrap,
+              {
+                backgroundColor: chrome.isNight ? 'rgba(233,195,73,0.18)' : 'rgba(122,92,16,0.10)',
+              },
+            ]}
+          >
             <MaterialCommunityIcons name="account-heart" size={28} color={chrome.iconGold} />
           </View>
           <View style={styles.heroTextCol}>
-            <Text style={[styles.heroKicker, { color: chrome.gold }]}>{s.metricTitle}</Text>
+            <Text style={[styles.heroKicker, { color: chrome.goldReadable }]}>{s.metricTitle}</Text>
             <Text style={[styles.heroNumber, { color: chrome.text }]}>{holdersCount}</Text>
             <Text style={[styles.heroSubtitle, { color: chrome.textSecondary }]} numberOfLines={2}>
               {heroMessage(holdersCount, s)}
@@ -210,7 +218,7 @@ export function BusinessReceiversMetricBlock({
               <View style={[styles.modalGrabBar, { backgroundColor: chrome.textMuted }]} />
             </View>
             <Text style={[styles.modalTitle, { color: chrome.text }]}>{s.modalTitle}</Text>
-            <Text style={[styles.modalCardName, { color: chrome.gold }]} numberOfLines={1}>
+            <Text style={[styles.modalCardName, { color: chrome.goldReadable }]} numberOfLines={1}>
               {cardTitle}
             </Text>
             <Text style={[styles.modalSubtitle, { color: chrome.textSecondary }]}>{s.modalSubtitle}</Text>
@@ -281,7 +289,7 @@ export function BusinessReceiversMetricBlock({
 
             <View style={[styles.statsRow, { borderColor: chrome.analyticsCardBorder }]}>
               <View style={styles.statCell}>
-                <Text style={[styles.statVal, { color: chrome.gold }]}>{totalActive}</Text>
+                <Text style={[styles.statVal, { color: chrome.goldReadable }]}>{totalActive}</Text>
                 <Text style={[styles.statLab, { color: chrome.textSecondary }]}>{s.totalActiveLabel}</Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: chrome.analyticsCardBorder }]} />

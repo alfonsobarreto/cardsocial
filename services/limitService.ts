@@ -109,17 +109,41 @@ export async function countVaultItems(userId: string): Promise<number> {
   }
 }
 
+const SUPER_ADMIN_UNLIMITED = 999999;
+
 /**
  * VALIDACIÓN PRINCIPAL: ¿Puede crear una nueva tarjeta?
+ * Acepta `knownCount` para evitar la lectura a Firestore cuando el caller ya tiene
+ * el recuento real (ej. cards.tsx usa la lista cargada desde el backend).
  */
-export async function validateCardCreation(userId: string): Promise<LimitValidationResult> {
+export async function validateCardCreation(userId: string, knownCount?: number): Promise<LimitValidationResult> {
   try {
     const uid = String(userId || '').trim();
-    const currentCount = await countUserCards(uid);
 
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
+
+    // Super-admin y nicknames privilegiados: límites ilimitados.
+    const role = String(userData?.role || '').trim().toLowerCase();
+    const nicknameLower = readUserNickNameLower(userData as Record<string, unknown>);
+    const emailLower = String(userData?.emailLower ?? userData?.email ?? '').trim().toLowerCase();
+    const isSuperPrivileged =
+      role === 'super_admin' ||
+      PRIVILEGED_NICKNAMES.has(nicknameLower) ||
+      emailLower === 'pochobs@gmail.com';
+
+    const currentCount = knownCount ?? await countUserCards(uid);
+
+    if (isSuperPrivileged) {
+      return {
+        canCreate: true,
+        currentCount,
+        maxLimit: SUPER_ADMIN_UNLIMITED,
+        isFreeUser: false,
+        message: `✅ SuperAdmin: ilimitado (${currentCount} tarjetas activas)`,
+      };
+    }
 
     let legacyBonus = 0;
     const tier = effectiveTierKeyFromUserData(userData);
@@ -176,6 +200,26 @@ export async function validateVaultItemCreation(userId: string): Promise<LimitVa
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
+
+    // Super-admin y nicknames privilegiados: límites ilimitados.
+    const role = String(userData?.role || '').trim().toLowerCase();
+    const nicknameLower = readUserNickNameLower(userData as Record<string, unknown>);
+    const emailLower = String(userData?.emailLower ?? userData?.email ?? '').trim().toLowerCase();
+    const isSuperPrivileged =
+      role === 'super_admin' ||
+      PRIVILEGED_NICKNAMES.has(nicknameLower) ||
+      emailLower === 'pochobs@gmail.com';
+
+    if (isSuperPrivileged) {
+      return {
+        canCreate: true,
+        currentCount,
+        maxLimit: SUPER_ADMIN_UNLIMITED,
+        isFreeUser: false,
+        message: `✅ SuperAdmin: ilimitado (${currentCount} datos activos)`,
+      };
+    }
+
     const tiers = await getTiersConfig();
     const tier = effectiveTierKeyFromUserData(userData);
     if (!tiers) {

@@ -10,42 +10,42 @@
   "create_card_gone_server_body": {
     "es": "Tu tarjeta anterior ya no existe en el servidor. El formulario ha sido limpiado para que puedas crear una nueva.",
     "en": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
-    "it": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
-    "pt": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
-    "fr": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
-    "de": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one."
+    "it": "La tua carta precedente non esiste più sul server. Il modulo è stato pulito così puoi crearne una nuova.",
+    "pt": "Seu cartão anterior não existe mais no servidor. O formulário foi limpo para que você possa criar um novo.",
+    "fr": "Votre carte précédente n'existe plus sur le serveur. Le formulaire a été vidé afin que vous puissiez en créer une nouvelle.",
+    "de": "Deine vorherige Karte existiert nicht mehr auf dem Server. Das Formular wurde geleert, damit du eine neue erstellen kannst."
   },
   "create_sort_data_title": {
     "es": "Ordenar datos",
     "en": "Sort data",
-    "it": "Sort data",
-    "pt": "Sort data",
-    "fr": "Sort data",
-    "de": "Sort data"
+    "it": "Ordina dati",
+    "pt": "Ordenar dados",
+    "fr": "Trier les données",
+    "de": "Daten sortieren"
   },
   "create_sort_data_message": {
     "es": "Elige cómo ver tus datos.",
     "en": "Choose how to view your data.",
-    "it": "Choose how to view your data.",
-    "pt": "Choose how to view your data.",
-    "fr": "Choose how to view your data.",
-    "de": "Choose how to view your data."
+    "it": "Scegli come visualizzare i tuoi dati.",
+    "pt": "Escolha como ver seus dados.",
+    "fr": "Choisissez comment voir vos données.",
+    "de": "Wähle, wie du deine Daten anzeigen möchtest."
   },
   "create_sort_recent": {
     "es": "Recién agregado",
     "en": "Recently added",
-    "it": "Recently added",
-    "pt": "Recently added",
-    "fr": "Recently added",
-    "de": "Recently added"
+    "it": "Aggiunto di recente",
+    "pt": "Adicionado recentemente",
+    "fr": "Récemment ajouté",
+    "de": "Kürzlich hinzugefügt"
   },
   "create_sort_alphabetical": {
     "es": "Alfabético",
     "en": "Alphabetical",
-    "it": "Alphabetical",
-    "pt": "Alphabetical",
-    "fr": "Alphabetical",
-    "de": "Alphabetical"
+    "it": "Alfabetico",
+    "pt": "Alfabético",
+    "fr": "Alphabétique",
+    "de": "Alphabetisch"
   },
   "create_cancel": {
     "es": "Cancelar",
@@ -66,34 +66,34 @@
   "create_profile_missing_full_name": {
     "es": "No hay nombre completo en tu perfil. Complétalo en Mi perfil.",
     "en": "No full name on your profile. Complete it in My Profile.",
-    "it": "No full name on your profile. Complete it in My Profile.",
-    "pt": "No full name on your profile. Complete it in My Profile.",
-    "fr": "No full name on your profile. Complete it in My Profile.",
-    "de": "No full name on your profile. Complete it in My Profile."
+    "it": "Nessun nome completo nel tuo profilo. Completalo in Il mio profilo.",
+    "pt": "Nenhum nome completo em seu perfil. Preencha em Meu Perfil.",
+    "fr": "Aucun nom complet sur votre profil. Complétez-le dans Mon Profil.",
+    "de": "Kein vollständiger Name in deinem Profil. Ergänze ihn in Mein Profil."
   },
   "create_form_cleared_title": {
     "es": "Formulario vaciado",
     "en": "Form cleared",
-    "it": "Form cleared",
-    "pt": "Form cleared",
-    "fr": "Form cleared",
-    "de": "Form cleared"
+    "it": "Modulo svuotato",
+    "pt": "Formulário limpo",
+    "fr": "Formulaire vidé",
+    "de": "Formular geleert"
   },
   "create_form_cleared_body_new": {
     "es": "Esa tarjeta ya no existe. Completa los datos de una nueva tarjeta.",
     "en": "That card no longer exists. Enter details for a new business card.",
-    "it": "That card no longer exists. Enter details for a new business card.",
-    "pt": "That card no longer exists. Enter details for a new business card.",
-    "fr": "That card no longer exists. Enter details for a new business card.",
-    "de": "That card no longer exists. Enter details for a new business card."
+    "it": "Quella carta non esiste più. Inserisci i dettagli per una nuova Business Card.",
+    "pt": "Esse cartão não existe mais. Insira os detalhes para um novo cartão de visita.",
+    "fr": "Cette carte n'existe plus. Saisissez les détails pour une nouvelle Business Card.",
+    "de": "Die Karte existiert nicht mehr. Gib die Details für eine neue Business Card ein."
   },
   "create_form_cleared_body_save": {
     "es": "Esa tarjeta ya no existe. Completa los datos y guarda de nuevo.",
     "en": "That card no longer exists. Fill the form again and save.",
-    "it": "That card no longer exists. Fill the form again and save.",
-    "pt": "That card no longer exists. Fill the form again and save.",
-    "fr": "That card no longer exists. Fill the form again and save.",
-    "de": "That card no longer exists. Fill the form again and save."
+    "it": "Quella carta non esiste più. Compila il modulo di nuovo e salva.",
+    "pt": "Esse cartão não existe mais. Preencha o formulário novamente e salve.",
+    "fr": "Cette carte n'existe plus. Remplissez à nouveau le formulaire et enregistrez.",
+    "de": "Die Karte existiert nicht mehr. Fülle das Formular erneut aus und speichere."
   },
   "create_permission_title": {
     "es": "Permiso",
@@ -106,10 +106,10 @@
   "create_permission_photos_logo": {
     "es": "Necesitamos acceso a fotos para elegir el logo.",
     "en": "We need photo access to pick a logo.",
-    "it": "We need photo access to pick a logo.",
-    "pt": "We need photo access to pick a logo.",
-    "fr": "We need photo access to pick a logo.",
-    "de": "We need photo access to pick a logo."
+    "it": "Abbiamo bisogno dell'accesso alle foto per scegliere un logo.",
+    "pt": "Precisamos de acesso às fotos para escolher um logo.",
+    "fr": "Nous avons besoin de l'accès aux photos pour choisir un logo.",
+    "de": "Wir benötigen Zugriff auf Fotos, um ein Logo auszuwählen."
   },
   "create_error": {
     "es": "Error",
@@ -122,10 +122,10 @@
   "create_image_process_error": {
     "es": "No se pudo procesar la imagen.",
     "en": "Could not process image.",
-    "it": "Could not process image.",
-    "pt": "Could not process image.",
-    "fr": "Could not process image.",
-    "de": "Could not process image."
+    "it": "Impossibile elaborare l'immagine.",
+    "pt": "Não foi possível processar a imagem.",
+    "fr": "Impossible de traiter l'image.",
+    "de": "Bild konnte nicht verarbeitet werden."
   },
   "create_location_title": {
     "es": "Ubicación",
@@ -138,10 +138,10 @@
   "create_location_permission_body": {
     "es": "Activa el permiso de ubicación para guardar coordenadas.",
     "en": "Enable location permission to save coordinates.",
-    "it": "Enable location permission to save coordinates.",
-    "pt": "Enable location permission to save coordinates.",
-    "fr": "Enable location permission to save coordinates.",
-    "de": "Enable location permission to save coordinates."
+    "it": "Attiva il permesso di localizzazione per salvare le coordinate.",
+    "pt": "Ative a permissão de localização para salvar coordenadas.",
+    "fr": "Activez l'autorisation de localisation pour enregistrer les coordonnées.",
+    "de": "Aktiviere die Standortberechtigung, um Koordinaten zu speichern."
   },
   "create_gps_title": {
     "es": "GPS",
@@ -154,10 +154,10 @@
   "create_gps_read_error": {
     "es": "No se pudo leer la ubicación.",
     "en": "Could not read location.",
-    "it": "Could not read location.",
-    "pt": "Could not read location.",
-    "fr": "Could not read location.",
-    "de": "Could not read location."
+    "it": "Impossibile leggere la posizione.",
+    "pt": "Não foi possível ler a localização.",
+    "fr": "Impossible de lire la position.",
+    "de": "Standort konnte nicht gelesen werden."
   },
   "create_address_title": {
     "es": "Dirección",
@@ -170,26 +170,26 @@
   "create_address_search_hint": {
     "es": "Escribe una dirección o lugar para buscar.",
     "en": "Type an address or place to search.",
-    "it": "Type an address or place to search.",
-    "pt": "Type an address or place to search.",
-    "fr": "Type an address or place to search.",
-    "de": "Type an address or place to search."
+    "it": "Scrivi un indirizzo o luogo per cercare.",
+    "pt": "Digite um endereço ou local para buscar.",
+    "fr": "Saisissez une adresse ou un lieu pour chercher.",
+    "de": "Gib eine Adresse oder einen Ort zur Suche ein."
   },
   "create_no_results": {
     "es": "Sin resultados",
     "en": "No results",
-    "it": "No results",
-    "pt": "No results",
-    "fr": "No results",
-    "de": "No results"
+    "it": "Nessun risultato",
+    "pt": "Sem resultados",
+    "fr": "Aucun résultat",
+    "de": "Keine Ergebnisse"
   },
   "create_geocode_no_place": {
     "es": "No encontramos ese lugar. Prueba con más detalle (calle, ciudad, país).",
     "en": "We could not find that place. Try more detail (street, city, country).",
-    "it": "We could not find that place. Try more detail (street, city, country).",
-    "pt": "We could not find that place. Try more detail (street, city, country).",
-    "fr": "We could not find that place. Try more detail (street, city, country).",
-    "de": "We could not find that place. Try more detail (street, city, country)."
+    "it": "Non abbiamo trovato quel luogo. Prova con più dettagli (via, città, paese).",
+    "pt": "Não encontramos esse local. Tente com mais detalhes (rua, cidade, país).",
+    "fr": "Nous n'avons pas trouvé ce lieu. Essayez avec plus de détails (rue, ville, pays).",
+    "de": "Ort nicht gefunden. Versuche es mit mehr Details (Straße, Stadt, Land)."
   },
   "create_search_title": {
     "es": "Búsqueda",
@@ -202,10 +202,10 @@
   "create_geocoder_fail": {
     "es": "El geocodificador del dispositivo no pudo resolver la dirección.",
     "en": "The device geocoder could not resolve the address.",
-    "it": "The device geocoder could not resolve the address.",
-    "pt": "The device geocoder could not resolve the address.",
-    "fr": "The device geocoder could not resolve the address.",
-    "de": "The device geocoder could not resolve the address."
+    "it": "Il geocodificatore del dispositivo non è riuscito a risolvere l'indirizzo.",
+    "pt": "O geocodificador do dispositivo não conseguiu resolver o endereço.",
+    "fr": "Le géocodeur de l'appareil n'a pas pu résoudre l'adresse.",
+    "de": "Der Geocoder des Geräts konnte die Adresse nicht auflösen."
   },
   "create_session_title": {
     "es": "Sesión",
@@ -218,58 +218,58 @@
   "create_session_signin_again": {
     "es": "Inicia sesión de nuevo.",
     "en": "Please sign in again.",
-    "it": "Please sign in again.",
-    "pt": "Please sign in again.",
-    "fr": "Please sign in again.",
-    "de": "Please sign in again."
+    "it": "Accedi di nuovo.",
+    "pt": "Faça login novamente.",
+    "fr": "Veuillez vous reconnecter.",
+    "de": "Bitte melde dich erneut an."
   },
   "create_missing_fields_title": {
     "es": "Datos incompletos",
     "en": "Missing fields",
-    "it": "Missing fields",
-    "pt": "Missing fields",
-    "fr": "Missing fields",
-    "de": "Missing fields"
+    "it": "Dati incompleti",
+    "pt": "Dados incompletos",
+    "fr": "Données incomplètes",
+    "de": "Unvollständige Daten"
   },
   "create_missing_fields_body": {
     "es": "Indica el nombre de la tarjeta y el nombre de contacto.",
     "en": "Enter the card name and contact name.",
-    "it": "Enter the card name and contact name.",
-    "pt": "Enter the card name and contact name.",
-    "fr": "Enter the card name and contact name.",
-    "de": "Enter the card name and contact name."
+    "it": "Indica il nome della carta e il nome del contatto.",
+    "pt": "Indique o nome do cartão e o nome do contato.",
+    "fr": "Indiquez le nom de la carte et le nom du contact.",
+    "de": "Gib den Kartennamen und den Kontaktnamen ein."
   },
   "create_location_required_title": {
     "es": "Ubicación requerida",
     "en": "Location required",
-    "it": "Location required",
-    "pt": "Location required",
-    "fr": "Location required",
-    "de": "Location required"
+    "it": "Posizione richiesta",
+    "pt": "Localização necessária",
+    "fr": "Position requise",
+    "de": "Standort erforderlich"
   },
   "create_location_required_body": {
     "es": "Busca una dirección y elige un resultado de la lista, o usa “Mi ubicación actual”.",
     "en": "Search for an address and pick a result from the list, or use “Use my current location”.",
-    "it": "Search for an address and pick a result from the list, or use “Use my current location”.",
-    "pt": "Search for an address and pick a result from the list, or use “Use my current location”.",
-    "fr": "Search for an address and pick a result from the list, or use “Use my current location”.",
-    "de": "Search for an address and pick a result from the list, or use “Use my current location”."
+    "it": "Cerca un indirizzo e scegli un risultato dalla lista, o usa “Usa la mia posizione attuale”.",
+    "pt": "Pesquise um endereço e escolha um resultado da lista, ou use “Usar minha localização atual”.",
+    "fr": "Recherchez une adresse et choisissez un résultat dans la liste, ou utilisez “Utiliser ma position actuelle”.",
+    "de": "Suche nach einer Adresse und wähle ein Ergebnis aus der Liste oder nutze „Meinen aktuellen Standort verwenden“."
   },
   "create_keyword_blocked_title": {
     "es": "Palabra no permitida",
     "en": "Word not allowed",
-    "it": "Word not allowed",
-    "pt": "Word not allowed",
-    "fr": "Word not allowed",
-    "de": "Word not allowed"
+    "it": "Parola non consentita",
+    "pt": "Palavra não permitida",
+    "fr": "Mot non autorisé",
+    "de": "Wort nicht erlaubt"
   },
   "create_keyword_review": {
     "es": "Revisa las palabras clave.",
     "en": "Please review your keywords.",
-    "it": "Please review your keywords.",
-    "pt": "Please review your keywords.",
-    "fr": "Please review your keywords.",
-    "de": "Please review your keywords."
+    "it": "Controlla le parole chiave.",
+    "pt": "Revise as palavras-chave.",
+    "fr": "Veuillez vérifier vos mots-clés.",
+    "de": "Bitte überprüfe deine Keywords."
   },
   "create_limit_title": {
     "es": "Límite",
@@ -277,15 +277,15 @@
     "it": "Limite",
     "pt": "Limite",
     "fr": "Limite",
-    "de": "Limit"
+    "de": "Grenze"
   },
   "create_keywords_max_20": {
     "es": "Máximo 20 palabras clave.",
     "en": "Maximum 20 keywords.",
-    "it": "Maximum 20 keywords.",
-    "pt": "Maximum 20 keywords.",
-    "fr": "Maximum 20 keywords.",
-    "de": "Maximum 20 keywords."
+    "it": "Massimo 20 parole chiave.",
+    "pt": "Máximo de 20 palavras-chave.",
+    "fr": "Maximum 20 mots-clés.",
+    "de": "Maximal 20 Keywords."
   },
   "create_keywords_title": {
     "es": "Palabras clave",
@@ -298,10 +298,10 @@
   "create_keywords_format": {
     "es": "Revisa el formato.",
     "en": "Check the format.",
-    "it": "Check the format.",
-    "pt": "Check the format.",
-    "fr": "Check the format.",
-    "de": "Check the format."
+    "it": "Controlla il formato.",
+    "pt": "Verifique o formato.",
+    "fr": "Vérifiez le format.",
+    "de": "Überprüfe das Format."
   },
   "create_terms_alert_title": {
     "es": "Términos",
@@ -314,10 +314,10 @@
   "create_terms_alert_body": {
     "es": "Debes aceptar los términos y condiciones de la tarjeta de negocio.",
     "en": "You must accept the business card terms and conditions.",
-    "it": "You must accept the business card terms and conditions.",
-    "pt": "You must accept the business card terms and conditions.",
-    "fr": "You must accept the business card terms and conditions.",
-    "de": "You must accept the business card terms and conditions."
+    "it": "Devi accettare i termini e le condizioni della Business Card.",
+    "pt": "Você deve aceitar os termos e condições do cartão de visita.",
+    "fr": "Vous devez accepter les termes et conditions de la Business Card.",
+    "de": "Du musst die Bedingungen für Business Cards akzeptieren."
   },
   "create_done_title": {
     "es": "Listo",
@@ -330,10 +330,10 @@
   "create_changes_saved_body": {
     "es": "Cambios guardados.",
     "en": "Changes saved.",
-    "it": "Changes saved.",
-    "pt": "Changes saved.",
-    "fr": "Changes saved.",
-    "de": "Changes saved."
+    "it": "Modifiche salvate.",
+    "pt": "Alterações salvas.",
+    "fr": "Modifications enregistrées.",
+    "de": "Änderungen gespeichert."
   },
   "create_ok": {
     "es": "OK",
@@ -346,58 +346,58 @@
   "create_trial_license_warn_title": {
     "es": "Licencia trial no activada",
     "en": "Trial license not activated",
-    "it": "Trial license not activated",
-    "pt": "Trial license not activated",
-    "fr": "Trial license not activated",
-    "de": "Trial license not activated"
+    "it": "Licenza di prova non attivata",
+    "pt": "Licença de teste não ativada",
+    "fr": "Licence d'essai non activée",
+    "de": "Testlizenz nicht aktiviert"
   },
   "create_trial_license_warn_body": {
     "es": "La tarjeta se guardó pero no aparecerá en el Mercado Social. Activa la licencia desde la pantalla de tu tarjeta.",
     "en": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
-    "it": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
-    "pt": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
-    "fr": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
-    "de": "Card saved but won't appear in Social Market. Activate the license from your card screen."
+    "it": "La carta è stata salvata ma non apparirà nel Social Market. Attiva la licenza dalla schermata della tua carta.",
+    "pt": "O cartão foi salvo, mas não aparecerá no Social Market. Ative a licença na tela do seu cartão.",
+    "fr": "La carte a été enregistrée mais n'apparaîtra pas sur le Social Market. Activez la licence depuis l'écran de votre carte.",
+    "de": "Die Karte wurde gespeichert, erscheint aber nicht im Social Market. Aktiviere die Lizenz auf deinem Kartenbildschirm."
   },
   "create_card_created_body": {
-    "es": "Tarjeta de negocio creada. Periodo de prueba de 14 días iniciado.",
-    "en": "Business card created. 14-day trial started.",
-    "it": "Business card created. 14-day trial started.",
-    "pt": "Business card created. 14-day trial started.",
-    "fr": "Business card created. 14-day trial started.",
-    "de": "Business card created. 14-day trial started."
+    "es": "Tarjeta de negocio creada. Periodo de prueba de {{days}} días iniciado.",
+    "en": "Business card created. {{days}}-day trial started.",
+    "it": "Business Card creata. Periodo di prova di {{days}} giorni avviato.",
+    "pt": "Business Card criado. Período de teste de {{days}} dias iniciado.",
+    "fr": "Business Card créée. Période d'essai de {{days}} jours commencée.",
+    "de": "Business Card erstellt. {{days}}-tägige Testphase gestartet."
   },
   "create_try_again": {
     "es": "Inténtalo de nuevo.",
     "en": "Please try again.",
-    "it": "Please try again.",
-    "pt": "Please try again.",
-    "fr": "Please try again.",
-    "de": "Please try again."
+    "it": "Riprova.",
+    "pt": "Tente novamente.",
+    "fr": "Veuillez réessayer.",
+    "de": "Bitte versuche es erneut."
   },
   "create_unsaved_title": {
     "es": "Cambios sin guardar",
     "en": "Unsaved changes",
-    "it": "Unsaved changes",
-    "pt": "Unsaved changes",
-    "fr": "Unsaved changes",
-    "de": "Unsaved changes"
+    "it": "Modifiche non salvate",
+    "pt": "Alterações não salvas",
+    "fr": "Modifications non enregistrées",
+    "de": "Nicht gespeicherte Änderungen"
   },
   "create_unsaved_body": {
     "es": "Si sales ahora, perderás lo que modificaste; no se guarda solo. ¿Quieres guardar antes de salir?",
     "en": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
-    "it": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
-    "pt": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
-    "fr": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
-    "de": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?"
+    "it": "Se esci ora, perderai le modifiche; nulla viene salvato automaticamente. Vuoi salvare prima di uscire?",
+    "pt": "Se sair agora, perderá suas edições; nada é salvo automaticamente. Deseja salvar antes de sair?",
+    "fr": "Si vous quittez maintenant, vous perdrez vos modifications ; rien n'est enregistré automatiquement. Voulez-vous enregistrer avant de quitter ?",
+    "de": "Wenn du jetzt gehst, gehen deine Änderungen verloren; nichts wird automatisch gespeichert. Möchtest du vor dem Verlassen speichern?"
   },
   "create_dont_save": {
     "es": "No guardar",
     "en": "Don't save",
-    "it": "Don't save",
-    "pt": "Don't save",
-    "fr": "Don't save",
-    "de": "Don't save"
+    "it": "Non salvare",
+    "pt": "Não salvar",
+    "fr": "Ne pas enregistrer",
+    "de": "Nicht speichern"
   },
   "create_save": {
     "es": "Guardar",
@@ -410,58 +410,58 @@
   "create_license_active_title": {
     "es": "Licencia activa",
     "en": "License active",
-    "it": "License active",
-    "pt": "License active",
-    "fr": "License active",
-    "de": "License active"
+    "it": "Licenza attiva",
+    "pt": "Licença ativa",
+    "fr": "Licence active",
+    "de": "Lizenz aktiv"
   },
   "create_license_active_body": {
     "es": "Estado: active. Puedes publicar en Social Market.",
     "en": "Status: active. You can publish to Social Market.",
-    "it": "Status: active. You can publish to Social Market.",
-    "pt": "Status: active. You can publish to Social Market.",
-    "fr": "Status: active. You can publish to Social Market.",
-    "de": "Status: active. You can publish to Social Market."
+    "it": "Stato: attivo. Puoi pubblicare sul Social Market.",
+    "pt": "Status: ativo. Você pode publicar no Social Market.",
+    "fr": "État : actif. Vous pouvez publier sur le Social Market.",
+    "de": "Status: aktiv. Du kannst im Social Market veröffentlichen."
   },
   "create_dull_preview_title": {
     "es": "Modo Dull (preview)",
     "en": "Dull mode (preview)",
-    "it": "Dull mode (preview)",
-    "pt": "Dull mode (preview)",
-    "fr": "Dull mode (preview)",
-    "de": "Dull mode (preview)"
+    "it": "Modalità Dull (anteprima)",
+    "pt": "Modo Dull (visualização)",
+    "fr": "Mode Dull (aperçu)",
+    "de": "Dull-Modus (Vorschau)"
   },
   "create_dull_preview_body": {
     "es": "Vista previa atenuada. No se persiste; al refrescar vuelve al estado real.",
     "en": "Dimmed preview only. Not persisted; refreshing restores the real state.",
-    "it": "Dimmed preview only. Not persisted; refreshing restores the real state.",
-    "pt": "Dimmed preview only. Not persisted; refreshing restores the real state.",
-    "fr": "Dimmed preview only. Not persisted; refreshing restores the real state.",
-    "de": "Dimmed preview only. Not persisted; refreshing restores the real state."
+    "it": "Solo anteprima attenuata. Non persistente; l'aggiornamento ripristina lo stato reale.",
+    "pt": "Apenas visualização atenuada. Não persistente; atualizar restaura o estado real.",
+    "fr": "Aperçu atténué uniquement. Non persisté ; l'actualisation restaure l'état réel.",
+    "de": "Nur gedimmte Vorschau. Nicht persistent; Aktualisierung stellt den realen Zustand wieder her."
   },
   "create_license_required_publishing_title": {
     "es": "Licencia requerida",
     "en": "License required",
-    "it": "License required",
-    "pt": "License required",
-    "fr": "License required",
-    "de": "License required"
+    "it": "Licenza richiesta",
+    "pt": "Licença necessária",
+    "fr": "Licence requise",
+    "de": "Lizenz erforderlich"
   },
   "create_license_required_publishing_body": {
     "es": "Activa la licencia (simulación) antes de publicar.",
     "en": "Activate license (simulation) before publishing.",
-    "it": "Activate license (simulation) before publishing.",
-    "pt": "Activate license (simulation) before publishing.",
-    "fr": "Activate license (simulation) before publishing.",
-    "de": "Activate license (simulation) before publishing."
+    "it": "Attiva la licenza (simulazione) prima di pubblicare.",
+    "pt": "Ative a licença (simulação) antes de publicar.",
+    "fr": "Activez la licence (simulation) avant de publier.",
+    "de": "Aktiviere die Lizenz (Simulation) vor der Veröffentlichung."
   },
   "create_sub_trial": {
     "es": "Prueba (trial)",
     "en": "Trial",
-    "it": "Trial",
-    "pt": "Trial",
-    "fr": "Trial",
-    "de": "Trial"
+    "it": "Prova (trial)",
+    "pt": "Teste (trial)",
+    "fr": "Essai (trial)",
+    "de": "Testversion (trial)"
   },
   "create_sub_active": {
     "es": "Activa",
@@ -474,10 +474,10 @@
   "create_sub_dull": {
     "es": "Dull (atenuada)",
     "en": "Dull (dimmed)",
-    "it": "Dull (dimmed)",
-    "pt": "Dull (dimmed)",
-    "fr": "Dull (dimmed)",
-    "de": "Dull (dimmed)"
+    "it": "Dull (attenuata)",
+    "pt": "Dull (atenuada)",
+    "fr": "Dull (atténuée)",
+    "de": "Dull (gedimmt)"
   },
   "create_close": {
     "es": "Cerrar",
@@ -488,28 +488,84 @@
     "de": "Schließen"
   },
   "create_business_card_title": {
-    "es": "Tarjeta de negocio",
-    "en": "Business card",
-    "it": "Business card",
-    "pt": "Business card",
-    "fr": "Business card",
-    "de": "Business card"
+    "es": "Crear tarjeta de negocio",
+    "en": "Create business card",
+    "it": "Crea Business Card",
+    "pt": "Criar Business Card",
+    "fr": "Créer une Business Card",
+    "de": "Business Card erstellen"
+  },
+  "create_edit_business_card_title": {
+    "es": "Editar tarjeta de negocio",
+    "en": "Edit business card",
+    "it": "Modifica Business Card",
+    "pt": "Editar Business Card",
+    "fr": "Modifier la Business Card",
+    "de": "Business Card bearbeiten"
+  },
+  "create_theme_tier_fresh": {
+    "es": "Frescos",
+    "en": "Fresh",
+    "it": "Freschi",
+    "pt": "Frescos",
+    "fr": "Frais",
+    "de": "Frisch"
+  },
+  "create_theme_tier_moderno": {
+    "es": "Modernos",
+    "en": "Modern",
+    "it": "Moderni",
+    "pt": "Modernos",
+    "fr": "Modernes",
+    "de": "Modern"
+  },
+  "create_theme_tier_luxury": {
+    "es": "De lujo",
+    "en": "Luxury",
+    "it": "Di lusso",
+    "pt": "De luxo",
+    "fr": "Luxe",
+    "de": "Luxus"
+  },
+  "create_theme_tile_card": {
+    "es": "Tarjeta",
+    "en": "Card",
+    "it": "Carta",
+    "pt": "Cartão",
+    "fr": "Carte",
+    "de": "Karte"
+  },
+  "create_theme_tile_social": {
+    "es": "Social",
+    "en": "Social",
+    "it": "Social",
+    "pt": "Social",
+    "fr": "Social",
+    "de": "Social"
+  },
+  "create_theme_tile_icon": {
+    "es": "Icono",
+    "en": "Icon",
+    "it": "Icona",
+    "pt": "Ícone",
+    "fr": "Icône",
+    "de": "Icon"
   },
   "create_zero_trust_intro": {
     "es": "Protocolo de arquitectura Zero Trust: correo, teléfono, enlaces y mapa permanecen como datos soberanos en tu Bóveda; aquí solo identidad de negocio, marca, ubicación y palabras clave SEO.",
     "en": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
-    "it": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
-    "pt": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
-    "fr": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
-    "de": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords."
+    "it": "Protocollo di architettura Zero Trust: email, telefono, link e mappa rimangono dati sovrani nel tuo Vault; qui gestisci solo identità aziendale, brand, posizione e parole chiave SEO.",
+    "pt": "Protocolo de arquitetura Zero Trust: e-mail, telefone, links e mapa permanecem como dados soberanos em seu Vault; aqui apenas identidade de negócio, marca, localização e palavras-chave SEO.",
+    "fr": "Protocole d'architecture Zero Trust : e-mail, téléphone, liens et carte restent des données souveraines dans votre Vault ; ici, gérez uniquement l'identité de l'entreprise, la marque, la localisation et les mots-clés SEO.",
+    "de": "Zero-Trust-Architekturprotokoll: E-Mail, Telefon, Links und Karte bleiben als souveräne Daten in deinem Vault; hier verwaltest du nur Geschäftsidentität, Marke, Standort und SEO-Keywords."
   },
   "create_loading_card": {
     "es": "Cargando tarjeta…",
     "en": "Loading card…",
-    "it": "Loading card…",
-    "pt": "Loading card…",
-    "fr": "Loading card…",
-    "de": "Loading card…"
+    "it": "Caricamento carta...",
+    "pt": "Carregando cartão...",
+    "fr": "Chargement de la carte...",
+    "de": "Karte wird geladen..."
   },
   "create_preview": {
     "es": "Vista previa",
@@ -522,162 +578,162 @@
   "create_card_name_placeholder": {
     "es": "Nombre de la tarjeta",
     "en": "Card name",
-    "it": "Card name",
-    "pt": "Card name",
-    "fr": "Card name",
-    "de": "Card name"
+    "it": "Nome della carta",
+    "pt": "Nome do cartão",
+    "fr": "Nom de la carte",
+    "de": "Kartenname"
   },
   "create_contact_name_placeholder": {
     "es": "Nombre de contacto",
     "en": "Contact name",
-    "it": "Contact name",
-    "pt": "Contact name",
-    "fr": "Contact name",
-    "de": "Contact name"
+    "it": "Nome del contatto",
+    "pt": "Nome do contato",
+    "fr": "Nom du contact",
+    "de": "Kontaktname"
   },
   "create_license_paused_dull": {
     "es": "Licencia en pausa (Dull)",
     "en": "License on hold (Dull)",
-    "it": "License on hold (Dull)",
-    "pt": "License on hold (Dull)",
-    "fr": "License on hold (Dull)",
-    "de": "License on hold (Dull)"
+    "it": "Licenza in pausa (Dull)",
+    "pt": "Licença em pausa (Dull)",
+    "fr": "Licence en pause (Dull)",
+    "de": "Lizenz pausiert (Dull)"
   },
   "create_subscription_status_label": {
     "es": "Estado de suscripción:",
     "en": "Subscription status:",
-    "it": "Subscription status:",
-    "pt": "Subscription status:",
-    "fr": "Subscription status:",
-    "de": "Subscription status:"
+    "it": "Stato abbonamento:",
+    "pt": "Status da assinatura:",
+    "fr": "État de l'abonnement :",
+    "de": "Abonnementstatus:"
   },
   "create_placeholder_company": {
     "es": "Mi empresa",
     "en": "My company",
-    "it": "My company",
-    "pt": "My company",
-    "fr": "My company",
-    "de": "My company"
+    "it": "La mia azienda",
+    "pt": "Minha empresa",
+    "fr": "Mon entreprise",
+    "de": "Mein Unternehmen"
   },
   "create_placeholder_full_name": {
     "es": "Nombre completo",
     "en": "Full name",
-    "it": "Full name",
-    "pt": "Full name",
-    "fr": "Full name",
-    "de": "Full name"
+    "it": "Nome completo",
+    "pt": "Nome completo",
+    "fr": "Nom complet",
+    "de": "Vollständiger Name"
   },
   "create_use_profile_name": {
     "es": "Usar el mismo nombre de mi perfil",
     "en": "Use my profile name",
-    "it": "Use my profile name",
-    "pt": "Use my profile name",
-    "fr": "Use my profile name",
-    "de": "Use my profile name"
+    "it": "Usa lo stesso nome del mio profilo",
+    "pt": "Usar o mesmo nome do meu perfil",
+    "fr": "Utiliser le même nom que mon profil",
+    "de": "Dasselbe Profilnamens verwenden"
   },
   "create_profile_prefix": {
     "es": "Perfil:",
     "en": "Profile:",
-    "it": "Profile:",
-    "pt": "Profile:",
-    "fr": "Profile:",
-    "de": "Profile:"
+    "it": "Profilo:",
+    "pt": "Perfil:",
+    "fr": "Profil :",
+    "de": "Profil:"
   },
   "create_business_logo": {
     "es": "Logo del negocio",
     "en": "Business logo",
-    "it": "Business logo",
-    "pt": "Business logo",
-    "fr": "Business logo",
-    "de": "Business logo"
+    "it": "Logo dell'attività",
+    "pt": "Logo do negócio",
+    "fr": "Logo de l'entreprise",
+    "de": "Geschäftslogo"
   },
   "create_logo_help": {
     "es": "Por defecto: tu foto de perfil. Sube una imagen; se recorta a cuadrado. Mismo logo para la tarjeta y el centro del QR (ECL H).",
     "en": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
-    "it": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
-    "pt": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
-    "fr": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
-    "de": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H)."
+    "it": "Predefinito: la tua foto profilo. Carica un'immagine; verrà ritagliata in quadrato. Stesso logo per la carta e il centro del QR (ECL H).",
+    "pt": "Padrão: sua foto de perfil. Envie uma imagem; será cortada em quadrado. Mesmo logo para o cartão e centro do QR (ECL H).",
+    "fr": "Par défaut : votre photo de profil. Téléchargez une image ; elle sera recadrée en carré. Même logo pour la carte et le centre du QR (ECL H).",
+    "de": "Standard: dein Profilfoto. Lade ein Bild hoch; es wird quadratisch zugeschnitten. Dasselbe Logo für die Karte und das QR-Zentrum (ECL H)."
   },
   "create_pick_square_image": {
     "es": "Elegir imagen (cuadrada)",
     "en": "Pick image (square)",
-    "it": "Pick image (square)",
-    "pt": "Pick image (square)",
-    "fr": "Pick image (square)",
-    "de": "Pick image (square)"
+    "it": "Scegli immagine (quadrata)",
+    "pt": "Escolher imagem (quadrada)",
+    "fr": "Choisir une image (carrée)",
+    "de": "Bild wählen (quadratisch)"
   },
   "create_use_avatar_only": {
     "es": "Usar solo avatar",
     "en": "Use avatar only",
-    "it": "Use avatar only",
-    "pt": "Use avatar only",
-    "fr": "Use avatar only",
-    "de": "Use avatar only"
+    "it": "Usa solo avatar",
+    "pt": "Usar apenas avatar",
+    "fr": "Utiliser uniquement l'avatar",
+    "de": "Nur Avatar verwenden"
   },
   "create_location_search_title": {
     "es": "Ubicación para búsqueda",
     "en": "Location for search",
-    "it": "Location for search",
-    "pt": "Location for search",
-    "fr": "Location for search",
-    "de": "Location for search"
+    "it": "Posizione per la ricerca",
+    "pt": "Localização para busca",
+    "fr": "Emplacement pour la recherche",
+    "de": "Standort für die Suche"
   },
   "create_location_search_help": {
     "es": "Escribe una dirección (como en mapas): el dispositivo la convierte en lat/lng (geocodificador del sistema, sin API de pago). En el Mercado solo se usa distancia aproximada, no tu calle.",
     "en": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
-    "it": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
-    "pt": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
-    "fr": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
-    "de": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street."
+    "it": "Scrivi un indirizzo (come su mappe): il dispositivo lo converte in lat/lng (geocodificatore di sistema, senza API a pagamento). Nel Social Market si usa solo la distanza approssimativa, non la tua via.",
+    "pt": "Digite um endereço (como no mapas): o dispositivo converte em lat/lng (geocodificador do sistema, sem API paga). No Social Market, usa-se apenas a distância aproximada, não sua rua.",
+    "fr": "Saisissez une adresse (comme dans les cartes) : l'appareil la convertit en lat/lng (géocodeur système, sans API payante). Dans le Social Market, seule la distance approximative est utilisée, pas votre rue.",
+    "de": "Gib eine Adresse ein (wie in Maps): Das Gerät wandelt sie in Lat/Lng um (System-Geocoder, keine kostenpflichtige API). Im Social Market wird nur die ungefähre Entfernung verwendet, nicht deine Straße."
   },
   "create_address_or_place": {
     "es": "Dirección o lugar",
     "en": "Address or place",
-    "it": "Address or place",
-    "pt": "Address or place",
-    "fr": "Address or place",
-    "de": "Address or place"
+    "it": "Indirizzo o luogo",
+    "pt": "Endereço ou local",
+    "fr": "Adresse ou lieu",
+    "de": "Adresse oder Ort"
   },
   "create_address_placeholder": {
     "es": "Calle, número, ciudad, país…",
     "en": "Street, number, city, country…",
-    "it": "Street, number, city, country…",
-    "pt": "Street, number, city, country…",
-    "fr": "Street, number, city, country…",
-    "de": "Street, number, city, country…"
+    "it": "Via, numero, città, paese…",
+    "pt": "Rua, número, cidade, país…",
+    "fr": "Rue, numéro, ville, pays…",
+    "de": "Straße, Hausnummer, Stadt, Land..."
   },
   "create_map_results": {
     "es": "Resultados en el mapa",
     "en": "Map results",
-    "it": "Map results",
-    "pt": "Map results",
-    "fr": "Map results",
-    "de": "Map results"
+    "it": "Risultati sulla mappa",
+    "pt": "Resultados no mapa",
+    "fr": "Résultats sur la carte",
+    "de": "Kartenergebnisse"
   },
   "create_tap_set_coords": {
     "es": "Toca para fijar coordenadas",
     "en": "Tap to set coordinates",
-    "it": "Tap to set coordinates",
-    "pt": "Tap to set coordinates",
-    "fr": "Tap to set coordinates",
-    "de": "Tap to set coordinates"
+    "it": "Tocca per impostare le coordinate",
+    "pt": "Toque para definir coordenadas",
+    "fr": "Appuyez pour définir les coordonnées",
+    "de": "Tippen, um Koordinaten festzulegen"
   },
   "create_or_divider": {
     "es": "— o —",
     "en": "— or —",
-    "it": "— or —",
-    "pt": "— or —",
-    "fr": "— or —",
-    "de": "— or —"
+    "it": "— o —",
+    "pt": "— ou —",
+    "fr": "— ou —",
+    "de": "— oder —"
   },
   "create_use_current_location": {
     "es": "Usar mi ubicación actual",
     "en": "Use my current location",
-    "it": "Use my current location",
-    "pt": "Use my current location",
-    "fr": "Use my current location",
-    "de": "Use my current location"
+    "it": "Usa la mia posizione attuale",
+    "pt": "Usar minha localização atual",
+    "fr": "Utiliser ma position actuelle",
+    "de": "Meinen aktuellen Standort verwenden"
   },
   "create_lat": {
     "es": "Lat",
@@ -698,194 +754,194 @@
   "create_keywords_seo": {
     "es": "Palabras Clave (SEO)",
     "en": "Keywords (SEO)",
-    "it": "Keywords (SEO)",
-    "pt": "Keywords (SEO)",
-    "fr": "Keywords (SEO)",
+    "it": "Parole chiave (SEO)",
+    "pt": "Palavras-chave (SEO)",
+    "fr": "Mots-clés (SEO)",
     "de": "Keywords (SEO)"
   },
   "create_data_and_theme": {
     "es": "Datos y tema",
     "en": "Data and theme",
-    "it": "Data and theme",
-    "pt": "Data and theme",
-    "fr": "Data and theme",
-    "de": "Data and theme"
+    "it": "Dati e tema",
+    "pt": "Dados e tema",
+    "fr": "Données et thème",
+    "de": "Daten und Thema"
   },
   "create_data_theme_help": {
     "es": "Igual que en Smart Cards: elige ítems de la Bóveda y un tema visual.",
     "en": "Same as Smart Cards: pick Vault items and a visual theme.",
-    "it": "Same as Smart Cards: pick Vault items and a visual theme.",
-    "pt": "Same as Smart Cards: pick Vault items and a visual theme.",
-    "fr": "Same as Smart Cards: pick Vault items and a visual theme.",
-    "de": "Same as Smart Cards: pick Vault items and a visual theme."
+    "it": "Come nelle Smart Cards: scegli elementi dal Vault e un tema visivo.",
+    "pt": "Igual às Smart Cards: escolha itens do Vault e um tema visual.",
+    "fr": "Comme pour les Smart Cards : choisissez des éléments du Vault et un thème visuel.",
+    "de": "Wie bei Smart Cards: Wähle Elemente aus dem Vault und ein visuelles Thema."
   },
   "create_add_data": {
     "es": "Agregar DATA",
     "en": "Add DATA",
-    "it": "Add DATA",
-    "pt": "Add DATA",
-    "fr": "Add DATA",
-    "de": "Add DATA"
+    "it": "Aggiungi DATA",
+    "pt": "Adicionar DATA",
+    "fr": "Ajouter DATA",
+    "de": "DATA hinzufügen"
   },
   "create_add_themes": {
     "es": "Agregar TEMAS",
     "en": "Add THEMES",
-    "it": "Add THEMES",
-    "pt": "Add THEMES",
-    "fr": "Add THEMES",
-    "de": "Add THEMES"
+    "it": "Aggiungi TEMI",
+    "pt": "Adicionar TEMAS",
+    "fr": "Ajouter THÈMES",
+    "de": "THEMEN hinzufügen"
   },
   "create_theme_label": {
     "es": "Tema:",
     "en": "Theme:",
-    "it": "Theme:",
-    "pt": "Theme:",
-    "fr": "Theme:",
-    "de": "Theme:"
+    "it": "Tema:",
+    "pt": "Tema:",
+    "fr": "Thème :",
+    "de": "Thema:"
   },
   "create_no_cloud_links": {
     "es": "Sin enlaces en la nube. Agrega datos en Bóveda.",
     "en": "No cloud links yet. Add data in Vault.",
-    "it": "No cloud links yet. Add data in Vault.",
-    "pt": "No cloud links yet. Add data in Vault.",
-    "fr": "No cloud links yet. Add data in Vault.",
-    "de": "No cloud links yet. Add data in Vault."
+    "it": "Nessun link cloud. Aggiungi dati nel Vault.",
+    "pt": "Sem links na nuvem. Adicione dados no Vault.",
+    "fr": "Aucun lien cloud. Ajoutez des données dans le Vault.",
+    "de": "Keine Cloud-Links vorhanden. Daten im Vault hinzufügen."
   },
   "create_terms_section_title": {
     "es": "Términos y condiciones",
     "en": "Terms and conditions",
-    "it": "Terms and conditions",
-    "pt": "Terms and conditions",
-    "fr": "Terms and conditions",
-    "de": "Terms and conditions"
+    "it": "Termini e condizioni",
+    "pt": "Termos e condições",
+    "fr": "Termes et conditions",
+    "de": "Allgemeine Geschäftsbedingungen"
   },
   "create_terms_accept_checkbox": {
     "es": "He leído y acepto los términos y la política de contenido de la tarjeta de negocio.",
     "en": "I have read and accept the business card terms and content policy.",
-    "it": "I have read and accept the business card terms and content policy.",
-    "pt": "I have read and accept the business card terms and content policy.",
-    "fr": "I have read and accept the business card terms and content policy.",
-    "de": "I have read and accept the business card terms and content policy."
+    "it": "Ho letto e accetto i termini e la politica sui contenuti della Business Card.",
+    "pt": "Li e aceito os termos e a política de conteúdo do cartão de visita.",
+    "fr": "J'ai lu et j'accepte les conditions et la politique de contenu de la Business Card.",
+    "de": "Ich habe die Bedingungen und die Inhaltsrichtlinie für Business Cards gelesen und akzeptiere sie."
   },
   "create_save_changes": {
     "es": "Guardar cambios",
     "en": "Save changes",
-    "it": "Save changes",
-    "pt": "Save changes",
-    "fr": "Save changes",
-    "de": "Save changes"
+    "it": "Salva modifiche",
+    "pt": "Salvar alterações",
+    "fr": "Enregistrer les modifications",
+    "de": "Änderungen speichern"
   },
   "create_create_card": {
     "es": "Crear tarjeta",
     "en": "Create card",
-    "it": "Create card",
-    "pt": "Create card",
-    "fr": "Create card",
-    "de": "Create card"
+    "it": "Crea carta",
+    "pt": "Criar cartão",
+    "fr": "Créer la carte",
+    "de": "Karte erstellen"
   },
   "create_market_visibility": {
     "es": "Visibilidad en Social Market",
     "en": "Social Market visibility",
-    "it": "Social Market visibility",
-    "pt": "Social Market visibility",
-    "fr": "Social Market visibility",
-    "de": "Social Market visibility"
+    "it": "Visibilità nel Social Market",
+    "pt": "Visibilidade no Social Market",
+    "fr": "Visibilité sur le Social Market",
+    "de": "Sichtbarkeit im Social Market"
   },
   "create_license_sim_active": {
     "es": "Licencia anual activa (simulación).",
     "en": "Annual license active (simulation).",
-    "it": "Annual license active (simulation).",
-    "pt": "Annual license active (simulation).",
-    "fr": "Annual license active (simulation).",
-    "de": "Annual license active (simulation)."
+    "it": "Licenza annuale attiva (simulazione).",
+    "pt": "Licença anual ativa (simulação).",
+    "fr": "Licence annuelle active (simulation).",
+    "de": "Jahreslizenz aktiv (Simulation)."
   },
   "create_license_required_hint": {
     "es": "Requiere licencia activa para publicar.",
     "en": "Active license required to publish.",
-    "it": "Active license required to publish.",
-    "pt": "Active license required to publish.",
-    "fr": "Active license required to publish.",
-    "de": "Active license required to publish."
+    "it": "Richiede licenza attiva per pubblicare.",
+    "pt": "Requer licença ativa para publicar.",
+    "fr": "Nécessite une licence active pour publier.",
+    "de": "Aktive Lizenz für Veröffentlichung erforderlich."
   },
   "create_simulate_license_dev": {
     "es": "Simular licencia anual (desarrollo)",
     "en": "Simulate annual license (dev)",
-    "it": "Simulate annual license (dev)",
-    "pt": "Simulate annual license (dev)",
-    "fr": "Simulate annual license (dev)",
-    "de": "Simulate annual license (dev)"
+    "it": "Simula licenza annuale (sviluppo)",
+    "pt": "Simular licença anual (desenvolvimento)",
+    "fr": "Simuler une licence annuelle (développement)",
+    "de": "Jahreslizenz simulieren (Entwicklung)"
   },
   "create_simulate_dull_dev": {
     "es": "Simular estado Dull (desarrollo)",
     "en": "Simulate Dull state (dev)",
-    "it": "Simulate Dull state (dev)",
-    "pt": "Simulate Dull state (dev)",
-    "fr": "Simulate Dull state (dev)",
-    "de": "Simulate Dull state (dev)"
+    "it": "Simula stato Dull (sviluppo)",
+    "pt": "Simular estado Dull (desenvolvimento)",
+    "fr": "Simuler l'état Dull (développement)",
+    "de": "Dull-Zustand simulieren (Entwicklung)"
   },
   "create_select_vault_data": {
     "es": "Selecciona datos",
     "en": "Select data",
-    "it": "Select data",
-    "pt": "Select data",
-    "fr": "Select data",
-    "de": "Select data"
+    "it": "Seleziona dati",
+    "pt": "Selecione dados",
+    "fr": "Sélectionnez des données",
+    "de": "Daten auswählen"
   },
   "create_search_vault_placeholder": {
     "es": "Buscar dato...",
     "en": "Search data...",
-    "it": "Search data...",
-    "pt": "Search data...",
-    "fr": "Search data...",
-    "de": "Search data..."
+    "it": "Cerca dato...",
+    "pt": "Buscar dado...",
+    "fr": "Rechercher une donnée...",
+    "de": "Daten suchen..."
   },
   "create_clear_search_a11y": {
     "es": "Limpiar búsqueda",
     "en": "Clear search",
-    "it": "Clear search",
-    "pt": "Clear search",
-    "fr": "Clear search",
-    "de": "Clear search"
+    "it": "Pulisci ricerca",
+    "pt": "Limpar busca",
+    "fr": "Effacer la recherche",
+    "de": "Suche löschen"
   },
   "create_sort_az": {
     "es": "Alfabético",
     "en": "A-Z",
-    "it": "A-Z",
-    "pt": "A-Z",
-    "fr": "A-Z",
-    "de": "A-Z"
+    "it": "Alfabetico",
+    "pt": "Alfabético",
+    "fr": "Alphabétique",
+    "de": "Alphabetisch"
   },
   "create_sort_recent_short": {
     "es": "Reciente",
     "en": "Recent",
-    "it": "Recent",
-    "pt": "Recent",
-    "fr": "Recent",
-    "de": "Recent"
+    "it": "Recente",
+    "pt": "Recente",
+    "fr": "Récent",
+    "de": "Kürzlich"
   },
   "create_vault_max_links_banner": {
     "es": "Máximo {{maxSlots}} enlaces de bóveda",
     "en": "Maximum {{maxSlots}} vault links",
-    "it": "Maximum {{maxSlots}} vault links",
-    "pt": "Maximum {{maxSlots}} vault links",
-    "fr": "Maximum {{maxSlots}} vault links",
-    "de": "Maximum {{maxSlots}} vault links"
+    "it": "Massimo {{maxSlots}} link nel Vault",
+    "pt": "Máximo {{maxSlots}} links no Vault",
+    "fr": "Maximum {{maxSlots}} liens dans le Vault",
+    "de": "Maximal {{maxSlots}} Vault-Links"
   },
   "create_vault_empty_selector": {
     "es": "Tu bóveda está vacía.\nAgrega datos primero en Bóveda.",
     "en": "Your Vault is empty.\nAdd data from Vault first.",
-    "it": "Your Vault is empty.\nAdd data from Vault first.",
-    "pt": "Your Vault is empty.\nAdd data from Vault first.",
-    "fr": "Your Vault is empty.\nAdd data from Vault first.",
-    "de": "Your Vault is empty.\nAdd data from Vault first."
+    "it": "Il tuo Vault è vuoto.\nAggiungi prima dati nel Vault.",
+    "pt": "Seu Vault está vazio.\nAdicione dados do Vault primeiro.",
+    "fr": "Votre Vault est vide.\nAjoutez d'abord des données dans le Vault.",
+    "de": "Dein Vault ist leer.\nFüge zuerst Daten im Vault hinzu."
   },
   "create_vault_search_no_match": {
     "es": "No encontramos datos con esa búsqueda.",
     "en": "No data matched that search.",
-    "it": "No data matched that search.",
-    "pt": "No data matched that search.",
-    "fr": "No data matched that search.",
-    "de": "No data matched that search."
+    "it": "Nessun dato corrisponde alla ricerca.",
+    "pt": "Nenhum dado corresponde a essa busca.",
+    "fr": "Aucune donnée ne correspond à cette recherche.",
+    "de": "Keine Daten zur Suche gefunden."
   },
   "create_confirm": {
     "es": "Confirmar",
@@ -898,18 +954,18 @@
   "create_confirm_with_count": {
     "es": "Confirmar ({{count}})",
     "en": "Confirm ({{count}})",
-    "it": "Confirm ({{count}})",
-    "pt": "Confirm ({{count}})",
-    "fr": "Confirm ({{count}})",
-    "de": "Confirm ({{count}})"
+    "it": "Conferma ({{count}})",
+    "pt": "Confirmar ({{count}})",
+    "fr": "Confirmer ({{count}})",
+    "de": "Bestätigen ({{count}})"
   },
   "create_card_themes_title": {
     "es": "Temas de Tarjeta",
     "en": "Card Themes",
-    "it": "Card Themes",
-    "pt": "Card Themes",
-    "fr": "Card Themes",
-    "de": "Card Themes"
+    "it": "Temi della Carta",
+    "pt": "Temas do Cartão",
+    "fr": "Thèmes de la Carte",
+    "de": "Kartenthemen"
   },
   "create_accept": {
     "es": "Aceptar",
@@ -922,26 +978,26 @@
   "create_theme_locked_title": {
     "es": "Tema bloqueado",
     "en": "Theme locked",
-    "it": "Theme locked",
-    "pt": "Theme locked",
-    "fr": "Theme locked",
-    "de": "Theme locked"
+    "it": "Tema bloccato",
+    "pt": "Tema bloqueado",
+    "fr": "Thème verrouillé",
+    "de": "Thema gesperrt"
   },
   "create_theme_locked_body": {
     "es": "Desbloquéalo en Locker de Estilos o La Fragua.",
     "en": "Unlock it in Theme Locker or The Forge.",
-    "it": "Unlock it in Theme Locker or The Forge.",
-    "pt": "Unlock it in Theme Locker or The Forge.",
-    "fr": "Unlock it in Theme Locker or The Forge.",
-    "de": "Unlock it in Theme Locker or The Forge."
+    "it": "Sbloccalo nel Locker degli Stili o nella Forgia.",
+    "pt": "Desbloqueie no Locker de Estilos ou na Forja.",
+    "fr": "Déverrouillez-le dans le Locker de Styles ou La Forge.",
+    "de": "Schalte es im Style-Locker oder der Schmiede frei."
   },
   "create_business_terms_body": {
     "es": "Al crear una tarjeta de negocio te comprometes a no usar Card-Social para promover apuestas ilegales, contenido sexual explícito, discurso de odio, acoso o estafas. Las palabras clave y el contenido visible deben cumplir estas reglas. Card-Social puede retirar o restringir tarjetas que incumplan. Los términos de pago y suscripción aplicarán cuando se active la facturación; hasta entonces, los estados prueba/activa/dull son de seguimiento y pruebas.",
     "en": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
-    "it": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
-    "pt": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
-    "fr": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
-    "de": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing."
+    "it": "Creando una Business Card, accetti di non utilizzare Card-Social per promuovere gioco d'azzardo illegale, contenuti sessuali espliciti, incitamento all'odio, molestie o truffe. Le parole chiave e i contenuti visibili devono rispettare queste regole. Card-Social può rimuovere o limitare le carte che violano le norme. I termini di pagamento e abbonamento si applicheranno all'attivazione della fatturazione; fino ad allora, gli stati di prova/attivo/dull servono per tracciamento e test.",
+    "pt": "Ao criar um cartão de visita, você concorda em não usar o Card-Social para promover apostas ilegais, conteúdo sexual explícito, discurso de ódio, assédio ou golpes. Palavras-chave e conteúdo visível devem cumprir estas regras. O Card-Social pode remover ou restringir cartões que violem a política. Termos de pagamento e assinatura se aplicarão quando o faturamento for ativado; até lá, os estados de teste/ativo/dull são para rastreamento e testes.",
+    "fr": "En créant une Business Card, vous acceptez de ne pas utiliser Card-Social pour promouvoir des jeux d'argent illégaux, du contenu sexuel explicite, des discours de haine, du harcèlement ou des arnaques. Les mots-clés et le contenu visible doivent respecter ces règles. Card-Social peut supprimer ou restreindre les cartes enfreignant la politique. Les conditions de paiement et d'abonnement s'appliqueront lorsque la facturation sera activée ; jusque-là, les états d'essai/actif/dull sont utilisés à des fins de suivi et de test.",
+    "de": "Mit dem Erstellen einer Business Card stimmst du zu, Card-Social nicht für illegales Glücksspiel, explizite sexuelle Inhalte, Hassrede, Belästigung oder Betrug zu nutzen. Keywords und sichtbare Inhalte müssen diesen Regeln entsprechen. Card-Social kann Karten, die gegen Richtlinien verstoßen, entfernen oder einschränken. Zahlungs- und Abonnementbedingungen gelten bei Aktivierung der Abrechnung; bis dahin dienen Test-/Aktiv-/Dull-Zustände der Nachverfolgung und Tests."
   },
   "form_vault_cat_other": {
     "es": "Otros",
@@ -994,66 +1050,66 @@
   "form_bc_keyword_hint": {
     "es": "Optimización para Motores de Búsqueda. Máx. 20 palabras, separadas por coma. Invisibles en la tarjeta pública; activas en búsqueda.",
     "en": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
-    "it": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
-    "pt": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
-    "fr": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
-    "de": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search."
+    "it": "Ottimizzazione per i motori di ricerca. Max 20 parole, separate da virgola. Invisibili sulla carta pubblica; attive nella ricerca.",
+    "pt": "Otimização para mecanismos de busca. Até 20 palavras, separadas por vírgula. Invisíveis no cartão público; ativas na busca.",
+    "fr": "Optimisation pour les moteurs de recherche. Jusqu'à 20 mots, séparés par des virgules. Invisibles sur la carte publique ; actifs dans la recherche.",
+    "de": "Suchmaschinenoptimierung. Bis zu 20 Wörter, kommagetrennt. Auf der öffentlichen Karte unsichtbar; in der Suche aktiv."
   },
   "form_bc_keyword_limit_title": {
     "es": "Límite alcanzado",
     "en": "Limit reached",
-    "it": "Limit reached",
-    "pt": "Limit reached",
-    "fr": "Limit reached",
-    "de": "Limit reached"
+    "it": "Limite raggiunto",
+    "pt": "Limite atingido",
+    "fr": "Limite atteinte",
+    "de": "Limit erreicht"
   },
   "form_bc_keyword_limit_body": {
     "es": "Máximo {{max}} palabras clave.",
     "en": "Maximum {{max}} keywords.",
-    "it": "Maximum {{max}} keywords.",
-    "pt": "Maximum {{max}} keywords.",
-    "fr": "Maximum {{max}} keywords.",
-    "de": "Maximum {{max}} keywords."
+    "it": "Massimo {{max}} parole chiave.",
+    "pt": "Máximo de {{max}} palavras-chave.",
+    "fr": "Maximum {{max}} mots-clés.",
+    "de": "Maximal {{max}} Schlüsselwörter."
   },
   "form_bc_keyword_blocked_title": {
     "es": "Palabra no permitida",
     "en": "Word not allowed",
-    "it": "Word not allowed",
-    "pt": "Word not allowed",
-    "fr": "Word not allowed",
-    "de": "Word not allowed"
+    "it": "Parola non consentita",
+    "pt": "Palavra não permitida",
+    "fr": "Mot non autorisé",
+    "de": "Wort nicht erlaubt"
   },
   "form_bc_keyword_blocked_body": {
     "es": "Esta palabra clave no cumple las reglas de contenido (odio, explícito, apuestas, etc.).",
     "en": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
-    "it": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
-    "pt": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
-    "fr": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
-    "de": "This keyword does not meet content rules (hate, explicit, gambling, etc.)."
+    "it": "Questa parola chiave non rispetta le regole sui contenuti (odio, esplicito, gioco d'azzardo, ecc.).",
+    "pt": "Esta palavra-chave não cumpre as regras de conteúdo (ódio, explícito, apostas, etc.).",
+    "fr": "Ce mot-clé ne respecte pas les règles de contenu (haine, explicite, jeux d'argent, etc.).",
+    "de": "Dieses Keyword entspricht nicht den Inhaltsregeln (Hass, explizit, Glücksspiel etc.)."
   },
   "form_bc_tag_too_long_title": {
     "es": "Demasiado largo",
     "en": "Too long",
-    "it": "Too long",
-    "pt": "Too long",
-    "fr": "Too long",
-    "de": "Too long"
+    "it": "Troppo lungo",
+    "pt": "Muito longo",
+    "fr": "Trop long",
+    "de": "Zu lang"
   },
   "form_bc_tag_too_long_body": {
     "es": "Cada etiqueta debe ser más corta.",
     "en": "Each tag must be shorter.",
-    "it": "Each tag must be shorter.",
-    "pt": "Each tag must be shorter.",
-    "fr": "Each tag must be shorter.",
-    "de": "Each tag must be shorter."
+    "it": "Ogni tag deve essere più corto.",
+    "pt": "Cada etiqueta deve ser mais curta.",
+    "fr": "Chaque étiquette doit être plus courte.",
+    "de": "Jedes Tag muss kürzer sein."
   },
   "form_bc_placeholder": {
     "es": "ej. uñas, color, barbería…",
     "en": "e.g. nails, color, barber…",
-    "it": "e.g. nails, color, barber…",
-    "pt": "e.g. nails, color, barber…",
-    "fr": "e.g. nails, color, barber…",
-    "de": "e.g. nails, color, barber…"
+    "it": "es. unghie, colore, barbiere...",
+    "pt": "ex. unhas, cor, barbeiro...",
+    "fr": "ex. ongles, couleur, coiffeur...",
+    "de": "z. B. Nägel, Farbe, Friseur..."
   },
   "form_type_link": {
     "es": "Enlace",
@@ -2178,18 +2234,18 @@
   "form_bc_add_tag": {
     "es": "Añadir etiqueta",
     "en": "Add tag",
-    "it": "Add tag",
-    "pt": "Add tag",
-    "fr": "Add tag",
-    "de": "Add tag"
+    "it": "Aggiungi tag",
+    "pt": "Adicionar etiqueta",
+    "fr": "Ajouter étiquette",
+    "de": "Tag hinzufügen"
   },
   "form_bc_remove": {
     "es": "Quitar",
     "en": "Remove",
-    "it": "Remove",
-    "pt": "Remove",
-    "fr": "Remove",
-    "de": "Remove"
+    "it": "Rimuovi",
+    "pt": "Remover",
+    "fr": "Supprimer",
+    "de": "Entfernen"
   },
   "studio_unlock_icon": {
     "es": "Desbloquear icono",

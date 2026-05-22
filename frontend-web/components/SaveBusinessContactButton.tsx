@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import type { CardData } from '@/lib/universalCardTypes';
 import type { PublicLocale } from '@/lib/resolvePublicLocale';
 import { CONTACT_SAVE_ANALYTICS_PHONE } from '@card-social/constants/contactSaveAnalyticsKeys';
@@ -39,23 +39,9 @@ function PhoneOutlineIcon({ size = 22 }: { size?: number }) {
   );
 }
 
-function useShowOnTouchDevices(): boolean {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const nav = typeof navigator !== 'undefined' ? navigator : null;
-    const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
-    const touchPoints = nav?.maxTouchPoints ? nav.maxTouchPoints > 0 : false;
-    setShow(Boolean(coarse || touchPoints));
-  }, []);
-  return show;
-}
-
 export default function SaveBusinessContactButton({ card, canonicalWebUrl, locale }: Props) {
-  const visible = useShowOnTouchDevices();
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const label = tr('Guardar en contactos', 'Save to Contacts');
-
-  if (!visible) return null;
 
   const download = () => {
     const ownerUid = String(card.uid || '').trim();

@@ -7,6 +7,7 @@ const express = require('express');
 const { env } = require('../config');
 const { rewritePublicCardMediaUrls } = require('../lib/vaultPublicUrlRewrite');
 const { sanitizeAnalyticsSegmentKey, recordCardAnalyticsEvent } = require('../services/cardAnalyticsRecord');
+const { resolveIconClickSubType } = require('../lib/cardAnalyticsIconSubType');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
@@ -53,6 +54,7 @@ function sanitizeSocialMedalCounts(raw) {
 }
 
 const QR_SCAN_SOURCE = 'qr_scan';
+const WEB_VIEW_SOURCE = 'web';
 
 function publicAnalyticsClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
@@ -226,70 +228,45 @@ function publicSlotsForCurrentVaultIds(rawSlots, rawVaultItemIds) {
 }
 
 /**
- * Registra vista desde QR físico en la misma estructura que POST /api/qr/analytics/track.
+ * Registra vista desde QR físico / app scan (enlace universal 24h).
  */
-async function bumpUniversalQrScanAnalytics(db, cardKey, sid, bId) {
-  const ts = new Date();
-  const dayKey = ts.toISOString().slice(0, 10);
-  const monthKey = ts.toISOString().slice(0, 7);
-  const srcKey = sanitizeAnalyticsSegmentKey(QR_SCAN_SOURCE);
-  const now = new Date();
-  const iconType = sanitizeAnalyticsSegmentKey('universal_open');
+async function bumpUniversalQrScanAnalytics(db, cardKey, sid, bId, req) {
+  const ip = publicAnalyticsClientIp(req);
+  const okHit = allowPublicAnalyticsRate(ip, `qr-scan:${cardKey}`, 24, 60_000);
+  if (!okHit) return;
 
-  await db.collection('card_analytics').insertOne({
-    _id: `e:${cardKey}:${ts.getTime()}:${Math.random().toString(16).slice(2, 10)}`,
-    cardId: cardKey,
-    type: 'qr_scan',
-    subType: iconType,
-    timestamp: ts,
+  const ts = new Date();
+  await recordCardAnalyticsEvent(db, {
+    cardKey,
     sid: sid || null,
     bId: bId || null,
-    source: srcKey,
-    createdAt: now,
+    type: 'qr_scan',
+    subType: 'universal_open',
+    source: QR_SCAN_SOURCE,
+    viewerUid: null,
+    timestamp: ts,
   });
+}
 
-  const dailyId = `d:${cardKey}:${dayKey}`;
-  await db.collection('card_analytics').updateOne(
-    { _id: dailyId },
-    {
-      $inc: {
-        totalInteractions: 1,
-        [`icons.${iconType}`]: 1,
-        [`sources.${srcKey}`]: 1,
-      },
-      $set: { updatedAt: now },
-      $setOnInsert: {
-        sid: sid || null,
-        bId: bId || null,
-        granularity: 'day',
-        periodKey: dayKey,
-        monthKey,
-        createdAt: now,
-      },
-    },
-    { upsert: true },
-  );
+/**
+ * Registra vista web pública `/u/{token}` (enlace universal 24h en navegador).
+ */
+async function bumpUniversalWebViewAnalytics(db, cardKey, sid, bId, req) {
+  const ip = publicAnalyticsClientIp(req);
+  const okHit = allowPublicAnalyticsRate(ip, `web-univ:${cardKey}`, 6, 60_000);
+  if (!okHit) return;
 
-  const monthlyId = `m:${cardKey}:${monthKey}`;
-  await db.collection('card_analytics').updateOne(
-    { _id: monthlyId },
-    {
-      $inc: {
-        totalInteractions: 1,
-        [`icons.${iconType}`]: 1,
-        [`sources.${srcKey}`]: 1,
-      },
-      $set: { updatedAt: now },
-      $setOnInsert: {
-        sid: sid || null,
-        bId: bId || null,
-        granularity: 'month',
-        periodKey: monthKey,
-        createdAt: now,
-      },
-    },
-    { upsert: true },
-  );
+  const ts = new Date();
+  await recordCardAnalyticsEvent(db, {
+    cardKey,
+    sid: sid || null,
+    bId: bId || null,
+    type: 'view',
+    subType: 'web_universal_24h',
+    source: 'public_web',
+    viewerUid: null,
+    timestamp: ts,
+  });
 }
 
 function createPublicUniversalRoutes({ storage }) {
@@ -548,9 +525,15 @@ function createPublicUniversalRoutes({ storage }) {
 
       if (source === QR_SCAN_SOURCE) {
         try {
-          await bumpUniversalQrScanAnalytics(db, cardKey, sid, bId);
+          await bumpUniversalQrScanAnalytics(db, cardKey, sid, bId, req);
         } catch (e) {
           console.warn('[public/universal-card] analytics bump failed:', e?.message || e);
+        }
+      } else if (source === WEB_VIEW_SOURCE) {
+        try {
+          await bumpUniversalWebViewAnalytics(db, cardKey, sid, bId, req);
+        } catch (e) {
+          console.warn('[public/universal-card] web view analytics failed:', e?.message || e);
         }
       }
 
@@ -885,17 +868,45 @@ function createPublicUniversalRoutes({ storage }) {
 
     try {
       const ownerUid = String(req.body?.uid || '').trim();
-      const bId = String(req.body?.bId || '').trim();
+      const bIdRaw = String(req.body?.bId || '').trim();
+      const sidRaw = String(req.body?.sid || '').trim();
       const eventRaw = String(req.body?.eventType || req.body?.type || '').trim().toLowerCase();
       const ip = publicAnalyticsClientIp(req);
 
-      if (!ownerUid || ownerUid.length > 140 || !bId || bId.length > 140 || !eventRaw) {
+      if (!ownerUid || ownerUid.length > 140 || (!bIdRaw && !sidRaw) || !eventRaw) {
         return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'invalid_body'));
       }
 
       let mongoEventType = eventRaw === 'click' ? 'icon_click' : eventRaw === 'view' ? 'view' : '';
       if (!mongoEventType) {
         return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'invalid_event_type'));
+      }
+
+      const db = await storage.connect();
+      let cardKey = '';
+      let recordSid = null;
+      let recordBId = null;
+
+      if (bIdRaw) {
+        const exists = await db.collection('business_cards').findOne(
+          { ownerUid, bId: bIdRaw },
+          { projection: { _id: 1 } },
+        );
+        if (!exists) {
+          return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'not_found'));
+        }
+        cardKey = bIdRaw;
+        recordBId = bIdRaw;
+      } else {
+        const exists = await db.collection('smart_cards').findOne(
+          { uid: ownerUid, sid: sidRaw },
+          { projection: { _id: 1 } },
+        );
+        if (!exists) {
+          return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'not_found'));
+        }
+        cardKey = sidRaw;
+        recordSid = sidRaw;
       }
 
       const viewWindowMs = 60 * 1000;
@@ -916,24 +927,15 @@ function createPublicUniversalRoutes({ storage }) {
       );
 
       if (mongoEventType === 'view') {
-        const okHit = allowPublicAnalyticsRate(ip, `view:${bId}`, maxViewsPerMin, viewWindowMs);
+        const okHit = allowPublicAnalyticsRate(ip, `view:${cardKey}`, maxViewsPerMin, viewWindowMs);
         if (!okHit) {
           return res.status(429).json(buildUserFacingJson(req, 'auth_forbidden', 'rate_limited'));
         }
       } else if (mongoEventType === 'icon_click') {
-        const okHit = allowPublicAnalyticsRate(ip, `click:${bId}`, maxClicksPerMin, clickWindowMs);
+        const okHit = allowPublicAnalyticsRate(ip, `click:${cardKey}`, maxClicksPerMin, clickWindowMs);
         if (!okHit) {
           return res.status(429).json(buildUserFacingJson(req, 'auth_forbidden', 'rate_limited'));
         }
-      }
-
-      const db = await storage.connect();
-      const exists = await db.collection('business_cards').findOne(
-        { ownerUid, bId },
-        { projection: { _id: 1 } },
-      );
-      if (!exists) {
-        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'not_found'));
       }
 
       const source = sanitizeAnalyticsSegmentKey(req.body?.source || 'public_web');
@@ -941,9 +943,7 @@ function createPublicUniversalRoutes({ storage }) {
       if (mongoEventType === 'view') {
         subType = sanitizeAnalyticsSegmentKey(req.body?.subType ?? 'modal_open');
       } else {
-        subType = sanitizeAnalyticsSegmentKey(
-          req.body?.subType || req.body?.iconType || req.body?.slotType || 'unknown',
-        );
+        subType = resolveIconClickSubType(req.body);
       }
 
       let ts = new Date();
@@ -955,9 +955,9 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       await recordCardAnalyticsEvent(db, {
-        cardKey: bId,
-        sid: null,
-        bId,
+        cardKey,
+        sid: recordSid,
+        bId: recordBId,
         type: mongoEventType,
         subType,
         source,

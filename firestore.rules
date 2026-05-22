@@ -50,10 +50,19 @@ service cloud.firestore {
         && !statusLocked;
     }
 
+    function isOwnerLegacyProfilePatch() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'referralSuccessfulCount',
+        'legacyTier',
+        'legacyPathSyncedAt',
+        'legacyPhysicalBenefitEmails',
+      ]);
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid) || isSuperAdmin();
 
-      allow create, update: if isOwner(uid)
+      allow create: if isOwner(uid)
         && request.resource.data.uid == uid
         && request.resource.data.nicknameLower is string
         && request.resource.data.emailLower is string
@@ -62,7 +71,29 @@ service cloud.firestore {
         && getAfter(keyPathFor('email', request.resource.data.emailLower)).data.uid == uid
         && getAfter(keyPathFor('phone', request.resource.data.phoneNormalized)).data.uid == uid;
 
+      allow update: if isOwner(uid)
+        && (
+          (
+            request.resource.data.uid == uid
+            && request.resource.data.nicknameLower is string
+            && request.resource.data.emailLower is string
+            && request.resource.data.phoneNormalized is string
+            && getAfter(keyPathFor('nickname', request.resource.data.nicknameLower)).data.uid == uid
+            && getAfter(keyPathFor('email', request.resource.data.emailLower)).data.uid == uid
+            && getAfter(keyPathFor('phone', request.resource.data.phoneNormalized)).data.uid == uid
+          )
+          || isOwnerLegacyProfilePatch()
+        );
+
       allow delete: if false;
+    }
+
+    match /users/{uid}/settings/{settingId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/credits/{docId} {
+      allow read, write: if isOwner(uid);
     }
 
     match /users/{uid}/links/{linkId} {

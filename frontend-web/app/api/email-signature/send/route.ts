@@ -57,11 +57,21 @@ async function fetchBusinessPreviewPublic(bId: string, uid: string): Promise<Rec
     process.env.NEXT_PUBLIC_API_URL ??
     'https://api.cardsocial.me';
 
+  const PREVIEW_TIMEOUT_MS = 25_000;
+
   try {
     const qs = new URLSearchParams({ bId, uid, source: 'email-signature-send' });
-    const res = await fetch(`${API_BASE.replace(/\/+$/, '')}/api/public/business-card-preview?${qs}`, {
-      cache: 'no-store',
-    });
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), PREVIEW_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE.replace(/\/+$/, '')}/api/public/business-card-preview?${qs}`, {
+        cache: 'no-store',
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
     if (!res.ok || !data || data.ok !== true) return null;
     return data;
@@ -225,13 +235,19 @@ export async function POST(req: Request) {
     }
 
     const resend = new Resend(apiKey);
-    await resend.emails.send({
-      from,
-      to: recipientEmail.trim(),
-      subject: emailT(locale, 'email_sig_subject'),
-      text: `${emailT(locale, 'email_sig_text_preamble')}\n\n${plainCompanion}`,
-      html: wrapCorporateSignatureEmail(signatureHtml, locale),
-    });
+    const RESEND_TIMEOUT_MS = 20_000;
+    await Promise.race([
+      resend.emails.send({
+        from,
+        to: recipientEmail.trim(),
+        subject: emailT(locale, 'email_sig_subject'),
+        text: `${emailT(locale, 'email_sig_text_preamble')}\n\n${plainCompanion}`,
+        html: wrapCorporateSignatureEmail(signatureHtml, locale),
+      }),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('resend_timeout')), RESEND_TIMEOUT_MS);
+      }),
+    ]);
 
     return NextResponse.json({ ok: true }, { status: 200, headers: cors });
   } catch (error) {

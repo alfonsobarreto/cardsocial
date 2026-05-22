@@ -1994,12 +1994,36 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
       const catalogPick = selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon);
+      const iconGlyphFallback = (() => {
+        switch (dataType) {
+          case 'Email':
+            return 'email';
+          case 'Documento':
+            return 'file-document';
+          case 'Teléfono':
+            return 'phone';
+          case GHOST_LINK_VAULT_TYPE:
+            return 'phone-in-talk';
+          case 'Enlaces':
+            return 'link';
+          case 'Texto Plain':
+            return 'text-box';
+          default:
+            return 'file';
+        }
+      })();
       const iconData = selectedIcon === 'favicon'
-        ? faviconUrl
-        : sanitizeMaterialIconName(catalogPick?.icon || mappedIconName);
+        ? (faviconUrl.trim() || undefined)
+        : sanitizeMaterialIconName(catalogPick?.icon || iconGlyphFallback);
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
-        : (catalogPick?.label ?? mappedIconName);
+        : (catalogPick?.label ?? iconGlyphFallback);
+      const iconVaultIdForPayload =
+        selectedIcon !== 'favicon' && selectedIcon.trim()
+          ? catalogPick
+            ? stableKeyForCatalogIcon(catalogPick)
+            : selectedIcon.trim()
+          : undefined;
       // #21 Auto-prepend https:// for Enlaces
       let preNormalized = dataValue;
       if (dataType === GHOST_LINK_VAULT_TYPE) {
@@ -2100,10 +2124,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         type: dataType,
         value: finalValue,
         iconName: iconName,
-        icon: iconData,
-        ...(selectedIcon !== 'favicon' && catalogPick
-          ? { iconVaultId: stableKeyForCatalogIcon(catalogPick) }
-          : {}),
+        ...(iconData ? { icon: iconData } : {}),
+        ...(iconVaultIdForPayload ? { iconVaultId: iconVaultIdForPayload } : {}),
         ...(dataType === GHOST_LINK_VAULT_TYPE ? { vaultProtected: true } : {}),
         ...(dataType === 'Documento' && vaultMimeForPayload ? { vaultMimeType: vaultMimeForPayload } : {}),
         isFavorite: editingData?.isFavorite || false,
@@ -2134,7 +2156,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId!);
           const encoded = await encodeVaultLink(dataPayload as VaultLinkLogical, null);
           await withTimeout(
-            setDoc(cloudDocRef, encoded),
+            // merge: true — required when encodeVaultLink uses deleteField() (legacy secure blobs / iconVaultId).
+            setDoc(cloudDocRef, encoded, { merge: true }),
             CLOUD_SYNC_TIMEOUT_MS,
             'Cloud sync timeout',
           );

@@ -9,7 +9,7 @@ import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { listScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
-import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
+import { confirmThenRequireBiometric, runPresidentialBiometricGate } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import {
   collectStringsReceivedContact,
@@ -782,7 +782,7 @@ function ContactsContent() {
     if (rowsWithHeaders.length === 0) {
       return { flexGrow: 1 as const, minHeight: Math.max(420, windowHeight * 0.58) };
     }
-    return { flexGrow: 1 as const, paddingBottom: 36 };
+    return { flexGrow: 1 as const, paddingBottom: 130 };
   }, [loading, contacts.length, rowsWithHeaders.length, windowHeight]);
 
   const initialsFromDisplayName = (name: string) => {
@@ -916,14 +916,15 @@ function ContactsContent() {
     }
   };
 
-  const promptDeleteContact = async (contact: Contact) => {
-    const authenticated = await requireBiometricIfPolicyEnabled(
-      t('vault_biometric_delete_bunker') || 'Confirmar eliminación',
-    );
-    if (!authenticated) {
-      return;
-    }
-    void handleDeleteContact(contact);
+  const promptDeleteContact = (contact: Contact) => {
+    void confirmThenRequireBiometric({
+      title: t('contacts_delete_confirm_title'),
+      message: t('contacts_delete_confirm_body', { name: contact.userFullName || contact.cardName || '' }),
+      biometricReason: t('biometric_reason_vault_delete_item'),
+      destructive: true,
+    }).then((ok) => {
+      if (ok) void handleDeleteContact(contact);
+    });
   };
 
   const handleBlockContact = async (uid: string) => {
@@ -960,7 +961,7 @@ function ContactsContent() {
           style: 'destructive',
           onPress: () => {
             void (async () => {
-              const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_contacts_swipe'));
+              const gated = await runPresidentialBiometricGate(t('biometric_reason_contacts_swipe'));
               if (!gated) {
                 return;
               }
@@ -972,11 +973,36 @@ function ContactsContent() {
     );
   };
 
-  const handleToggleChannelMute = async (contact: Contact) => {
-    const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_contacts_swipe'));
-    if (!gated) {
+  const promptToggleChannelMute = (contact: Contact) => {
+    const nextMuted = !contact.channelMuted;
+    if (nextMuted) {
+      Alert.alert(
+        t('contacts_mute_confirm_title'),
+        t('contacts_mute_confirm_body', { name: contact.userFullName || contact.cardName || '' }),
+        [
+          { text: t('common_cancel'), style: 'cancel' },
+          {
+            text: t('common_mute'),
+            onPress: () => {
+              void (async () => {
+                const gated = await runPresidentialBiometricGate(t('biometric_reason_contacts_swipe'));
+                if (!gated) return;
+                void handleToggleChannelMute(contact);
+              })();
+            },
+          },
+        ],
+      );
       return;
     }
+    void (async () => {
+      const gated = await runPresidentialBiometricGate(t('biometric_reason_contacts_swipe'));
+      if (!gated) return;
+      void handleToggleChannelMute(contact);
+    })();
+  };
+
+  const handleToggleChannelMute = async (contact: Contact) => {
     const viewerUid = await getActiveUserId();
     if (!viewerUid) {
       return;
@@ -1192,7 +1218,7 @@ function ContactsContent() {
                             style={[styles.swipeActionCol, styles.swipeActionColMute]}
                             onPress={() => {
                               closeRowSwipe();
-                              void handleToggleChannelMute(row);
+                              void promptToggleChannelMute(row);
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={
@@ -1449,48 +1475,47 @@ function ContactsContent() {
             <Pressable onPress={closeAllSwipes} style={{ flexGrow: 1, minHeight: 80 }} />
           </ScrollView>
         </Animated.View>
+      </View>
 
-        {/* Floating Scan Button */}
-        <View style={styles.floatingScanButtonContainer} pointerEvents="box-none">
+      <View
+        style={[
+          styles.contactSearchWrap,
+          { backgroundColor: shell.inputBg, borderColor: shell.searchBorder },
+        ]}
+        pointerEvents="auto"
+      >
+        <MaterialCommunityIcons name="magnify" size={18} color={shell.sectionLabel} />
+        <TextInput
+          style={[styles.contactSearchInput, { color: shell.inputText }]}
+          placeholder={t('contacts_search_placeholder')}
+          placeholderTextColor={shell.sectionLabel}
+          value={searchValue}
+          onChangeText={setSearchValue}
+          returnKeyType="search"
+          onSubmitEditing={Keyboard.dismiss}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchValue.length > 0 ? (
           <TouchableOpacity
-            style={[styles.floatingScanButton, { backgroundColor: shell.scanFabBg }]}
-            onPress={() => router.push('/scan' as any)}
-            activeOpacity={0.82}
+            onPress={() => {
+              Keyboard.dismiss();
+              setSearchValue('');
+            }}
+            accessibilityLabel={t('contacts_clear_search_a11y')}
           >
-            <MaterialCommunityIcons name="qrcode-scan" size={28} color={shell.scanFabIcon} />
+            <MaterialCommunityIcons name="close-circle" size={16} color={shell.sectionLabel} />
           </TouchableOpacity>
-        </View>
+        ) : null}
       </View>
 
-      {/* Search bar fixed at bottom above navbar */}
-      <View style={[styles.bottomToolbar, { backgroundColor: shell.surface, borderTopColor: shell.border }]}>
-        <View style={[styles.searchWrap, { backgroundColor: shell.searchBg, borderColor: shell.searchBorder }]}> 
-          <MaterialCommunityIcons name="magnify" size={17} color={shell.iconColor} />
-          <TextInput
-            style={[styles.searchInput, { color: shell.searchText }]}
-            placeholder={t('contacts_search_placeholder')}
-            placeholderTextColor={shell.searchPlaceholder}
-            value={searchValue}
-            onChangeText={setSearchValue}
-            returnKeyType="search"
-            onSubmitEditing={Keyboard.dismiss}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchValue.length > 0 ? (
-            <TouchableOpacity
-              onPress={() => {
-                Keyboard.dismiss();
-                setSearchValue('');
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={t('contacts_clear_search_a11y')}
-            >
-              <MaterialCommunityIcons name="close-circle" size={18} color={shell.searchPlaceholder} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+      <TouchableOpacity
+        style={[styles.floatingScanButton, { backgroundColor: shell.scanFabBg }]}
+        onPress={() => router.push('/scan' as any)}
+        activeOpacity={0.82}
+      >
+        <MaterialCommunityIcons name="qrcode-scan" size={22} color={shell.scanFabIcon} />
+      </TouchableOpacity>
 
       <Modal visible={sortVisible} transparent animationType="slide" onRequestClose={() => setSortVisible(false)}>
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setSortVisible(false)}>
@@ -1772,6 +1797,8 @@ function ContactsContent() {
                 text: t('common_block'),
                 style: 'destructive',
                 onPress: async () => {
+                  const gated = await runPresidentialBiometricGate(t('biometric_reason_contacts_swipe'));
+                  if (!gated) return;
                   try {
                     const viewerUid = await getActiveUserId();
                     if (!viewerUid) return;

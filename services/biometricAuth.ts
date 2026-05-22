@@ -8,6 +8,7 @@ import {
   type AppLanguage,
   isAppLanguage,
 } from '@/services/coreI18n';
+import { beginBiometricResumeSuppression } from '@/services/biometricResumeSuppression';
 
 const PRESIDENTIAL_SECURITY_STORAGE_KEY = '@cs_presidential_security';
 
@@ -73,43 +74,101 @@ export async function authenticateWithBiometric(
   reason?: string,
   fallbackToDevicePassword: boolean = true,
 ): Promise<boolean> {
-  const lang = await getStoredAppLanguage();
-  const prompt = reason?.trim() || coreT('biometric_verify_identity_continue', lang);
+  const endSuppression = beginBiometricResumeSuppression();
+  try {
+    const lang = await getStoredAppLanguage();
+    const prompt = reason?.trim() || coreT('biometric_verify_identity_continue', lang);
 
-  const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: prompt,
-    fallbackLabel: fallbackToDevicePassword ? 'Usa PIN o contraseña' : 'No disponible',
-    disableDeviceFallback: !fallbackToDevicePassword,
-  });
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: prompt,
+      fallbackLabel: fallbackToDevicePassword ? 'Usa PIN o contraseña' : 'No disponible',
+      disableDeviceFallback: !fallbackToDevicePassword,
+    });
 
-  return result.success;
-}
-
-export async function hardLockCheck(actionLabel?: string): Promise<boolean> {
-  const lang = await getStoredAppLanguage();
-  const action =
-    actionLabel && actionLabel.trim() ? actionLabel.trim() : coreT('biometric_action_default', lang);
-  const reason = coreT('biometric_prompt_authorize_access', lang, { action });
-  const authenticated = await authenticateWithBiometric(reason, true);
-
-  if (!authenticated) {
-    Alert.alert(
-      coreT('biometric_access_denied_title', lang),
-      coreT('biometric_access_denied_body', lang, { action }),
-    );
+    return result.success;
+  } finally {
+    endSuppression();
   }
-
-  return authenticated;
 }
 
 /**
- * Único gate de producto: si "Seguridad Presidencial" está desactivada, no se pide biometría.
- * Si está activada, equivale a {@link hardLockCheck} (solo sistema: Face ID / huella / PIN).
+ * Biometría del sistema sin alertas extra al fallar/cancelar.
+ * Respeta Seguridad Presidencial: si está off, devuelve true.
  */
-export async function requireBiometricIfPolicyEnabled(actionLabel?: string): Promise<boolean> {
+export async function runPresidentialBiometricGate(actionLabel?: string): Promise<boolean> {
   const policyOn = await getPresidentialSecurityEnabled();
   if (!policyOn) {
     return true;
   }
-  return hardLockCheck(actionLabel);
+
+  const lang = await getStoredAppLanguage();
+  const action =
+    actionLabel && actionLabel.trim() ? actionLabel.trim() : coreT('biometric_action_default', lang);
+  const reason = coreT('biometric_prompt_authorize_access', lang, { action });
+  return authenticateWithBiometric(reason, true);
+}
+
+export type ConfirmBiometricParams = {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  /** Etiqueta para el prompt biométrico del sistema. */
+  biometricReason?: string;
+  destructive?: boolean;
+};
+
+/**
+ * Flujo estándar para acciones sensibles:
+ * 1) Alert de confirmación
+ * 2) Si el usuario confirma → biometría automática (Face ID / huella / PIN del sistema)
+ * 3) Resuelve true solo si confirmó y pasó biometría (o política desactivada)
+ */
+export function confirmThenRequireBiometric(params: ConfirmBiometricParams): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    void (async () => {
+      const lang = await getStoredAppLanguage();
+      Alert.alert(
+        params.title,
+        params.message,
+        [
+          {
+            text: params.cancelText || coreT('common_cancel', lang),
+            style: 'cancel',
+            onPress: () => finish(false),
+          },
+          {
+            text: params.confirmText || coreT('common_confirm', lang),
+            style: params.destructive ? 'destructive' : 'default',
+            onPress: () => {
+              void (async () => {
+                const ok = await runPresidentialBiometricGate(params.biometricReason);
+                finish(ok);
+              })();
+            },
+          },
+        ],
+        { cancelable: true, onDismiss: () => finish(false) },
+      );
+    })();
+  });
+}
+
+/** @deprecated Prefer {@link runPresidentialBiometricGate} — no muestra alertas al fallar. */
+export async function hardLockCheck(actionLabel?: string): Promise<boolean> {
+  return runPresidentialBiometricGate(actionLabel);
+}
+
+/**
+ * Único gate de producto para pantallas no destructivas (p. ej. abrir Gestión de Relaciones).
+ */
+export async function requireBiometricIfPolicyEnabled(actionLabel?: string): Promise<boolean> {
+  return runPresidentialBiometricGate(actionLabel);
 }

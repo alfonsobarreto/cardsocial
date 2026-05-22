@@ -8,6 +8,22 @@ import type { ViewStyle } from 'react-native';
 export const SCROLL_CONTENT_MIN_FILL: ViewStyle = { flexGrow: 1 };
 
 /**
+ * `ScrollView` acotado dentro de un modal (theme locker, legal, etc.).
+ * `flexShrink` + `minHeight: 0` evitan que el scroll pierda gestos en huecos vacíos.
+ */
+export const modalBoundedScrollStyle: ViewStyle = {
+  flexGrow: 1,
+  flexShrink: 1,
+  minHeight: 0,
+};
+
+/** Contenido del theme locker modal: rellena ancho y alto para arrastre fuera de tiles. */
+export const themeLockerScrollContentStyle: ViewStyle = {
+  ...SCROLL_CONTENT_MIN_FILL,
+  width: '100%',
+};
+
+/**
  * Props del `KeyboardAwareScrollView` principal del formulario (NewInfoForm).
  * Reutilizar en otras pantallas de formulario para el mismo comportamiento.
  */

@@ -1,6 +1,13 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
-import { formKeyboardScrollViewProps, listScrollInteractionProps, SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import {
+  formKeyboardScrollViewProps,
+  listScrollInteractionProps,
+  modalBoundedScrollStyle,
+  SCROLL_CONTENT_MIN_FILL,
+  themeLockerScrollContentStyle,
+  verticalScrollInteractionProps,
+} from '@/constants/scrollInteraction';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import ReceptorScreenModal from '@/components/ReceptorScreenModal';
 import {
@@ -21,12 +28,13 @@ import {
     getThemeById,
     getThemesByTier,
     TIER_META,
+    vaultSelectorSlotChrome,
     type CardTheme as ChestCardTheme,
     type ThemeTier,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { runAirEvaporationDeleteFeedback } from '@/services/airEvaporationDeleteFeedback';
-import { requireBiometricIfPolicyEnabled } from '@/services/biometricAuth';
+import { confirmThenRequireBiometric, runPresidentialBiometricGate } from '@/services/biometricAuth';
 import {
   ExportBusinessQR,
   generatePublicBusinessWebUrl,
@@ -149,6 +157,10 @@ import { SOCIAL_MEDALS } from '@/services/medalService';
 import { newEntityId } from '@/services/newEntityId';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import { buildIssuerSnapshotFromPublicSlots } from '@/services/issuerSnapshotPayload';
+import {
+  buildBusinessCardIconAnalyticsRows,
+  visibleIconAnalyticsRows,
+} from '@/services/cardIconAnalyticsRows';
 import {
     blockRelationship,
     deleteSmartCardInDb,
@@ -580,6 +592,26 @@ export default function CardsFactoryScreen() {
     totalViews: number;
     topIcons: Array<{ iconType: string; count: number }>;
   } | null>(null);
+  const [cardStatsIconsExpanded, setCardStatsIconsExpanded] = useState(false);
+  const cardStatsIconRows = useMemo(() => {
+    if (!cardStatsTarget) {
+      return [];
+    }
+    const publicCardSlots = buildPublicCardSlotsForPersist(
+      vaultItems,
+      cardStatsTarget.itemIds,
+      iconVaultById,
+    );
+    return buildBusinessCardIconAnalyticsRows(
+      { vaultItemIds: cardStatsTarget.itemIds, publicCardSlots },
+      cardStatsData?.topIcons || [],
+      cardStatsData?.totalViews ?? 0,
+    );
+  }, [cardStatsTarget, cardStatsData, vaultItems, iconVaultById]);
+  const cardStatsIconVisible = useMemo(
+    () => visibleIconAnalyticsRows(cardStatsIconRows, cardStatsIconsExpanded),
+    [cardStatsIconRows, cardStatsIconsExpanded],
+  );
   const [manualFeedOrderKeys, setManualFeedOrderKeys] = useState<string[]>([]);
   const [cardsReorderMode, setCardsReorderMode] = useState(false);
   const [reorderDraftData, setReorderDraftData] = useState<CardsFeedListItem[]>([]);
@@ -665,14 +697,22 @@ export default function CardsFactoryScreen() {
     }
   }, []);
 
-  const refreshCardSlotCaps = useCallback(async () => {
+  const refreshCardSlotCaps = useCallback(async (loadedSmartCards?: SmartCard[]) => {
     const uid = await getActiveUserId();
     if (!uid) {
       setCardSlotCaps(null);
       return;
     }
     try {
-      const [v, slots] = await Promise.all([validateCardCreation(uid), getBusinessCardSlotAvailability(uid)]);
+      // Pass the real smart-card count from the backend-loaded list so we never
+      // accidentally read the (empty) Firestore users/{uid}/cards subcollection.
+      const knownSmartCount = loadedSmartCards != null
+        ? loadedSmartCards.filter((c) => c.cardType !== 'business').length
+        : undefined;
+      const [v, slots] = await Promise.all([
+        validateCardCreation(uid, knownSmartCount),
+        getBusinessCardSlotAvailability(uid),
+      ]);
       setCardSlotCaps({
         smartCurrent: v.currentCount,
         smartMax: v.maxLimit,
@@ -933,7 +973,7 @@ export default function CardsFactoryScreen() {
 
       setSmartCards(deduped);
       await AsyncStorage.setItem(smartCardsStorageKey(uid), JSON.stringify(deduped));
-      void refreshCardSlotCaps();
+      void refreshCardSlotCaps(deduped);
       return deduped;
     } catch (remoteErr) {
       /**
@@ -1432,14 +1472,10 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const deleteCard = async (card: SmartCard) => {
-    const biometricOk = await requireBiometricIfPolicyEnabled(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
-    if (!biometricOk) return;
-
+  const executeDeleteCard = async (card: SmartCard) => {
     const nextCards = smartCards.filter((item) => item.sid !== card.sid);
     await persistCards(nextCards);
 
-    // Inyección de feedback auditivo:
     try { await runAirEvaporationDeleteFeedback(); } catch {}
 
     try {
@@ -1454,6 +1490,17 @@ export default function CardsFactoryScreen() {
     if (selectedCard?.sid === card.sid) {
       setSelectedCard(null);
     }
+  };
+
+  const promptDeleteCard = (card: SmartCard) => {
+    void confirmThenRequireBiometric({
+      title: t('cards_confirm_delete_title'),
+      message: t('cards_confirm_delete_body', { name: card.scName || t('cards_untitled') }),
+      biometricReason: t('biometric_reason_vault_delete_item'),
+      destructive: true,
+    }).then((ok) => {
+      if (ok) void executeDeleteCard(card);
+    });
   };
 
   const toggleFavoriteCard = async (card: SmartCard) => {
@@ -1735,7 +1782,7 @@ export default function CardsFactoryScreen() {
         throw new Error('No se pudo validar tu sesion.');
       }
 
-      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_receptors_manage'));
+      const gated = await runPresidentialBiometricGate(t('biometric_reason_receptors_manage'));
       if (!gated) {
         return;
       }
@@ -1773,7 +1820,7 @@ export default function CardsFactoryScreen() {
         throw new Error('No se pudo validar tu sesion.');
       }
 
-      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_receptors_manage'));
+      const gated = await runPresidentialBiometricGate(t('biometric_reason_receptors_manage'));
       if (!gated) {
         return;
       }
@@ -1812,7 +1859,7 @@ export default function CardsFactoryScreen() {
         throw new Error('No se pudo validar tu sesion.');
       }
 
-      const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_receptors_manage'));
+      const gated = await runPresidentialBiometricGate(t('biometric_reason_receptors_manage'));
       if (!gated) {
         return;
       }
@@ -1836,7 +1883,7 @@ export default function CardsFactoryScreen() {
   };
 
   const toggleCardSilence = async (card: SmartCard) => {
-    const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_card_silence'));
+    const gated = await runPresidentialBiometricGate(t('biometric_reason_card_silence'));
     if (!gated) {
       return;
     }
@@ -1858,7 +1905,7 @@ export default function CardsFactoryScreen() {
 
   const issueQrForCard = async (card: SmartCard, options?: { forceNew?: boolean }) => {
     try {
-      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_share'));
+      const authenticated = await runPresidentialBiometricGate(t('biometric_reason_cards_qr_share'));
       if (!authenticated) {
         return;
       }
@@ -1936,6 +1983,7 @@ export default function CardsFactoryScreen() {
   const openCardAnalytics = (card: SmartCard) => {
     setCardStatsTarget(card);
     setCardStatsVisible(true);
+    setCardStatsIconsExpanded(false);
     setCardStatsLoading(true);
     setCardStatsData(null);
     void (async () => {
@@ -1981,7 +2029,7 @@ export default function CardsFactoryScreen() {
       qrActiveSid === card.sid && qrExpiresAt > Date.now() && Boolean(qrUniversalWebUrl);
 
     if (universalStillValid) {
-      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_24h'));
+      const authenticated = await runPresidentialBiometricGate(t('biometric_reason_cards_qr_24h'));
       if (!authenticated) {
         return;
       }
@@ -2003,7 +2051,7 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_24h'));
+      const authenticated = await runPresidentialBiometricGate(t('biometric_reason_cards_qr_24h'));
       if (!authenticated) return;
       const uid = await getActiveUserId();
       if (!uid) throw new Error(t('cards_session_missing'));
@@ -2094,7 +2142,7 @@ export default function CardsFactoryScreen() {
     console.log('[QR_FLOW] issueQrForBusiness: START', { bId: row.bId, bcName: row.bcName });
     setIssuingQr(true);
     try {
-      const authenticated = await requireBiometricIfPolicyEnabled(t('biometric_reason_cards_qr_share'));
+      const authenticated = await runPresidentialBiometricGate(t('biometric_reason_cards_qr_share'));
       console.log('[QR_FLOW] requireBiometricIfPolicyEnabled →', authenticated);
       if (!authenticated) {
         return;
@@ -2202,10 +2250,7 @@ export default function CardsFactoryScreen() {
     );
   };
 
-  const deleteBusinessCardEntry = async (row: BusinessCardListRow) => {
-    const biometricOk = await requireBiometricIfPolicyEnabled(t('vault_biometric_delete_bunker') || 'Confirmar eliminación');
-    if (!biometricOk) return;
-
+  const executeDeleteBusinessCard = async (row: BusinessCardListRow) => {
     const uid = await getActiveUserId();
     if (!uid) {
       return;
@@ -2216,7 +2261,6 @@ export default function CardsFactoryScreen() {
       return p.filter((c) => c.bId !== row.bId);
     });
 
-    // Inyección de feedback auditivo:
     try { await runAirEvaporationDeleteFeedback(); } catch {}
 
     try {
@@ -2228,8 +2272,19 @@ export default function CardsFactoryScreen() {
     }
   };
 
+  const promptDeleteBusinessCard = (row: BusinessCardListRow) => {
+    void confirmThenRequireBiometric({
+      title: t('cards_confirm_delete_business_title'),
+      message: t('cards_confirm_delete_business_body', { name: row.bcName || t('cards_untitled') }),
+      biometricReason: t('biometric_reason_vault_delete_item'),
+      destructive: true,
+    }).then((ok) => {
+      if (ok) void executeDeleteBusinessCard(row);
+    });
+  };
+
   const toggleBusinessCardSilence = async (row: BusinessCardListRow) => {
-    const gated = await requireBiometricIfPolicyEnabled(t('biometric_reason_card_silence'));
+    const gated = await runPresidentialBiometricGate(t('biometric_reason_card_silence'));
     if (!gated) {
       return;
     }
@@ -3185,7 +3240,7 @@ export default function CardsFactoryScreen() {
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
               onPress={() => {
                 closeBusinessRowSwipe();
-                void deleteBusinessCardEntry(row);
+                promptDeleteBusinessCard(row);
               }}
               accessibilityLabel={t('cards_delete_card_a11y')}
             >
@@ -3396,7 +3451,7 @@ export default function CardsFactoryScreen() {
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
               onPress={() => {
                 closeSmartCardRowSwipe();
-                deleteCard(item);
+                promptDeleteCard(item);
               }}
               accessibilityLabel={t('cards_delete_card_a11y')}
             >
@@ -4238,18 +4293,16 @@ export default function CardsFactoryScreen() {
                 renderItem={({ item }) => {
                   const selectedOrder = tempSelectedIds.indexOf(item.id) + 1;
                   const isSelected = selectedOrder > 0;
+                  const slotChrome = vaultSelectorSlotChrome(dataSelectorCardTheme, isSelected);
                   return (
                     <TouchableOpacity
                       style={[
                         styles.selectorItemTile,
                         {
-                          borderColor: cardsTheme.border,
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : cardsTheme.surface,
+                          borderColor: slotChrome.tileBorderColor,
+                          borderWidth: slotChrome.tileBorderWidth,
+                          backgroundColor: slotChrome.tileBackgroundColor,
                         },
-                        isSelected && [
-                          styles.selectorItemTileSelected,
-                          { backgroundColor: isDark ? 'rgba(197,160,101,0.14)' : cardsTheme.typeBadgeBg },
-                        ],
                       ]}
                       onPress={() => handleSelectorToggle(item.id)}
                       activeOpacity={0.75}
@@ -4263,18 +4316,32 @@ export default function CardsFactoryScreen() {
                         style={[
                           styles.selectorIconCircle,
                           {
-                            backgroundColor: dataSelectorCardTheme.bubble.backgroundColor,
-                            borderColor: dataSelectorCardTheme.border.color,
-                            borderWidth: Math.max(1, dataSelectorCardTheme.border.width * 0.5),
+                            backgroundColor: slotChrome.bubbleBackgroundColor,
+                            borderColor: slotChrome.bubbleBorderColor,
+                            borderWidth: slotChrome.bubbleBorderWidth,
+                            borderRadius: slotChrome.bubbleBorderRadius,
                           },
                         ]}
                       >
-                        {renderVaultMiniIcon(item, 26, dataSelectorCardTheme.icon.color)}
+                        {renderVaultMiniIcon(item, 26, slotChrome.iconGlyphColor)}
                       </View>
-                      <Text style={[styles.selectorItemTitle, { color: cardsTheme.text }]} numberOfLines={2}>
+                      <Text
+                        style={[
+                          styles.selectorItemTitle,
+                          {
+                            color: slotChrome.labelColor,
+                            fontWeight: slotChrome.labelFontWeight,
+                            fontStyle: slotChrome.labelFontStyle,
+                          },
+                        ]}
+                        numberOfLines={2}
+                      >
                         {item.title}
                       </Text>
-                      <Text style={[styles.selectorItemType, { color: cardsTheme.sectionLabel }]} numberOfLines={1}>
+                      <Text
+                        style={[styles.selectorItemType, { color: slotChrome.typeColor }]}
+                        numberOfLines={1}
+                      >
                         {item.type}
                       </Text>
                     </TouchableOpacity>
@@ -4321,10 +4388,14 @@ export default function CardsFactoryScreen() {
         animationType="fade"
         onRequestClose={closeThemesPickerModal}
       >
-        <TouchableWithoutFeedback onPress={closeThemesPickerModal}>
-          <View style={styles.themesPopupOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}} accessible={false}>
-              <View style={[styles.themesPopupBox, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
+        <View style={styles.themesPopupOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={closeThemesPickerModal}
+            accessibilityRole="button"
+            accessibilityLabel={t('common_close')}
+          />
+          <View style={[styles.themesPopupBox, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
 
                 <View style={styles.factoryHeaderRow}>
                   <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
@@ -4340,7 +4411,7 @@ export default function CardsFactoryScreen() {
 
                 <ScrollView
                   style={styles.themesLockerScroll}
-                  contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.themesLockerScrollContent]}
+                  contentContainerStyle={[themeLockerScrollContentStyle, styles.themesLockerScrollContent]}
                   {...verticalScrollInteractionProps}
                   showsVerticalScrollIndicator={false}
                   bounces={false}
@@ -4352,6 +4423,7 @@ export default function CardsFactoryScreen() {
                     }
                   }}
                 >
+                  <View style={styles.themesLockerScrollBody}>
                   {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
                     const meta = TIER_META[tier];
                     const tierThemes = getThemesByTier(tier);
@@ -4397,6 +4469,7 @@ export default function CardsFactoryScreen() {
                       </View>
                     );
                   })}
+                  </View>
                 </ScrollView>
 
                 <TouchableOpacity
@@ -4407,9 +4480,7 @@ export default function CardsFactoryScreen() {
                 </TouchableOpacity>
 
               </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
 
       <MyCardsPreviewModal
@@ -5074,6 +5145,7 @@ export default function CardsFactoryScreen() {
         onRequestClose={() => {
           setCardStatsVisible(false);
           setCardStatsTarget(null);
+          setCardStatsIconsExpanded(false);
         }}
       >
         <Pressable
@@ -5081,6 +5153,7 @@ export default function CardsFactoryScreen() {
           onPress={() => {
             setCardStatsVisible(false);
             setCardStatsTarget(null);
+            setCardStatsIconsExpanded(false);
           }}
         >
           <Pressable
@@ -5095,6 +5168,7 @@ export default function CardsFactoryScreen() {
                 onPress={() => {
                   setCardStatsVisible(false);
                   setCardStatsTarget(null);
+                  setCardStatsIconsExpanded(false);
                 }}
                 hitSlop={12}
                 accessibilityLabel={t('common_close')}
@@ -5118,21 +5192,57 @@ export default function CardsFactoryScreen() {
                 <Text style={[styles.cardStatsSectionLabel, { color: cardsTheme.sectionLabel, marginTop: 16 }]}>
                   {t('cards_stats_icons_used')}
                 </Text>
-                {(cardStatsData?.topIcons || []).length === 0 ? (
+                {cardStatsIconRows.length === 0 ? (
                   <Text style={[styles.cardStatsEmpty, { color: cardsTheme.modalSubtitle }]}>
-                    {t('cards_stats_empty')}
+                    {t('cards_stats_empty_icons')}
                   </Text>
                 ) : (
-                  <View style={styles.cardStatsIconList}>
-                    {(cardStatsData?.topIcons || []).map((row) => (
-                      <View key={row.iconType} style={[styles.cardStatsIconRow, { borderBottomColor: cardsTheme.divider }]}>
-                        <Text style={[styles.cardStatsIconType, { color: cardsTheme.text }]} numberOfLines={1}>
-                          {row.iconType}
-                        </Text>
-                        <Text style={[styles.cardStatsIconCount, { color: cardsTheme.ctaAccent }]}>{row.count}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  <>
+                    <ScrollView
+                      style={[
+                        styles.cardStatsIconList,
+                        cardStatsIconsExpanded ? styles.cardStatsIconListExpanded : null,
+                      ]}
+                      scrollEnabled={cardStatsIconsExpanded}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={cardStatsIconsExpanded}
+                    >
+                      {cardStatsIconVisible.iconRows.map((row) => (
+                        <View key={row.key} style={[styles.cardStatsIconRow, { borderBottomColor: cardsTheme.divider }]}>
+                          <Text style={[styles.cardStatsIconType, { color: cardsTheme.text }]} numberOfLines={1}>
+                            {row.label}
+                          </Text>
+                          <View style={[styles.cardStatsRankTrack, { backgroundColor: cardsTheme.pillBg }]}>
+                            <LinearGradient
+                              colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
+                              style={[styles.cardStatsRankFill, { width: `${row.percent}%` }]}
+                            />
+                          </View>
+                          <Text style={[styles.cardStatsIconClicks, { color: cardsTheme.ctaAccent }]}>{row.clicks}</Text>
+                          <Text style={[styles.cardStatsIconPct, { color: cardsTheme.sectionLabel }]}>{row.percent}%</Text>
+                        </View>
+                      ))}
+                      {cardStatsIconVisible.showToggle ? (
+                        <TouchableOpacity
+                          style={styles.cardStatsSeeMoreRow}
+                          onPress={() => setCardStatsIconsExpanded((prev) => !prev)}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            cardStatsIconVisible.toggleIsLess ? t('cards_stats_see_less') : t('cards_stats_see_more')
+                          }
+                        >
+                          <Text style={[styles.cardStatsSeeMoreText, { color: cardsTheme.ctaAccent }]}>
+                            {cardStatsIconVisible.toggleIsLess ? t('cards_stats_see_less') : t('cards_stats_see_more')}
+                          </Text>
+                          <MaterialCommunityIcons
+                            name={cardStatsIconVisible.toggleIsLess ? 'chevron-up' : 'chevron-down'}
+                            size={18}
+                            color={cardsTheme.ctaAccent}
+                          />
+                        </TouchableOpacity>
+                      ) : null}
+                    </ScrollView>
+                  </>
                 )}
               </>
             )}
@@ -6774,6 +6884,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
     maxHeight: '82%',
+    zIndex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
@@ -6781,10 +6892,15 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   themesLockerScroll: {
+    ...modalBoundedScrollStyle,
     maxHeight: 440,
   },
   themesLockerScrollContent: {
     paddingBottom: 8,
+  },
+  themesLockerScrollBody: {
+    width: '100%',
+    flexGrow: 1,
   },
   themesLockerTierSection: {
     marginBottom: 16,
@@ -6814,6 +6930,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     alignContent: 'flex-start',
+    width: '100%',
   },
   themesPlaceholderModal: {
     width: '100%',
@@ -7029,20 +7146,56 @@ const styles = StyleSheet.create({
   },
   cardStatsIconList: {
     marginTop: 8,
-    maxHeight: 220,
+  },
+  cardStatsIconListExpanded: {
+    maxHeight: 280,
+  },
+  cardStatsSeeMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 10,
+  },
+  cardStatsSeeMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   cardStatsIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   cardStatsIconType: {
-    flex: 1,
+    width: 92,
     fontSize: 13,
     fontWeight: '600',
-    marginRight: 8,
+  },
+  cardStatsRankTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  cardStatsRankFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  cardStatsIconClicks: {
+    width: 28,
+    textAlign: 'right',
+    fontSize: 13,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  cardStatsIconPct: {
+    width: 34,
+    textAlign: 'right',
+    fontSize: 11,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   cardStatsIconCount: {
     fontSize: 14,

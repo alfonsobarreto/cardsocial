@@ -41,7 +41,11 @@ import {
 } from '@/services/dashboardTestingGrace';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
-import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
+import type { BusinessCardDoc } from '@/services/types/cards';
+import {
+  buildBusinessCardIconAnalyticsRows,
+  visibleIconAnalyticsRows,
+} from '@/services/cardIconAnalyticsRows';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import * as Clipboard from 'expo-clipboard';
@@ -97,15 +101,6 @@ type DashboardHeaderInfo = {
   firstName: string;
   planTier: TierKey;
 };
-type TopIconDataRow = {
-  key: string;
-  label: string;
-  iconName: string;
-  iconUrl: string | null;
-  clicks: number;
-  percent: number;
-};
-
 type AnalyticsByBId = Record<string, CardAnalyticsPeriodSummary | undefined>;
 type SeoByBId = Record<string, MarketSeoSummary | undefined>;
 
@@ -121,6 +116,9 @@ type DashboardChrome = {
   subtitleOnPanel: string;
   gold: string;
   iconGold: string;
+  /** Texto/iconos dorados legibles sobre fondos claros (día: bronce oscuro). */
+  goldReadable: string;
+  goldDeep: string;
   headerStripe: readonly [string, string, ...string[]];
   helloColor: string;
   planColor: string;
@@ -141,7 +139,14 @@ type DashboardChrome = {
   periodTabText: string;
   periodTabActiveText: string;
   periodTitleColor: string;
+  periodArrowBg: string;
+  periodArrowBorder: string;
+  periodArrowIcon: string;
+  periodArrowDisabledBg: string;
+  periodArrowDisabledBorder: string;
   periodArrowDisabled: string;
+  clickRateValueEmpty: string;
+  metricsEmptyIconBg: string;
   bigMetricColor: string;
   rankLabel: string;
   rankEmpty: string;
@@ -177,6 +182,9 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
   const shell = shellIn as typeof appPalette.light;
 
   const accent = shell.ctaAccent;
+  /** Legible sobre blanco / crema (~5.5:1). Evita #E9C349 sobre fondos claros. */
+  const goldReadable = isNight ? '#F6DA87' : '#7A5C10';
+  const goldDeep = isNight ? accent : '#5C4509';
   /** 8‑digit `#RRGGBBAA` (React Native): acento sobre superficies shell. */
   const a = (suffix: string) => `${accent}${suffix}` as const;
 
@@ -189,48 +197,55 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     textMuted: shell.textMuted ?? shell.textSecondary,
     seoMutedLine: shell.textSecondary,
     panel: sm,
-    panelBorder: a('55'),
+    panelBorder: isNight ? a('55') : shell.border,
     collapsibleHeaderBg: sm,
     collapsibleBorder: shell.border,
     collapsibleFrameBg: sm,
     subtitleOnPanel: shell.textSecondary,
     gold: accent,
-    iconGold: accent,
-    headerStripe: [sm, a('33'), shell.backgroundSolid],
+    iconGold: goldReadable,
+    goldReadable,
+    goldDeep,
+    headerStripe: isNight ? [sm, a('33'), shell.backgroundSolid] : [sv, shell.backgroundSolid, shell.backgroundSolid],
     helloColor: shell.textPrimary,
-    // In day mode, gold (#E9C349) on white/light-gold backgrounds has ~1.7:1 contrast → invisible.
-    // Use dark-bronze '#7A5C10' which achieves ~5.5:1 on white and still reads as premium gold.
-    planColor: isNight ? accent : '#7A5C10',
-    loadingBorder: a('59'),
+    planColor: goldReadable,
+    loadingBorder: isNight ? a('59') : shell.border,
     loadingBoxBg: sm,
     loadingText: shell.textSecondary,
-    paginationDot: a('66'),
+    paginationDot: isNight ? a('66') : 'rgba(122,92,16,0.28)',
     blockTitleColor: shell.textPrimary,
     optimizeCtaBg: sv,
     optimizeCtaBorder: shell.border,
-    optimizeCtaIcon: isNight ? accent : '#7A5C10',
+    optimizeCtaIcon: goldReadable,
     optimizeCtaText: shell.textPrimary,
     analyticsCardBg: sm,
-    analyticsCardBorder: a('55'),
-    chartGridLine: a('44'),
-    periodTabBg: sv,
+    analyticsCardBorder: isNight ? a('55') : shell.border,
+    chartGridLine: isNight ? a('44') : 'rgba(122,92,16,0.14)',
+    periodTabBg: isNight ? sv : shell.modalRowBg,
     periodTabBorder: shell.border,
     periodTabText: shell.textSecondary,
-    periodTabActiveText: isNight ? accent : '#7A5C10',
+    periodTabActiveText: goldReadable,
     periodTitleColor: shell.textPrimary,
+    periodArrowBg: isNight ? 'rgba(0,0,0,0.28)' : sv,
+    periodArrowBorder: isNight ? 'rgba(233,195,73,0.24)' : shell.border,
+    periodArrowIcon: goldReadable,
+    periodArrowDisabledBg: isNight ? 'rgba(255,255,255,0.03)' : shell.modalRowBg,
+    periodArrowDisabledBorder: isNight ? 'rgba(255,255,255,0.08)' : shell.border,
     periodArrowDisabled: shell.textMuted ?? shell.textSecondary,
+    clickRateValueEmpty: isNight ? 'rgba(255,255,255,0.55)' : shell.textMuted,
+    metricsEmptyIconBg: isNight ? 'rgba(233,195,73,0.16)' : 'rgba(122,92,16,0.10)',
     bigMetricColor: shell.textPrimary,
     rankLabel: shell.textPrimary,
     rankEmpty: shell.textSecondary,
     seoCardBg: sm,
-    seoCardBorder: a('55'),
-    opportunityTitle: isNight ? accent : '#7A5C10',
+    seoCardBorder: isNight ? a('55') : shell.border,
+    opportunityTitle: goldReadable,
     seoScopeMuted: shell.textSecondary,
     seoTransparency: shell.textSecondary,
-    explorerBtnIcon: shell.btnPrimaryText,
+    explorerBtnIcon: isNight ? shell.btnPrimaryText : goldDeep,
     heatmapCardBg: sm,
     heatmapCanvasBg: sv,
-    heatmapRoad: a('44'),
+    heatmapRoad: isNight ? a('44') : 'rgba(122,92,16,0.12)',
     heatmapCity: shell.textMuted ?? shell.textSecondary,
     heatOrbText: shell.textPrimary,
     legacyTitle: shell.textPrimary,
@@ -242,10 +257,10 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     seoInputPlaceholder: shell.searchPlaceholder ?? shell.textMuted ?? shell.textSecondary,
     rankTrackBg: shell.modalRowBg,
     nicheChipInactiveBg: sv,
-    nicheChipActiveBg: a('33'),
+    nicheChipActiveBg: isNight ? a('33') : 'rgba(122,92,16,0.12)',
     nicheChipInactiveText: shell.textSecondary,
-    nicheChipActiveText: isNight ? accent : '#7A5C10',
-    seoExplorerResetFg: isNight ? accent : '#7A5C10',
+    nicheChipActiveText: goldReadable,
+    seoExplorerResetFg: goldReadable,
     isNight,
   };
 }
@@ -383,54 +398,15 @@ function labelsForPeriod(mode: PeriodMode, lang: AppLanguage) {
       return d.toLocaleDateString(tag, { weekday: 'narrow' });
     });
   }
-  if (mode === 'month') return Array.from({ length: 30 }, (_, i) => `${i + 1}`);
+  if (mode === 'month') {
+    const now = new Date();
+    const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return Array.from({ length: dim }, (_, i) => `${i + 1}`);
+  }
   return Array.from({ length: 12 }, (_, i) => {
     const d = new Date(2024, i, 1);
     return d.toLocaleDateString(tag, { month: 'narrow' });
   });
-}
-
-function normalizeIconType(value: unknown): string {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '_')
-    .replace(/_+/g, '_') || 'unknown';
-}
-
-function topIconsForAnalytics(
-  card: DashboardBusinessCard | null,
-  summary: CardAnalyticsPeriodSummary | undefined,
-): TopIconDataRow[] {
-  const activeVaultIds = new Set((card?.vaultItemIds || []).map((id) => String(id || '').trim()).filter(Boolean));
-  const slots = (card?.publicCardSlots || []).filter((slot) => {
-    const itemId = String(slot.itemId || '').trim();
-    if (activeVaultIds.size && !activeVaultIds.has(itemId)) return false;
-    return String(slot.label || slot.type || '').trim();
-  });
-  const clickMap = new Map(
-    (summary?.topIcons || []).map((row) => [normalizeIconType(row.iconType), Number(row.count || 0) || 0]),
-  );
-  const totalViews = Number(summary?.totalViews || 0);
-  const rows = slots.map((slot: PublicCardSlot) => {
-    const iconType = normalizeIconType(slot.type || slot.label || slot.itemId);
-    const clicks = clickMap.get(iconType) || 0;
-    return {
-      key: String(slot.itemId || `${slot.type}-${slot.label}`),
-      label: String(slot.label || slot.type || 'IconoData').trim(),
-      iconName: String(slot.iconName || 'link-variant'),
-      iconUrl: slot.icon && /^https?:\/\//i.test(String(slot.icon)) ? String(slot.icon) : null,
-      clicks,
-      percent: totalViews > 0 ? Math.min(100, Math.round((clicks / totalViews) * 100)) : 0,
-    };
-  });
-  const hasClicks = rows.some((row) => row.clicks > 0);
-  return rows
-    .sort((a, b) => {
-      if (!hasClicks) return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
-      return b.percent - a.percent || b.clicks - a.clicks || a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
-    })
-    .slice(0, 5);
 }
 
 function MiniLineChart({
@@ -525,15 +501,15 @@ function ExpirationBadge({
   const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 0.95] });
 
   if (variant === 'trial') {
-    const text = badgeIsNight ? '#F6DA87' : '#7A5C10';
+    const text = badgeIsNight ? '#F6DA87' : '#5C4509';
     return (
       <View
         style={[
           styles.expirationBadge,
           {
-            backgroundColor: `${SHELL_ACCENT_GOLD}29`,
-            borderColor: 'rgba(246,218,135,0.58)',
-            shadowColor: SHELL_ACCENT_GOLD,
+            backgroundColor: badgeIsNight ? `${SHELL_ACCENT_GOLD}29` : 'rgba(122,92,16,0.10)',
+            borderColor: badgeIsNight ? 'rgba(246,218,135,0.58)' : 'rgba(122,92,16,0.32)',
+            shadowColor: badgeIsNight ? SHELL_ACCENT_GOLD : '#7A5C10',
           },
         ]}
       >
@@ -547,10 +523,10 @@ function ExpirationBadge({
   const colors =
     variant === 'unlimited'
       ? {
-          glow: SHELL_ACCENT_GOLD,
-          bg: `${SHELL_ACCENT_GOLD}29`,
-          border: 'rgba(246,218,135,0.58)',
-          text: badgeIsNight ? '#F6DA87' : '#7A5C10',
+          glow: badgeIsNight ? SHELL_ACCENT_GOLD : '#7A5C10',
+          bg: badgeIsNight ? `${SHELL_ACCENT_GOLD}29` : 'rgba(122,92,16,0.10)',
+          border: badgeIsNight ? 'rgba(246,218,135,0.58)' : 'rgba(122,92,16,0.32)',
+          text: badgeIsNight ? '#F6DA87' : '#5C4509',
           label: tcx('dashboard_unlimited_access'),
         }
       : (() => {
@@ -742,9 +718,11 @@ function MetricPanel({
   const fallbackLabels = labelsForPeriod(periodMode, language);
   const labels = analytics?.labels?.length ? analytics.labels : fallbackLabels;
   const trend = analytics?.points?.length ? analytics.points : labels.map(() => 0);
-  const topClicks = Number(analytics?.totalClicks || 0);
+  const engagementClicks = Number(analytics?.engagementClicks ?? analytics?.totalClicks ?? 0) || 0;
   const clickRate =
-    totalViews > 0 && topClicks > 0 ? Math.max(1, Math.min(99, Number(analytics?.clickRate || 0) || Math.round((topClicks / totalViews) * 100))) : 0;
+    totalViews > 0 && engagementClicks > 0
+      ? Math.max(1, Math.min(99, Number(analytics?.clickRate || 0) || Math.round((engagementClicks / totalViews) * 100)))
+      : 0;
   const hasClicks = clickRate > 0;
   const chartEmptyHint = tcx('dashboard_chart_empty_hint');
   const emptyTitle = tcx('dashboard_empty_activity_title');
@@ -783,7 +761,13 @@ function MetricPanel({
               <Text style={[styles.clickRateChipLabel, { color: chrome.seoMutedLine }]} numberOfLines={2}>
                 {tcx('dashboard_metric_ctr')}
               </Text>
-              <Text style={[styles.clickRateChipValue, { color: chrome.iconGold }, !hasClicks && styles.clickRateChipValueEmpty]}>
+              <Text
+                style={[
+                  styles.clickRateChipValue,
+                  { color: chrome.iconGold },
+                  !hasClicks && { color: chrome.clickRateValueEmpty },
+                ]}
+              >
                 {clickRate}%
               </Text>
             </View>
@@ -797,9 +781,9 @@ function MetricPanel({
                 styles.periodTab,
                 periodMode === option.key && styles.periodTabActive,
                 periodMode === option.key && {
-                  borderColor: `${chrome.gold}C7`,
-                  backgroundColor: `${chrome.gold}33`,
-                  shadowColor: chrome.gold,
+                  borderColor: chrome.isNight ? `${chrome.gold}C7` : 'rgba(122,92,16,0.38)',
+                  backgroundColor: chrome.isNight ? `${chrome.gold}33` : 'rgba(122,92,16,0.12)',
+                  shadowColor: chrome.isNight ? chrome.gold : 'transparent',
                 },
               ]}
               onPress={() => onChangePeriod(option.key)}
@@ -818,14 +802,27 @@ function MetricPanel({
           ))}
         </View>
         <View style={styles.periodNavRow}>
-          <TouchableOpacity style={styles.periodArrow} onPress={() => onMovePeriod(-1)} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="chevron-left" size={18} color={chrome.gold} />
+          <TouchableOpacity
+            style={[
+              styles.periodArrow,
+              { backgroundColor: chrome.periodArrowBg, borderColor: chrome.periodArrowBorder },
+            ]}
+            onPress={() => onMovePeriod(-1)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={18} color={chrome.periodArrowIcon} />
           </TouchableOpacity>
           <Text style={[styles.periodTitle, { color: chrome.periodTitleColor }]} numberOfLines={1}>
             {periodTitle(periodMode, periodOffset, language, tcx)}
           </Text>
           <TouchableOpacity
-            style={[styles.periodArrow, periodOffset >= 0 && styles.periodArrowDisabled]}
+            style={[
+              styles.periodArrow,
+              {
+                backgroundColor: periodOffset >= 0 ? chrome.periodArrowDisabledBg : chrome.periodArrowBg,
+                borderColor: periodOffset >= 0 ? chrome.periodArrowDisabledBorder : chrome.periodArrowBorder,
+              },
+            ]}
             onPress={() => {
               if (periodOffset < 0) onMovePeriod(1);
             }}
@@ -834,7 +831,7 @@ function MetricPanel({
             <MaterialCommunityIcons
               name="chevron-right"
               size={18}
-              color={periodOffset < 0 ? chrome.gold : chrome.periodArrowDisabled}
+              color={periodOffset < 0 ? chrome.periodArrowIcon : chrome.periodArrowDisabled}
             />
           </TouchableOpacity>
         </View>
@@ -854,7 +851,15 @@ function MetricPanel({
           </>
         ) : (
           <View style={styles.metricsEmptyState}>
-            <View style={styles.metricsEmptyIcon}>
+            <View
+              style={[
+                styles.metricsEmptyIcon,
+                {
+                  backgroundColor: chrome.metricsEmptyIconBg,
+                  borderColor: chrome.isNight ? 'rgba(233,195,73,0.34)' : 'rgba(122,92,16,0.22)',
+                },
+              ]}
+            >
               <MaterialCommunityIcons name="diamond-stone" size={22} color={chrome.iconGold} />
             </View>
             <Text style={[styles.metricsEmptyTitle, { color: chrome.rankLabel }]}>{emptyTitle}</Text>
@@ -930,12 +935,15 @@ export default function DashboardScreen() {
   const [sessionUid, setSessionUid] = useState('');
   const [cards, setCards] = useState<DashboardBusinessCard[]>([]);
   const [analyticsByBId, setAnalyticsByBId] = useState<AnalyticsByBId>({});
+  const [analyticsLoadFailed, setAnalyticsLoadFailed] = useState(false);
+  const [analyticsReloadNonce, setAnalyticsReloadNonce] = useState(0);
   const [seoByBId, setSeoByBId] = useState<SeoByBId>({});
   const [seoLocationQuery, setSeoLocationQuery] = useState('');
   const [seoLocationApplied, setSeoLocationApplied] = useState('');
   const [launchingRadar, setLaunchingRadar] = useState(false);
   const [radarWebViewUrl, setRadarWebViewUrl] = useState<string | null>(null);
   const [seoExpanded, setSeoExpanded] = useState(false);
+  const [iconoDataExpanded, setIconoDataExpanded] = useState(false);
   const [showTopNicheKeyword, setShowTopNicheKeyword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatingBId, setUpdatingBId] = useState<string | null>(null);
@@ -1041,10 +1049,12 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!sessionUid || !cards.length) {
       setAnalyticsByBId({});
+      setAnalyticsLoadFailed(false);
       return;
     }
     let cancelled = false;
     void (async () => {
+      let anyFailed = false;
       const analyticsEntries = await Promise.all(
         cards.map(async (card) => {
           try {
@@ -1055,18 +1065,36 @@ export default function DashboardScreen() {
             });
             return [card.bId, summary] as const;
           } catch {
+            anyFailed = true;
             return [card.bId, undefined] as const;
           }
         }),
       );
       if (!cancelled) {
         setAnalyticsByBId(Object.fromEntries(analyticsEntries));
+        setAnalyticsLoadFailed(anyFailed);
+        if (!anyFailed && sessionUid && cards.length) {
+          try {
+            const counts = await fetchBusinessCardHolderCounts({
+              uid: sessionUid,
+              keys: cards.map((c) => String(c.bId || '').trim()).filter(Boolean),
+            });
+            setCards((prev) =>
+              prev.map((c) => ({
+                ...c,
+                holdersCount: counts[c.bId] ?? c.holdersCount ?? 0,
+              })),
+            );
+          } catch {
+            /* holdersCount se conserva */
+          }
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [cards, periodMode, periodOffset, sessionUid]);
+  }, [cards, periodMode, periodOffset, sessionUid, analyticsReloadNonce]);
 
   useEffect(() => {
     if (!DASHBOARD_SHOW_SEO_INTEL_AND_RADAR || !sessionUid || !cards.length) {
@@ -1104,10 +1132,23 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     setSeoExpanded(false);
+    setIconoDataExpanded(false);
     setShowTopNicheKeyword(false);
   }, [activeCard?.bId]);
 
-  const topIconData = useMemo(() => topIconsForAnalytics(activeCard, activeAnalytics), [activeAnalytics, activeCard]);
+  const topIconData = useMemo(
+    () =>
+      buildBusinessCardIconAnalyticsRows(
+        activeCard,
+        activeAnalytics?.topIcons,
+        activeAnalytics?.totalViews ?? 0,
+      ),
+    [activeAnalytics, activeCard],
+  );
+  const topIconVisible = useMemo(
+    () => visibleIconAnalyticsRows(topIconData, iconoDataExpanded),
+    [topIconData, iconoDataExpanded],
+  );
   const seoRows = activeSeo?.rows || [];
   const visibleSeoRows = seoExpanded || seoRows.length <= 6 ? seoRows : seoRows.slice(0, 5);
   const studioWebBase = useMemo((): string | null => {
@@ -1344,6 +1385,11 @@ export default function DashboardScreen() {
             tcx('dashboard_send_failed_title'),
             tcx('dashboard_send_failed_server_body'),
           );
+        } else if (code === 'request_timeout' || code === 'auth_token_timeout') {
+          Alert.alert(
+            tcx('dashboard_send_failed_title'),
+            tcx('dashboard_send_timeout_body'),
+          );
         } else {
           Alert.alert(
             tcx('dashboard_send_failed_title'),
@@ -1403,32 +1449,47 @@ export default function DashboardScreen() {
             </Text>
           </View>
         ) : cards.length ? (
-          <View style={styles.carouselShell}>
-            <FlatList
-              horizontal
-              {...listScrollInteractionProps}
-              snapToInterval={snapInterval}
-              decelerationRate="fast"
-              data={cards}
-              keyExtractor={(item) => item.bId}
-              renderItem={({ item }) => (
-                <DashboardBusinessCardItem
-                  item={item}
-                  width={itemWidth}
-                  updating={updatingBId === item.bId}
-                  onToggleMarket={handleToggleMarket}
+          <>
+            <View style={styles.carouselShell}>
+              <FlatList
+                horizontal
+                {...listScrollInteractionProps}
+                snapToInterval={snapInterval}
+                decelerationRate="fast"
+                data={cards}
+                keyExtractor={(item) => item.bId}
+                renderItem={({ item }) => (
+                  <DashboardBusinessCardItem
+                    item={item}
+                    width={itemWidth}
+                    updating={updatingBId === item.bId}
+                    onToggleMarket={handleToggleMarket}
+                  />
+                )}
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={onMomentumScrollEnd}
+                contentContainerStyle={styles.carouselContent}
+                ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
+                getItemLayout={(_, index) => ({ length: snapInterval, offset: snapInterval * index, index })}
+              />
+            </View>
+            <View style={styles.pagination}>
+              {cards.map((card, index) => (
+                <View
+                  key={card.bId}
+                  style={[
+                    styles.pageDot,
+                    { backgroundColor: chrome.paginationDot },
+                    index === activeIndex && styles.pageDotActive,
+                    index === activeIndex ? { backgroundColor: chrome.gold } : undefined,
+                  ]}
                 />
-              )}
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={onMomentumScrollEnd}
-              contentContainerStyle={styles.carouselContent}
-              ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
-              getItemLayout={(_, index) => ({ length: snapInterval, offset: snapInterval * index, index })}
-            />
-          </View>
+              ))}
+            </View>
+          </>
         ) : (
           <View style={[styles.emptyDashboardBox, { borderColor: chrome.loadingBorder, backgroundColor: chrome.loadingBoxBg }]}>
-            <MaterialCommunityIcons name="chart-line-variant" size={34} color={chrome.gold} />
+            <MaterialCommunityIcons name="chart-line-variant" size={34} color={chrome.goldReadable} />
             <Text style={[styles.emptyTitle, { color: chrome.text }]}>
               {tcx('dashboard_empty_no_business_cards_title')}
             </Text>
@@ -1452,6 +1513,7 @@ export default function DashboardScreen() {
                 panel: chrome.panel,
                 panelBorder: chrome.panelBorder,
                 gold: chrome.gold,
+                goldReadable: chrome.goldReadable,
                 iconGold: chrome.iconGold,
                 analyticsCardBg: chrome.analyticsCardBg,
                 analyticsCardBorder: chrome.analyticsCardBorder,
@@ -1465,22 +1527,26 @@ export default function DashboardScreen() {
               language={language}
             />
             <ContactSavesMetricStrip analytics={activeAnalytics} language={language} isNight={chrome.isNight} />
+            {analyticsLoadFailed ? (
+              <View style={[styles.analyticsErrorBanner, { borderColor: chrome.panelBorder, backgroundColor: chrome.rankTrackBg }]}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={18} color={chrome.goldReadable} />
+                <Text style={[styles.analyticsErrorText, { color: chrome.textSecondary }]}>
+                  {tcx('dashboard_analytics_load_error')}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setAnalyticsLoadFailed(false);
+                    setAnalyticsReloadNonce((n) => n + 1);
+                  }}
+                  hitSlop={8}
+                  activeOpacity={0.82}
+                >
+                  <Text style={[styles.analyticsRetryText, { color: chrome.goldReadable }]}>{tcx('dashboard_analytics_retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </>
         ) : null}
-
-        <View style={styles.pagination}>
-          {cards.map((card, index) => (
-            <View
-              key={card.bId}
-              style={[
-                styles.pageDot,
-                { backgroundColor: chrome.paginationDot },
-                index === activeIndex && styles.pageDotActive,
-                index === activeIndex ? { backgroundColor: chrome.gold } : undefined,
-              ]}
-            />
-          ))}
-        </View>
 
         {activeCard && sessionUid ? (
           <View style={styles.emailSignatureRow}>
@@ -1569,29 +1635,53 @@ export default function DashboardScreen() {
           chevronTint={chrome.iconGold}
         >
           {topIconData.length ? (
-            topIconData.map((row) => (
-              <View key={row.key} style={styles.rankRow}>
-                <View style={styles.rankIcon}>
-                  {row.iconUrl ? (
-                    <ExpoImage source={{ uri: row.iconUrl }} style={styles.rankIconImage} contentFit="cover" />
-                  ) : (
-                    <MaterialCommunityIcons
-                      name={row.iconName as keyof typeof MaterialCommunityIcons.glyphMap}
-                      size={13}
-                      color={chrome.iconGold}
+            <>
+              {topIconVisible.iconRows.map((row) => (
+                <View key={row.key} style={styles.rankRow}>
+                  <View style={styles.rankIcon}>
+                    {row.iconUrl ? (
+                      <ExpoImage source={{ uri: row.iconUrl }} style={styles.rankIconImage} contentFit="cover" />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name={row.iconName as keyof typeof MaterialCommunityIcons.glyphMap}
+                        size={13}
+                        color={chrome.iconGold}
+                      />
+                    )}
+                  </View>
+                  <Text style={[styles.rankLabel, { color: chrome.rankLabel }]} numberOfLines={1}>
+                    {row.label}
+                  </Text>
+                  <View style={[styles.rankTrack, { backgroundColor: chrome.rankTrackBg }]}>
+                    <LinearGradient
+                      colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
+                      style={[styles.rankFill, { width: `${row.percent}%` }]}
                     />
-                  )}
+                  </View>
+                  <Text style={[styles.rankClicks, { color: chrome.goldReadable }]}>{row.clicks}</Text>
+                  <Text style={[styles.rankPct, { color: chrome.textMuted }]}>{row.percent}%</Text>
                 </View>
-                <Text style={[styles.rankLabel, { color: chrome.rankLabel }]} numberOfLines={1}>{row.label}</Text>
-                <View style={[styles.rankTrack, { backgroundColor: chrome.rankTrackBg }]}>
-                  <LinearGradient
-                    colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
-                    style={[styles.rankFill, { width: `${row.percent}%` }]}
+              ))}
+              {topIconVisible.showToggle ? (
+                <TouchableOpacity
+                  style={styles.rankSeeMoreRow}
+                  onPress={() => setIconoDataExpanded((prev) => !prev)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    topIconVisible.toggleIsLess ? tcx('cards_stats_see_less') : tcx('cards_stats_see_more')
+                  }
+                >
+                  <Text style={[styles.rankSeeMoreText, { color: chrome.goldReadable }]}>
+                    {topIconVisible.toggleIsLess ? tcx('cards_stats_see_less') : tcx('cards_stats_see_more')}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={topIconVisible.toggleIsLess ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={chrome.goldReadable}
                   />
-                </View>
-                <Text style={[styles.rankPct, { color: chrome.gold }]}>{row.percent}%</Text>
-              </View>
-            ))
+                </TouchableOpacity>
+              ) : null}
+            </>
           ) : (
             <Text style={[styles.rankEmptyText, { color: chrome.rankEmpty }]}>
               {tcx('dashboard_iconodata_empty')}
@@ -1677,7 +1767,7 @@ export default function DashboardScreen() {
                         style={[styles.rankFill, { width: `${row.percent}%` }]}
                       />
                     </View>
-                    <Text style={[styles.rankPct, { color: chrome.gold }]}>{row.percent}%</Text>
+                    <Text style={[styles.rankPct, { color: chrome.goldReadable }]}>{row.percent}%</Text>
                   </View>
                 ))}
                 {seoRows.length > 6 ? (
@@ -1733,7 +1823,7 @@ export default function DashboardScreen() {
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
-            <Text style={[styles.executiveRadarEyebrow, { color: chrome.gold }]}>
+            <Text style={[styles.executiveRadarEyebrow, { color: chrome.goldReadable }]}>
               {tcx('dashboard_geo_intel_eyebrow')}
             </Text>
             <Text style={[styles.executiveRadarTitle, { color: chrome.text }]}>
@@ -2289,7 +2379,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionKicker: {
-    color: 'rgba(255,255,255,0.75)',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
@@ -2298,27 +2387,20 @@ const styles = StyleSheet.create({
     minWidth: 68,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.28)',
-    backgroundColor: 'rgba(0,0,0,0.28)',
     paddingHorizontal: 9,
     paddingVertical: 4,
     alignItems: 'center',
   },
   clickRateChipLabel: {
-    color: 'rgba(255,255,255,0.48)',
     fontSize: 7,
     fontWeight: '800',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   clickRateChipValue: {
-    color: '#F6DA87',
     fontSize: 13,
     fontWeight: '900',
     marginTop: 1,
-  },
-  clickRateChipValueEmpty: {
-    color: 'rgba(255,255,255,0.55)',
   },
   periodTabs: {
     flexDirection: 'row',
@@ -2326,8 +2408,6 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.32)',
   },
   periodTab: {
     flex: 1,
@@ -2344,12 +2424,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   periodTabText: {
-    color: 'rgba(255,255,255,0.58)',
     fontSize: 9,
     fontWeight: '800',
-  },
-  periodTabTextActive: {
-    color: '#F6DA87',
   },
   periodNavRow: {
     flexDirection: 'row',
@@ -2362,25 +2438,17 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.24)',
-    backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  periodArrowDisabled: {
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-  },
   periodTitle: {
     flex: 1,
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     textAlign: 'center',
     textTransform: 'uppercase',
   },
   bigMetric: {
-    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '900',
     marginTop: 3,
@@ -2466,20 +2534,34 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.34)',
-    backgroundColor: 'rgba(233,195,73,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: SHELL_ACCENT_GOLD,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
   },
   metricsEmptyTitle: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
     marginTop: 10,
     letterSpacing: 0.2,
+  },
+  analyticsErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  analyticsErrorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  analyticsRetryText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   metricsEmptyText: {
     color: 'rgba(255,255,255,0.64)',
@@ -2527,6 +2609,18 @@ const styles = StyleSheet.create({
     minHeight: 24,
     gap: 8,
   },
+  rankSeeMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    minHeight: 36,
+    marginTop: 4,
+  },
+  rankSeeMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   rankIcon: {
     width: 20,
     height: 20,
@@ -2557,12 +2651,19 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
+  rankClicks: {
+    width: 28,
+    textAlign: 'right',
+    fontSize: 13,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
   rankPct: {
-    color: '#F6DA87',
-    fontSize: 10,
     width: 34,
     textAlign: 'right',
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   rankEmptyText: {
     color: 'rgba(255,255,255,0.62)',

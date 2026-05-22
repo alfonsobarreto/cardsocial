@@ -24,6 +24,16 @@ const { composeIssuerSnapshot } = require('../lib/issuerSnapshot');
 const { resolveIssuerPremiumSaveExperience } = require('../lib/issuerPremiumSaveSignal');
 const { env } = require('../config');
 const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
+const {
+  CONTACT_SAVE_ANALYTICS_APP,
+  CONTACT_SAVE_ANALYTICS_PHONE,
+  isContactSaveSubtype,
+  isInternalAnalyticsSubtype,
+  isOwnerViewer,
+} = require('../lib/contactSaveAnalyticsKeys');
+const { recordCardAnalyticsEvent } = require('../services/cardAnalyticsRecord');
+const { cardAnalyticsCardIdFilter, canonicalCardAnalyticsKey } = require('../lib/cardAnalyticsQuery');
+const { resolveIconClickSubType } = require('../lib/cardAnalyticsIconSubType');
 
 function normalizeString(value, fallback = null) {
   const text = String(value ?? '').trim();
@@ -36,6 +46,36 @@ function smartCardKeyQuery(uid, key) {
   const k = String(key || '').trim();
   if (!u || !k) return null;
   return { uid: u, $or: [{ sid: k }, { bId: k }] };
+}
+
+/**
+ * Resuelve tarjeta del dueño para lecturas de analíticas.
+ * Business cards nuevas pueden existir solo en `business_cards` (sin espejo en `smart_cards`).
+ */
+async function findOwnedCardForAnalytics(db, userUid, cardRef) {
+  const u = String(userUid || '').trim();
+  const k = String(cardRef || '').trim();
+  if (!u || !k) return null;
+
+  const scQuery = smartCardKeyQuery(u, k);
+  if (scQuery) {
+    const sc = await db.collection('smart_cards').findOne(scQuery, {
+      projection: { cardType: 1, sid: 1, bId: 1 },
+    });
+    if (sc) {
+      return { row: sc, isBiz: sc.cardType === 'business' };
+    }
+  }
+
+  const biz = await db.collection('business_cards').findOne(
+    { ownerUid: u, bId: k },
+    { projection: { bId: 1 } },
+  );
+  if (biz) {
+    return { row: biz, isBiz: true };
+  }
+
+  return null;
 }
 
 /** Permiso compartido activo entre emisor y receptor para una tarjeta identificada por clave pública. */
@@ -334,7 +374,8 @@ function analyticsPeriodWindow(modeRaw, offsetRaw) {
   } else if (mode === 'month') {
     start = new Date(target.getFullYear(), target.getMonth(), 1);
     end = new Date(target.getFullYear(), target.getMonth() + 1, 1);
-    labels = Array.from({ length: 30 }, (_, i) => String(i + 1));
+    const daysInMonth = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+    labels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
   } else {
     start = new Date(target.getFullYear(), 0, 1);
     end = new Date(target.getFullYear() + 1, 0, 1);
@@ -349,7 +390,7 @@ function analyticsBucketIndex(ts, mode, start) {
   if (Number.isNaN(d.getTime())) return -1;
   if (mode === 'day') return d.getHours();
   if (mode === 'week') return Math.floor((analyticsStartOfDay(d).getTime() - start.getTime()) / 86_400_000);
-  if (mode === 'month') return Math.min(29, Math.max(0, d.getDate() - 1));
+  if (mode === 'month') return Math.max(0, d.getDate() - 1);
   return d.getMonth();
 }
 
@@ -1729,6 +1770,14 @@ function createQrRoutes({ storage }) {
       }
 
       /** Negocios solo en Firestore comparten el mismo QR: el permiso es válido sin fila en `smart_cards`. */
+      const permBefore = await db.collection('share_permissions').findOne({
+        uid: userUid,
+        targetUid: receiverUid,
+        sid: null,
+        bId,
+      });
+      const isNewActiveShare = !permBefore || permBefore.isRevoked === true;
+
       await db.collection('share_permissions').findOneAndUpdate(
         {
           uid: userUid,
@@ -1753,6 +1802,23 @@ function createQrRoutes({ storage }) {
           includeResultMetadata: false,
         },
       );
+
+      if (isNewActiveShare) {
+        try {
+          await recordCardAnalyticsEvent(db, {
+            cardKey: bId,
+            sid: null,
+            bId,
+            type: 'icon_click',
+            subType: CONTACT_SAVE_ANALYTICS_APP,
+            source: 'grant_business_share',
+            viewerUid: receiverUid,
+            timestamp: now,
+          });
+        } catch (analyticsErr) {
+          console.warn('[qrRoutes] grant-business-share analytics:', analyticsErr?.message || analyticsErr);
+        }
+      }
 
       /* Calcular holders reales después del upsert */
       const countsMap = await aggregateActiveReceiverCountByKeys(db, userUid, [bId], now);
@@ -2879,7 +2945,10 @@ function createQrRoutes({ storage }) {
       }
 
       const sid = String(req.body?.sid || '').trim();
-      const bId = String(req.body?.bId || '').trim();
+      let bId = String(req.body?.bId || '').trim();
+      if (sid && bId) {
+        bId = '';
+      }
       const cardKey = sid || bId;
       if (!cardKey || cardKey.length > 160) {
         return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
@@ -2890,7 +2959,10 @@ function createQrRoutes({ storage }) {
       if (!allowedTypes.has(type)) {
         return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_ANALYTICS_TYPE_INVALID'));
       }
-      const subType = sanitizeAnalyticsSegmentKey(req.body?.subType || req.body?.iconType || (type === 'view' ? 'modal_open' : type));
+      const subType =
+        type === 'icon_click'
+          ? resolveIconClickSubType(req.body)
+          : sanitizeAnalyticsSegmentKey(req.body?.subType || req.body?.iconType || (type === 'view' ? 'modal_open' : type));
       const iconType = subType;
       const source = String(req.body?.source || type).trim().slice(0, 64);
 
@@ -2985,29 +3057,41 @@ function createQrRoutes({ storage }) {
       }
 
       const db = await storage.connect();
-      const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef));
-      if (!owns) {
+      const owned = await findOwnedCardForAnalytics(db, userUid, cardRef);
+      if (!owned) {
         return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'CARD_NOT_FOUND_FOR_OWNER'));
       }
 
-      const minDay = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const analyticsKey = canonicalCardAnalyticsKey(owned, cardRef);
+      const minTs = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const cardFilter = cardAnalyticsCardIdFilter(analyticsKey);
       const docs = await db
         .collection('card_analytics')
         .find({
-          $or: [{ sid: cardRef }, { bId: cardRef }],
-          granularity: 'day',
-          periodKey: { $gte: minDay },
+          $and: [
+            cardFilter,
+            { type: { $in: ['view', 'qr_scan', 'icon_click'] } },
+            { timestamp: { $gte: minTs } },
+            { granularity: { $exists: false } },
+          ],
         })
         .toArray();
 
       let totalViews = 0;
       const iconAgg = Object.create(null);
       for (const d of docs) {
-        totalViews += Number(d.totalInteractions || 0) || 0;
-        const icons = d.icons && typeof d.icons === 'object' ? d.icons : {};
-        for (const [k, v] of Object.entries(icons)) {
-          const n = Number(v || 0) || 0;
-          iconAgg[k] = (iconAgg[k] || 0) + n;
+        if (isOwnerViewer(d.viewerUid, userUid)) {
+          continue;
+        }
+        const type = String(d.type || '').trim();
+        if (type === 'view' || type === 'qr_scan') {
+          totalViews += 1;
+        } else if (type === 'icon_click') {
+          const subType = sanitizeAnalyticsSegmentKey(d.subType || 'unknown');
+          if (isInternalAnalyticsSubtype(subType)) {
+            continue;
+          }
+          iconAgg[subType] = (iconAgg[subType] || 0) + 1;
         }
       }
 
@@ -3016,7 +3100,7 @@ function createQrRoutes({ storage }) {
         .slice(0, 12)
         .map(([iconType, count]) => ({ iconType, count: Number(count) }));
 
-      const isBiz = owns.cardType === 'business';
+      const isBiz = owned.isBiz;
       return res.status(200).json({
         ok: true,
         ...(isBiz ? { bId: cardRef } : { sid: cardRef }),
@@ -3046,18 +3130,21 @@ function createQrRoutes({ storage }) {
       }
 
       const db = await storage.connect();
-      const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef));
-      if (!owns) {
+      const owned = await findOwnedCardForAnalytics(db, userUid, cardRef);
+      if (!owned) {
         return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'CARD_NOT_FOUND_FOR_OWNER'));
       }
 
+      const analyticsKey = canonicalCardAnalyticsKey(owned, cardRef);
       const window = analyticsPeriodWindow(req.query?.periodMode, req.query?.periodOffset);
+      const cardFilter = cardAnalyticsCardIdFilter(analyticsKey);
       const docs = await db
         .collection('card_analytics')
         .find({
-          $or: [{ cardId: cardRef }, { sid: cardRef }, { bId: cardRef }],
+          ...cardFilter,
           type: { $in: ['view', 'icon_click', 'qr_scan'] },
           timestamp: { $gte: window.start, $lt: window.end },
+          granularity: { $exists: false },
         })
         .toArray();
 
@@ -3065,6 +3152,7 @@ function createQrRoutes({ storage }) {
       const iconAgg = Object.create(null);
       let totalViews = 0;
       let totalClicks = 0;
+      let engagementClicks = 0;
 
       for (const d of docs) {
         const type = String(d.type || '').trim();
@@ -3078,6 +3166,9 @@ function createQrRoutes({ storage }) {
           totalClicks += 1;
           const subType = sanitizeAnalyticsSegmentKey(d.subType || 'unknown');
           iconAgg[subType] = (iconAgg[subType] || 0) + 1;
+          if (!isContactSaveSubtype(subType)) {
+            engagementClicks += 1;
+          }
         }
       }
 
@@ -3086,7 +3177,8 @@ function createQrRoutes({ storage }) {
         .slice(0, 12)
         .map(([iconType, count]) => ({ iconType, count: Number(count) }));
 
-      const isBiz = owns.cardType === 'business';
+      const isBiz = owned.isBiz;
+      const ctrBase = engagementClicks;
       return res.status(200).json({
         ok: true,
         cardId: cardRef,
@@ -3099,7 +3191,12 @@ function createQrRoutes({ storage }) {
         points,
         totalViews,
         totalClicks,
-        clickRate: totalViews > 0 ? Math.round((totalClicks / totalViews) * 100) : 0,
+        engagementClicks: ctrBase,
+        clickRate: totalViews > 0 ? Math.round((ctrBase / totalViews) * 100) : 0,
+        contactSaves: {
+          app: Number(iconAgg[CONTACT_SAVE_ANALYTICS_APP] || 0) || 0,
+          phone: Number(iconAgg[CONTACT_SAVE_ANALYTICS_PHONE] || 0) || 0,
+        },
         topIcons,
       });
     } catch (error) {

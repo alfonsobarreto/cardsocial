@@ -1,33 +1,10 @@
-import {
-  CONTACT_SAVE_ANALYTICS_APP,
-  CONTACT_SAVE_ANALYTICS_PHONE,
-} from '@/constants/contactSaveAnalyticsKeys';
 import { coreT, type AppLanguage } from '@/services/coreI18n';
+import { contactSavesFromSummary } from '@/services/dashboardAnalytics';
 import type { CardAnalyticsPeriodSummary } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-
-function normalizeSubtype(value: unknown): string {
-  return (
-    String(value || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, '_')
-      .replace(/_+/g, '_') || 'unknown'
-  );
-}
-
-function countForSubtype(summary: CardAnalyticsPeriodSummary | undefined, subtype: string): number {
-  const want = normalizeSubtype(subtype);
-  for (const row of summary?.topIcons || []) {
-    if (normalizeSubtype(row.iconType) === want) {
-      return Number(row.count || 0) || 0;
-    }
-  }
-  return 0;
-}
 
 type Props = {
   analytics: CardAnalyticsPeriodSummary | undefined;
@@ -37,15 +14,10 @@ type Props = {
 
 /**
  * “Guardaron tu tarjeta en Card-Social” vs “guardaron .vcf en el teléfono”.
- * Lee conteos desde `topIcons` (subTypes en contactSaveAnalyticsKeys).
  */
 export function ContactSavesMetricStrip({ analytics, language, isNight }: Props) {
-  const appCount = useMemo(
-    () => countForSubtype(analytics, CONTACT_SAVE_ANALYTICS_APP),
-    [analytics],
-  );
-  const phoneCount = useMemo(
-    () => countForSubtype(analytics, CONTACT_SAVE_ANALYTICS_PHONE),
+  const { app: appCount, phone: phoneCount } = useMemo(
+    () => contactSavesFromSummary(analytics),
     [analytics],
   );
 
@@ -71,7 +43,7 @@ export function ContactSavesMetricStrip({ analytics, language, isNight }: Props)
 
       <View style={[styles.cardWrap, isNight ? styles.cardShadowNight : styles.cardShadowDay]}>
         <LinearGradient
-          colors={isNight ? ['#22C55E', '#16A34A', '#15803D'] : ['#34C759', '#22C55E', '#16A34A']}
+          colors={isNight ? ['#22C55E', '#16A34A', '#15803D'] : ['#34D759', '#22C55E', '#16A34A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}

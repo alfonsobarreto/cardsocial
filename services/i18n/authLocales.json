@@ -95,6 +95,14 @@
     "fr": "Identifiant",
     "de": "Benutzername"
   },
+  "signin_placeholder_username_or_email": {
+    "es": "Usuario o correo",
+    "en": "Username or email",
+    "it": "Utente o email",
+    "pt": "Usuário ou e-mail",
+    "fr": "Identifiant ou e-mail",
+    "de": "Benutzername oder E-Mail"
+  },
   "signin_placeholder_password": {
     "es": "Contraseña",
     "en": "Password",

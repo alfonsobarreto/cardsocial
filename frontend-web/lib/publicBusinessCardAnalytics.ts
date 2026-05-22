@@ -73,12 +73,13 @@ export function trackPublicBusinessCardViewOncePerSession(ownerUid: string, bId:
 export function notifyPublicBusinessCardIconClick(
   ownerUid: string,
   bId: string,
-  opts: { subType: string },
+  opts: { subType: string; slotId?: string },
 ): void {
   if (typeof window === 'undefined') return;
   const u = String(ownerUid || '').trim();
   const b = String(bId || '').trim();
-  const rawSub = String(opts.subType || 'unknown').trim().slice(0, 160);
+  const slotId = String(opts.slotId || '').trim();
+  const rawSub = String(opts.subType || slotId || 'unknown').trim().slice(0, 160);
   if (!u || !b || !rawSub) return;
 
   postAnalytics({
@@ -86,6 +87,31 @@ export function notifyPublicBusinessCardIconClick(
     bId: b,
     eventType: 'click',
     subType: rawSub,
+    ...(slotId ? { slotId } : {}),
+    source: 'public_web',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/** Clics en slots de smart card pública `/u/{token}` — scoped por `sid`. */
+export function notifyPublicSmartCardIconClick(
+  ownerUid: string,
+  sid: string,
+  opts: { subType: string; slotId?: string },
+): void {
+  if (typeof window === 'undefined') return;
+  const u = String(ownerUid || '').trim();
+  const s = String(sid || '').trim();
+  const slotId = String(opts.slotId || '').trim();
+  const rawSub = String(opts.subType || slotId || 'unknown').trim().slice(0, 160);
+  if (!u || !s || !rawSub) return;
+
+  postAnalytics({
+    uid: u,
+    sid: s,
+    eventType: 'click',
+    subType: rawSub,
+    ...(slotId ? { slotId } : {}),
     source: 'public_web',
     timestamp: new Date().toISOString(),
   });

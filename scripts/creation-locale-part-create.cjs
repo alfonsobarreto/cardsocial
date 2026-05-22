@@ -117,7 +117,22 @@ module.exports = s({
     create_sub_active: ['Activa', 'Active', { it: 'Attiva', pt: 'Ativa', fr: 'Active', de: 'Aktiv' }],
     create_sub_dull: ['Dull (atenuada)', 'Dull (dimmed)'],
     create_close: ['Cerrar', 'Close', { it: 'Chiudi', pt: 'Fechar', fr: 'Fermer', de: 'Schließen' }],
-    create_business_card_title: ['Tarjeta de negocio', 'Business card'],
+    create_business_card_title: [
+      'Crear tarjeta de negocio',
+      'Create business card',
+      { it: 'Crea Business Card', pt: 'Criar Business Card', fr: 'Créer une Business Card', de: 'Business Card erstellen' },
+    ],
+    create_edit_business_card_title: [
+      'Editar tarjeta de negocio',
+      'Edit business card',
+      { it: 'Modifica Business Card', pt: 'Editar Business Card', fr: 'Modifier la Business Card', de: 'Business Card bearbeiten' },
+    ],
+    create_theme_tier_fresh: ['Frescos', 'Fresh', { it: 'Freschi', pt: 'Frescos', fr: 'Frais', de: 'Frisch' }],
+    create_theme_tier_moderno: ['Modernos', 'Modern', { it: 'Moderni', pt: 'Modernos', fr: 'Modernes', de: 'Modern' }],
+    create_theme_tier_luxury: ['De lujo', 'Luxury', { it: 'Di lusso', pt: 'De luxo', fr: 'Luxe', de: 'Luxus' }],
+    create_theme_tile_card: ['Tarjeta', 'Card', { it: 'Carta', pt: 'Cartão', fr: 'Carte', de: 'Karte' }],
+    create_theme_tile_social: ['Social', 'Social'],
+    create_theme_tile_icon: ['Icono', 'Icon', { it: 'Icona', pt: 'Ícone', fr: 'Icône', de: 'Icon' }],
     create_zero_trust_intro: [
       'Protocolo de arquitectura Zero Trust: correo, teléfono, enlaces y mapa permanecen como datos soberanos en tu Bóveda; aquí solo identidad de negocio, marca, ubicación y palabras clave SEO.',
       'Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.',
