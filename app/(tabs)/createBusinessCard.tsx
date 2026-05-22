@@ -8,7 +8,7 @@ import {
   ThemeLockerThemeTile,
 } from '@/components/ThemeLockerThemeTile';
 import { getThemeById, getThemesByTier, TIER_META, vaultSelectorSlotChrome, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
-import { listScrollInteractionProps, modalBoundedScrollStyle, themeLockerScrollContentStyle, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
+import { listScrollInteractionProps, modalBoundedScrollStyle, SCROLL_CONTENT_MIN_FILL, themeLockerScrollContentStyle, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {

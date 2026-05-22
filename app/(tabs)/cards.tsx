@@ -601,7 +601,7 @@ export default function CardsFactoryScreen() {
       vaultItems,
       cardStatsTarget.itemIds,
       iconVaultById,
-    );
+    ) as PublicCardSlot[];
     return buildBusinessCardIconAnalyticsRows(
       { vaultItemIds: cardStatsTarget.itemIds, publicCardSlots },
       cardStatsData?.topIcons || [],
@@ -706,9 +706,7 @@ export default function CardsFactoryScreen() {
     try {
       // Pass the real smart-card count from the backend-loaded list so we never
       // accidentally read the (empty) Firestore users/{uid}/cards subcollection.
-      const knownSmartCount = loadedSmartCards != null
-        ? loadedSmartCards.filter((c) => c.cardType !== 'business').length
-        : undefined;
+      const knownSmartCount = loadedSmartCards != null ? loadedSmartCards.length : undefined;
       const [v, slots] = await Promise.all([
         validateCardCreation(uid, knownSmartCount),
         getBusinessCardSlotAvailability(uid),
