@@ -222,7 +222,11 @@ export async function POST(req: Request) {
     });
 
     const apiKey = process.env.RESEND_API_KEY?.trim();
-    const from = process.env.RESEND_FROM_EMAIL?.trim();
+    // Paridad con Express (`EMAIL_FROM` en Azure); Next docs usan `RESEND_FROM_EMAIL`.
+    const from =
+      process.env.RESEND_FROM_EMAIL?.trim() ||
+      process.env.EMAIL_FROM?.trim() ||
+      process.env.EMAIL_SENDER_NOTIFICATIONS?.trim();
 
     if (!apiKey || !from) {
       if (shouldLogFirebaseAdmin()) {

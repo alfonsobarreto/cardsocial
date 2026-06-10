@@ -58,6 +58,26 @@ function scheduleExpiry() {
   }, SEARCH_LOCATION_SESSION_MS);
 }
 
+export type SearchLocationFailureReason =
+  | 'denied'
+  | 'denied_permanent'
+  | 'services_disabled'
+  | 'unavailable';
+
+async function readDevicePosition(): Promise<Location.LocationObject> {
+  try {
+    return await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+  } catch {
+    const last = await Location.getLastKnownPositionAsync();
+    if (last) {
+      return last;
+    }
+    throw new Error('no_position');
+  }
+}
+
 /**
  * Solicita permiso en primer plano, obtiene una posición y abre sesión de SEARCH_LOCATION_SESSION_MS.
  */
@@ -72,19 +92,25 @@ export async function startSearchLocationSession(): Promise<
       country: string | null;
       geoLabel: string | null;
     }
-  | { ok: false; reason: 'denied' | 'unavailable' }
+  | { ok: false; reason: SearchLocationFailureReason }
 > {
   endSearchLocationSession();
 
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
-    return { ok: false, reason: 'denied' };
+  const servicesEnabled = await Location.hasServicesEnabledAsync();
+  if (!servicesEnabled) {
+    return { ok: false, reason: 'services_disabled' };
+  }
+
+  const perm = await Location.requestForegroundPermissionsAsync();
+  if (perm.status !== 'granted') {
+    return {
+      ok: false,
+      reason: perm.canAskAgain === false ? 'denied_permanent' : 'denied',
+    };
   }
 
   try {
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Low,
-    });
+    const pos = await readDevicePosition();
     const latitude = pos.coords.latitude;
     const longitude = pos.coords.longitude;
     let zipcode: string | null = null;
@@ -111,6 +137,42 @@ export async function startSearchLocationSession(): Promise<
   } catch {
     return { ok: false, reason: 'unavailable' };
   }
+}
+
+/** Reutiliza sesión activa o obtiene una nueva posición para Social Market. */
+export async function resolveSearchLocationForMarket(): Promise<
+  | {
+      ok: true;
+      latitude: number;
+      longitude: number;
+      zipcode: string | null;
+      city: string | null;
+      region: string | null;
+      country: string | null;
+      geoLabel: string | null;
+      fromActiveSession: boolean;
+    }
+  | { ok: false; reason: SearchLocationFailureReason }
+> {
+  const active = getSearchSessionCoordinates();
+  if (active) {
+    return {
+      ok: true,
+      latitude: active.latitude,
+      longitude: active.longitude,
+      zipcode: active.zipcode,
+      city: active.city,
+      region: active.region,
+      country: active.country,
+      geoLabel: active.geoLabel,
+      fromActiveSession: true,
+    };
+  }
+  const started = await startSearchLocationSession();
+  if (!started.ok) {
+    return started;
+  }
+  return { ...started, fromActiveSession: false };
 }
 
 export function getSearchSessionCoordinates(): SessionState | null {

@@ -5,7 +5,23 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
+import { POCHOBS_SUPERADMIN_EMAIL } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, getTiersConfig } from '@/services/tiersConfigService';
+import { readUserNickNameLower } from '@/services/userIdentityFields';
+
+const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
+const SUPER_ADMIN_UNLIMITED = 999999;
+
+function isSuperPrivilegedUser(data: Record<string, unknown>): boolean {
+  const role = String(data?.role || '').trim().toLowerCase();
+  const nicknameLower = readUserNickNameLower(data);
+  const emailLower = String(data?.emailLower ?? data?.email ?? '').trim().toLowerCase();
+  return (
+    role === 'super_admin' ||
+    PRIVILEGED_NICKNAMES.has(nicknameLower) ||
+    emailLower === POCHOBS_SUPERADMIN_EMAIL
+  );
+}
 
 export type BusinessCardSlotAvailability = {
   used: number;
@@ -26,6 +42,16 @@ export async function getBusinessCardSlotAvailability(userId: string): Promise<B
 
   const snap = await getDoc(doc(db, 'users', uid));
   const data = snap.exists() ? (snap.data() as Record<string, unknown>) : {};
+
+  if (isSuperPrivilegedUser(data)) {
+    return {
+      used,
+      max: SUPER_ADMIN_UNLIMITED,
+      remaining: SUPER_ADMIN_UNLIMITED,
+      canCreate: true,
+    };
+  }
+
   const tier = effectiveTierKeyFromUserData(data);
   if (!tiers) {
     return { used, max: 0, remaining: 0, canCreate: false };

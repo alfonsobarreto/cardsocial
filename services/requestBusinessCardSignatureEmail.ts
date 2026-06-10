@@ -5,8 +5,8 @@ import { getCurrentI18nAppLanguage, toAcceptLanguageHeader } from '@/services/la
 
 type LocaleSig = 'es' | 'en';
 
-const REQUEST_TIMEOUT_MS = 45_000;
-const ID_TOKEN_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 90_000;
+const ID_TOKEN_TIMEOUT_MS = 30_000;
 
 function resolveSignatureEmailPostUrl(): string {
   try {

@@ -11,7 +11,7 @@ import { auth, db } from '@/services/firebaseConfig';
 import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
-import { useLookMode } from '@/services/lookMode';
+import { useResolvedLookModeForShell } from '@/services/lookMode';
 import {
   enforceInactivitySignOutIfNeeded,
   firebaseUserMayEnterMainApp,
@@ -69,7 +69,7 @@ export default function SignInScreen() {
   const langCtx = useLanguageOptional();
   const language = langCtx?.language ?? 'en';
   const t = useAuthT();
-  const { resolvedMode } = useLookMode();
+  const resolvedMode = useResolvedLookModeForShell();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => authScreenLook(isNight), [isNight]);
   const [username, setUsername] = useState('');

@@ -21,20 +21,20 @@ import {
   switchGhostLinkAgoraCamera,
 } from '@/services/ghostLinkAgoraSession';
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
+import {
+  AgoraRemoteVideoState,
+  AgoraRemoteVideoStateReason,
+  type AgoraRtcEventHandler,
+  type AgoraUserOfflineReason,
+} from '@/services/voip/agoraSdkConstants';
 
-import type { IRtcEngineEventHandler, UserOfflineReasonType } from 'react-native-agora';
-import { RemoteVideoState, RemoteVideoStateReason } from 'react-native-agora';
-
-function isRemoteVideoRendering(
-  state: RemoteVideoState,
-  reason: RemoteVideoStateReason,
-): boolean {
-  if (state === RemoteVideoState.RemoteVideoStateDecoding) return true;
-  if (state === RemoteVideoState.RemoteVideoStateStarting) return true;
-  if (state === RemoteVideoState.RemoteVideoStateFrozen) return false;
-  if (state === RemoteVideoState.RemoteVideoStateFailed) return false;
-  if (state === RemoteVideoState.RemoteVideoStateStopped) {
-    return reason === RemoteVideoStateReason.RemoteVideoStateReasonRemoteUnmuted;
+function isRemoteVideoRendering(state: number, reason: number): boolean {
+  if (state === AgoraRemoteVideoState.Decoding) return true;
+  if (state === AgoraRemoteVideoState.Starting) return true;
+  if (state === AgoraRemoteVideoState.Frozen) return false;
+  if (state === AgoraRemoteVideoState.Failed) return false;
+  if (state === AgoraRemoteVideoState.Stopped) {
+    return reason === AgoraRemoteVideoStateReason.RemoteUnmuted;
   }
   return false;
 }
@@ -49,7 +49,7 @@ export type UseAgoraRtcParams = {
   localVideoOn: boolean;
   onRemoteUserJoined?: (remoteUid: number) => void;
   onLocalRtcJoined?: () => void;
-  onRemoteUserOffline?: (remoteUid: number, reason: UserOfflineReasonType) => void;
+  onRemoteUserOffline?: (remoteUid: number, reason: AgoraUserOfflineReason) => void;
   onLeaveChannel?: () => void;
   initialSpeakerphoneOn?: boolean;
   /** iOS/Android: el SDK notifica cambios de ruta (p. ej. AirPods conectados durante la llamada). */
@@ -162,7 +162,7 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
     }
 
     let cancelled = false;
-    const handler: IRtcEngineEventHandler = {
+    const handler: AgoraRtcEventHandler = {
       onUserJoined: (_connection, uid) => {
         if (cancelled || uid === 0) return;
         setRemoteUid(uid);

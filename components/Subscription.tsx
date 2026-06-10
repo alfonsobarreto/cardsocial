@@ -18,9 +18,18 @@ import {
 } from '@/services/marketRadarConfigService';
 import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiersConfigService';
+import {
+  createMercadoPagoCheckoutSession,
+  fetchMercadoPagoPublicConfig,
+  isMercadoPagoMarketRegion,
+  type MercadoPagoBillingPeriod,
+  type MercadoPagoCurrencyId,
+  type MercadoPagoPublicConfig,
+} from '@/services/mercadopagoCheckoutService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Localization from 'expo-localization';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -112,6 +121,11 @@ const Subscription: React.FC<SubscriptionProps> = ({
   const [radarProEquivalentCs, setRadarProEquivalentCs] = useState(0);
   /** Alineado con `system_config/market_radar.radar_trial_enabled` para la lista de beneficios por tier. */
   const [radarTrialBenefitListed, setRadarTrialBenefitListed] = useState(() => getRadarTrialEnabledSync());
+  const [mpConfig, setMpConfig] = useState<MercadoPagoPublicConfig | null>(null);
+  const [mpCheckoutLoading, setMpCheckoutLoading] = useState(false);
+  const regionCode = Localization.getLocales?.()?.[0]?.regionCode?.toUpperCase?.() ?? '';
+  const isPeruMarket = isMercadoPagoMarketRegion(regionCode);
+  const mpCheckoutAvailable = Boolean(mpConfig?.enabled);
 
   useEffect(() => {
     let mounted = true;
@@ -198,6 +212,17 @@ const Subscription: React.FC<SubscriptionProps> = ({
       setRadarTrialBenefitListed(cfg.radarTrialEnabled);
     });
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    let m = true;
+    void (async () => {
+      const cfg = await fetchMercadoPagoPublicConfig();
+      if (m) setMpConfig(cfg);
+    })();
+    return () => {
+      m = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -450,21 +475,54 @@ const Subscription: React.FC<SubscriptionProps> = ({
     Alert.alert(t('sub_market_radar_pro_title'), t('sub_radar_full_access_body'));
   }, [t]);
 
+  const startMercadoPagoCheckout = useCallback(
+    async (
+      tierKey: Exclude<TierKey, 'free'>,
+      billingPeriod: MercadoPagoBillingPeriod,
+      currencyId: MercadoPagoCurrencyId,
+    ) => {
+      if (!userId) {
+        Alert.alert(t('sub_session_title'), t('sub_sign_in_to_continue'));
+        return;
+      }
+      try {
+        setMpCheckoutLoading(true);
+        const session = await createMercadoPagoCheckoutSession({ tierKey, billingPeriod, currencyId });
+        await WebBrowser.openBrowserAsync(session.initPoint, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+          enableBarCollapsing: true,
+        });
+        Alert.alert(t('sub_mp_return_title'), t('sub_mp_return_body'));
+      } catch (error) {
+        const code = String((error as Error)?.message || '');
+        if (code === 'mp_not_configured' || code === 'tier_price_unavailable') {
+          Alert.alert(t('common_error'), t('sub_mp_not_configured'));
+        } else if (code === 'AUTH_REQUIRED' || code === 'invalid_or_expired_id_token') {
+          Alert.alert(t('sub_session_title'), t('sub_sign_in_to_continue'));
+        } else {
+          Alert.alert(
+            t('common_error'),
+            userFacingAlertMessage(error, language, t('sub_purchase_process_failed')),
+          );
+        }
+      } finally {
+        setMpCheckoutLoading(false);
+      }
+    },
+    [userId, t, language],
+  );
+
   const onTierCta = (key: TierKey) => {
     if (key === 'free') {
       Alert.alert(t('sub_free_plan_title'), t('sub_free_plan_body'));
       return;
     }
-    Alert.alert(
-      t('sub_upgrade_plan_title'),
-      t('sub_tier_pricing_detail', {
-        monthlyUsd: fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0),
-        monthlyCs: (tiers?.[key].monthlyEquivalentCs ?? 0).toLocaleString(),
-        annualUsd: fmtUsd(tiers?.[key].annualPriceUsd ?? 0),
-        annualCs: (tiers?.[key].annualEquivalentCs ?? 0).toLocaleString(),
-        trialDays: tiers?.[key].freeTrialDays ?? 0,
-      }),
-    );
+    if (!mpCheckoutAvailable) {
+      Alert.alert(t('common_error'), t('sub_mp_not_configured'));
+      return;
+    }
+    const currencyId: MercadoPagoCurrencyId = isPeruMarket ? 'PEN' : 'USD';
+    void startMercadoPagoCheckout(key, 'monthly', currencyId);
   };
 
   const handleBuyCreditPack = async (pack: { id: string; productId: string; credits: number }) => {
@@ -742,6 +800,11 @@ const Subscription: React.FC<SubscriptionProps> = ({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('sub_subscriptions_section_title')}</Text>
         <Text style={styles.sectionHint}>{t('sub_subscriptions_section_hint')}</Text>
+        {mpCheckoutAvailable ? (
+          <Text style={[styles.sectionHint, { marginTop: -8, marginBottom: 12, color: shell.ctaAccent }]}>
+            {t('sub_mp_peru_hint')}
+          </Text>
+        ) : null}
         {tiersLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={shell.ctaAccent} />
@@ -772,10 +835,19 @@ const Subscription: React.FC<SubscriptionProps> = ({
                   : ''}
               </Text>
               <Text style={styles.tierMeta}>{tierSummary(key, cfg)}</Text>
-              <TouchableOpacity style={styles.tierCta} onPress={() => onTierCta(key)} activeOpacity={0.85}>
-                <Text style={styles.tierCtaText}>
-                  {key === 'free' ? t('sub_included') : t('sub_how_to_get')}
-                </Text>
+              <TouchableOpacity
+                style={[styles.tierCta, mpCheckoutLoading && key !== 'free' ? { opacity: 0.65 } : null]}
+                onPress={() => onTierCta(key)}
+                disabled={mpCheckoutLoading && key !== 'free'}
+                activeOpacity={0.85}
+              >
+                {mpCheckoutLoading && key !== 'free' ? (
+                  <ActivityIndicator size="small" color={shell.emptyCtaText} />
+                ) : (
+                  <Text style={styles.tierCtaText}>
+                    {key === 'free' ? t('sub_included') : t('sub_continue')}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           ))

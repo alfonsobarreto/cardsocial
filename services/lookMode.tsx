@@ -272,6 +272,19 @@ export function LookModeProvider({ children }: { children: React.ReactNode }) {
   return <LookModeContext.Provider value={value}>{children}</LookModeContext.Provider>;
 }
 
+export function useLookModeOptional(): LookModeContextValue | null {
+  return useContext(LookModeContext);
+}
+
+/** Tema resuelto con fallback si la pantalla monta fuera de `LookModeProvider` (p. ej. tras error de arranque). */
+export function useResolvedLookModeForShell(): 'dia' | 'noche' {
+  const context = useContext(LookModeContext);
+  if (context) {
+    return context.resolvedMode;
+  }
+  return Appearance.getColorScheme() === 'dark' ? 'noche' : 'dia';
+}
+
 export function useLookMode() {
   const context = useContext(LookModeContext);
   if (!context) {

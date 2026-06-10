@@ -16,7 +16,7 @@ import { createDefaultVaultData, initializeUserCredits } from '@/services/credit
 import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { buildLegalConsentHashBundle } from '@/services/legalConsentHash';
-import { useLookMode } from '@/services/lookMode';
+import { useResolvedLookModeForShell } from '@/services/lookMode';
 import { deleteVaultFileWithModeration, ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { upsertSuccessfulReferralAttribution } from '@/services/referralsFirestoreService';
@@ -128,7 +128,7 @@ export default function RegisterScreen() {
   const language = langCtx?.language ?? 'en';
   const t = useAuthT();
   const modalFooterBottomPad = useModalFooterBottomPad();
-  const { resolvedMode } = useLookMode();
+  const resolvedMode = useResolvedLookModeForShell();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => registerFormLook(isNight), [isNight]);
   const legalModalPalette = useMemo(

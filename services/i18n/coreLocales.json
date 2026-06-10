@@ -3495,6 +3495,110 @@
     "fr": "Vérifiez la connexion et réessayez. Si ça échoue, réessayez plus tard.",
     "de": "Internet prüfen und erneut versuchen. Bei anhaltendem Fehler später erneut."
   },
+  "search_location_off_title": {
+    "es": "Ubicación desactivada",
+    "en": "Location is off",
+    "it": "Posizione disattivata",
+    "pt": "Localização desativada",
+    "fr": "Localisation désactivée",
+    "de": "Standort deaktiviert"
+  },
+  "search_location_off_body": {
+    "es": "Activa el GPS del teléfono para buscar negocios cerca de ti (por ejemplo, en Tarapoto).",
+    "en": "Turn on your phone’s GPS to find businesses near you.",
+    "it": "Attiva il GPS del telefono per trovare attività vicino a te.",
+    "pt": "Ative o GPS do telefone para encontrar negócios perto de você.",
+    "fr": "Activez le GPS du téléphone pour trouver des commerces près de vous.",
+    "de": "Aktivieren Sie das GPS, um Unternehmen in Ihrer Nähe zu finden."
+  },
+  "search_location_denied_title": {
+    "es": "Permiso de ubicación",
+    "en": "Location permission",
+    "it": "Permesso posizione",
+    "pt": "Permissão de localização",
+    "fr": "Autorisation de localisation",
+    "de": "Standortberechtigung"
+  },
+  "search_location_denied_body": {
+    "es": "Card-Social necesita tu ubicación mientras buscas en el Mercado Social para mostrar negocios a menos de 25 millas.",
+    "en": "Card-Social needs your location while you search Social Market to show businesses within 25 miles.",
+    "it": "Card-Social usa la tua posizione durante la ricerca nel mercato per mostrare attività entro 25 miglia.",
+    "pt": "O Card-Social precisa da sua localização ao buscar no mercado para mostrar negócios a até 25 milhas.",
+    "fr": "Card-Social a besoin de votre position pour afficher les commerces à moins de 25 miles.",
+    "de": "Card-Social benötigt Ihren Standort, um Unternehmen im Umkreis von 25 Meilen anzuzeigen."
+  },
+  "search_location_denied_settings_body": {
+    "es": "Denegaste el acceso a la ubicación. Ábrelo en Ajustes y elige «Mientras usas la app» para buscar cerca de ti.",
+    "en": "Location access was denied. Open Settings and choose “While Using the App” to search nearby.",
+    "it": "Accesso alla posizione negato. Apri Impostazioni e scegli «Durante l’uso dell’app».",
+    "pt": "Acesso à localização negado. Abra Ajustes e escolha «Enquanto usa o app».",
+    "fr": "Accès à la localisation refusé. Ouvrez Réglages et choisissez « Lors de l’utilisation ».",
+    "de": "Standortzugriff verweigert. Öffnen Sie Einstellungen und wählen Sie „Beim Verwenden der App“."
+  },
+  "search_location_unavailable_title": {
+    "es": "No se pudo obtener tu ubicación",
+    "en": "Could not get your location",
+    "it": "Impossibile ottenere la posizione",
+    "pt": "Não foi possível obter sua localização",
+    "fr": "Impossible d’obtenir votre position",
+    "de": "Standort konnte nicht ermittelt werden"
+  },
+  "search_location_unavailable_body": {
+    "es": "Comprueba que el GPS esté activo y que tengas señal. Puedes reintentar o salir al exterior.",
+    "en": "Make sure GPS is on and you have a signal. Try again or move outdoors.",
+    "it": "Verifica che il GPS sia attivo e riprova, preferibilmente all’aperto.",
+    "pt": "Verifique se o GPS está ativo e tente de novo, de preferência ao ar livre.",
+    "fr": "Vérifiez que le GPS est activé et réessayez, de préférence à l’extérieur.",
+    "de": "Prüfen Sie, ob GPS aktiv ist, und versuchen Sie es erneut – am besten im Freien."
+  },
+  "search_location_open_settings": {
+    "es": "Abrir ajustes",
+    "en": "Open Settings",
+    "it": "Apri impostazioni",
+    "pt": "Abrir ajustes",
+    "fr": "Ouvrir réglages",
+    "de": "Einstellungen öffnen"
+  },
+  "search_location_retry": {
+    "es": "Reintentar",
+    "en": "Try again",
+    "it": "Riprova",
+    "pt": "Tentar de novo",
+    "fr": "Réessayer",
+    "de": "Erneut versuchen"
+  },
+  "search_location_near": {
+    "es": "Buscando cerca de {{place}}",
+    "en": "Searching near {{place}}",
+    "it": "Ricerca vicino a {{place}}",
+    "pt": "Buscando perto de {{place}}",
+    "fr": "Recherche près de {{place}}",
+    "de": "Suche in der Nähe von {{place}}"
+  },
+  "search_location_enable_hint": {
+    "es": "Activa tu ubicación para ver negocios cerca de ti en el Mercado Social.",
+    "en": "Enable your location to see businesses near you in Social Market.",
+    "it": "Attiva la posizione per vedere attività vicino a te.",
+    "pt": "Ative a localização para ver negócios perto de você.",
+    "fr": "Activez la localisation pour voir les commerces près de vous.",
+    "de": "Standort aktivieren, um Unternehmen in Ihrer Nähe zu sehen."
+  },
+  "search_location_enable_btn": {
+    "es": "Activar",
+    "en": "Enable",
+    "it": "Attiva",
+    "pt": "Ativar",
+    "fr": "Activer",
+    "de": "Aktivieren"
+  },
+  "search_location_enable_a11y": {
+    "es": "Activar ubicación para el Mercado Social",
+    "en": "Enable location for Social Market",
+    "it": "Attiva posizione per il mercato sociale",
+    "pt": "Ativar localização para o mercado social",
+    "fr": "Activer la localisation pour le marché social",
+    "de": "Standort für Social Market aktivieren"
+  },
   "search_market_title": {
     "es": "Mercado Social",
     "en": "Social Market",
@@ -5558,6 +5662,110 @@
     "pt": "Como obter",
     "fr": "Comment l’obtenir",
     "de": "So erhalten Sie es"
+  },
+  "sub_continue": {
+    "es": "Continuar",
+    "en": "Continue",
+    "it": "Continua",
+    "pt": "Continuar",
+    "fr": "Continuer",
+    "de": "Weiter"
+  },
+  "sub_pay_mercadopago": {
+    "es": "Pagar con Mercado Pago",
+    "en": "Pay with Mercado Pago",
+    "it": "Paga con Mercado Pago",
+    "pt": "Pagar com Mercado Pago",
+    "fr": "Payer avec Mercado Pago",
+    "de": "Mit Mercado Pago bezahlen"
+  },
+  "sub_mp_checkout_title": {
+    "es": "Checkout Mercado Pago",
+    "en": "Mercado Pago checkout",
+    "it": "Checkout Mercado Pago",
+    "pt": "Checkout Mercado Pago",
+    "fr": "Paiement Mercado Pago",
+    "de": "Mercado-Pago-Checkout"
+  },
+  "sub_mp_checkout_body": {
+    "es": "Elige periodo y moneda. Te llevamos al checkout seguro de Mercado Pago (soles o dólares).",
+    "en": "Choose billing period and currency. We’ll open Mercado Pago’s secure checkout (soles or US dollars).",
+    "it": "Scegli periodo e valuta. Apriremo il checkout sicuro di Mercado Pago (soles o dollari).",
+    "pt": "Escolha período e moeda. Abriremos o checkout seguro do Mercado Pago (soles ou dólares).",
+    "fr": "Choisissez la période et la devise. Nous ouvrirons le checkout sécurisé Mercado Pago (soles ou dollars).",
+    "de": "Wählen Sie Laufzeit und Währung. Wir öffnen den sicheren Mercado-Pago-Checkout (Soles oder USD)."
+  },
+  "sub_mp_billing_monthly_pen": {
+    "es": "Mensual · PEN (S/)",
+    "en": "Monthly · PEN (S/)",
+    "it": "Mensile · PEN (S/)",
+    "pt": "Mensal · PEN (S/)",
+    "fr": "Mensuel · PEN (S/)",
+    "de": "Monatlich · PEN (S/)"
+  },
+  "sub_mp_billing_annual_pen": {
+    "es": "Anual · PEN (S/)",
+    "en": "Annual · PEN (S/)",
+    "it": "Annuale · PEN (S/)",
+    "pt": "Anual · PEN (S/)",
+    "fr": "Annuel · PEN (S/)",
+    "de": "Jährlich · PEN (S/)"
+  },
+  "sub_mp_billing_monthly_usd": {
+    "es": "Mensual · USD ($)",
+    "en": "Monthly · USD ($)",
+    "it": "Mensile · USD ($)",
+    "pt": "Mensal · USD ($)",
+    "fr": "Mensuel · USD ($)",
+    "de": "Monatlich · USD ($)"
+  },
+  "sub_mp_billing_annual_usd": {
+    "es": "Anual · USD ($)",
+    "en": "Annual · USD ($)",
+    "it": "Annuale · USD ($)",
+    "pt": "Anual · USD ($)",
+    "fr": "Annuel · USD ($)",
+    "de": "Jährlich · USD ($)"
+  },
+  "sub_mp_opening_checkout": {
+    "es": "Abriendo checkout…",
+    "en": "Opening checkout…",
+    "it": "Apertura checkout…",
+    "pt": "Abrindo checkout…",
+    "fr": "Ouverture du checkout…",
+    "de": "Checkout wird geöffnet…"
+  },
+  "sub_mp_return_title": {
+    "es": "Pago en proceso",
+    "en": "Payment in progress",
+    "it": "Pagamento in corso",
+    "pt": "Pagamento em andamento",
+    "fr": "Paiement en cours",
+    "de": "Zahlung läuft"
+  },
+  "sub_mp_return_body": {
+    "es": "Si completaste el pago en Mercado Pago, tu plan se activará en unos segundos. Cierra y vuelve a abrir Suscripciones si no ves el cambio.",
+    "en": "If you completed payment in Mercado Pago, your plan activates within seconds. Close and reopen Subscriptions if you don’t see it yet.",
+    "it": "Se hai completato il pagamento su Mercado Pago, il piano si attiva in pochi secondi. Chiudi e riapri Abbonamenti se non lo vedi.",
+    "pt": "Se concluiu o pagamento no Mercado Pago, seu plano ativa em segundos. Feche e abra Assinaturas se ainda não aparecer.",
+    "fr": "Si vous avez payé sur Mercado Pago, votre formule s’active en quelques secondes. Fermez et rouvrez Abonnements si besoin.",
+    "de": "Nach erfolgreicher Zahlung bei Mercado Pago wird Ihr Plan in Sekunden aktiv. Schließen und Abonnements erneut öffnen, falls nötig."
+  },
+  "sub_mp_not_configured": {
+    "es": "Mercado Pago aún no está configurado en el servidor. Contacta a soporte.",
+    "en": "Mercado Pago is not configured on the server yet. Contact support.",
+    "it": "Mercado Pago non è ancora configurato sul server. Contatta il supporto.",
+    "pt": "Mercado Pago ainda não está configurado no servidor. Contacte o suporte.",
+    "fr": "Mercado Pago n’est pas encore configuré sur le serveur. Contactez le support.",
+    "de": "Mercado Pago ist auf dem Server noch nicht konfiguriert. Support kontaktieren."
+  },
+  "sub_mp_peru_hint": {
+    "es": "En Perú puedes pagar con Mercado Pago en soles (PEN) o dólares (USD).",
+    "en": "In Peru you can pay with Mercado Pago in soles (PEN) or US dollars (USD).",
+    "it": "In Perù puoi pagare con Mercado Pago in soles (PEN) o dollari (USD).",
+    "pt": "No Peru você pode pagar com Mercado Pago em soles (PEN) ou dólares (USD).",
+    "fr": "Au Pérou, payez avec Mercado Pago en soles (PEN) ou dollars (USD).",
+    "de": "In Peru können Sie mit Mercado Pago in Soles (PEN) oder USD bezahlen."
   },
   "sub_business_nfc_section_title": {
     "es": "Tarjetas de negocio y NFC",

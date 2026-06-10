@@ -283,6 +283,7 @@ export const subscription = {
   ),
   sub_included: L('Incluido', 'Included', 'Incluso', 'Incluído', 'Inclus', 'Inklusive'),
   sub_how_to_get: L('Cómo obtenerlo', 'How to get it', 'Come ottenerlo', 'Como obter', 'Comment l’obtenir', 'So erhalten Sie es'),
+  sub_continue: L('Continuar', 'Continue', 'Continua', 'Continuar', 'Continuer', 'Weiter'),
   sub_business_nfc_section_title: L(
     'Tarjetas de negocio y NFC',
     'Business cards & NFC',

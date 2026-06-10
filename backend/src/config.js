@@ -10,6 +10,9 @@ if (fs.existsSync(repoRootEnvPath)) {
 }
 dotenv.config({ path: backendEnvPath, override: true });
 
+const { bootstrapMongoDns } = require('./lib/mongoDnsBootstrap');
+bootstrapMongoDns();
+
 const MB = 1024 * 1024;
 
 /** `localhost`/loopback no sirven para QRs escaneados desde el móvil (no es la máquina del dev). */
@@ -96,6 +99,9 @@ const env = {
   smtpUser: process.env.SMTP_USER || "",
   smtpPass: process.env.SMTP_PASS || "",
   revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
+  /** Mercado Pago Checkout Pro (Perú / LATAM). Access token = credencial privada; public key = frontend Checkout Bricks. */
+  mercadopagoAccessToken: String(process.env.MERCADOPAGO_ACCESS_TOKEN ?? '').trim(),
+  mercadopagoPublicKey: String(process.env.MERCADOPAGO_PUBLIC_KEY ?? '').trim(),
   imageMaxBytes: 5 * MB,
   docMaxBytes: 20 * MB,
   /** Base URL del sitio (Next/Expo Web) para enlaces QR universales TTL; fuerza LAN si la explícita es loopback */

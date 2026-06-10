@@ -17,6 +17,8 @@ const { createUniversalEntryHttpRoutes } = require("./routes/universalEntryHttpR
 const { createNfcRoutes } = require("./routes/nfcRoutes");
 const { createNfcPublicRoutes } = require("./routes/nfcPublicRoutes");
 const { attachPublicEmailSignatureQrRoute } = require("./routes/publicEmailSignatureQrRoutes");
+const { createEmailSignatureRoutes } = require("./routes/emailSignatureRoutes");
+const { createMercadoPagoCheckoutRoutes } = require("./routes/mercadopagoCheckoutRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
 const { createAdminMediaRouter, getAdminMediaUploadsDir } = require("./routes/adminMediaRoutes");
@@ -710,6 +712,10 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
   app.use("/n", createNfcPublicRoutes({ storage }));
+  /** Firma correo Dashboard — Express directo (evita proxy Next + cold start / timeout en móvil). */
+  app.use("/api/email-signature", createEmailSignatureRoutes({ storage, env }));
+  /** Mercado Pago Checkout Pro (Perú: PEN / USD) — antes del proxy Next. */
+  app.use("/api/payments/mercadopago", createMercadoPagoCheckoutRoutes({ storage, env }));
 
   // Next.js frontend-web: ficha pública, legal, Card Studio, login, assets.
   // Sin estos montajes Express responde 404 aunque Next esté levantado (p. ej. /studio, /login).
@@ -845,7 +851,6 @@ const otpHash = (emailLower, code) => {
     app.use('/login', nextProxy);
     app.use('/api/studio', nextProxy);
     app.use('/api/waitlist', nextProxy);
-    app.use('/api/email-signature', nextProxy);
     app.use('/api/embed', nextProxy);
     app.use('/embed', nextProxy);
     app.use('/_next', nextProxy);

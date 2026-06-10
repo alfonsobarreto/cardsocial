@@ -28,9 +28,12 @@ import {
 } from '@/services/receivedContactsPresentationMerge';
 import { inferMciIconFromContext, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
 import {
+  getSearchSessionCoordinates,
   isSearchLocationSessionActive,
+  resolveSearchLocationForMarket,
   startSearchLocationSession,
   subscribeSearchLocationSession,
+  type SearchLocationFailureReason,
 } from '@/services/searchLocationSession';
 import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
@@ -56,6 +59,7 @@ import {
   Alert,
   Animated,
   Keyboard,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -194,6 +198,12 @@ export default function SearchScreen() {
   } | null>(null);
   const [, setLocationSessionUiRev] = useState(0);
   const sessionWasActiveRef = useRef(false);
+  const [marketHasLocation, setMarketHasLocation] = useState(() => isSearchLocationSessionActive());
+  const [marketGeoLabel, setMarketGeoLabel] = useState<string | null>(() => {
+    const active = getSearchSessionCoordinates();
+    return active?.geoLabel ?? null;
+  });
+  const [locationResolving, setLocationResolving] = useState(false);
   const [sectionContacts, setSectionContacts] = useState<BusinessCardSearchResult[]>([]);
   const [sectionBusinesses, setSectionBusinesses] = useState<BusinessCardSearchResult[]>([]);
   /** Orden global Mercado: distancia (≤20 mi) o valoración. */
@@ -370,7 +380,7 @@ export default function SearchScreen() {
       const within = uniqueBusinesses.filter((r) => {
         const d = r.distanceMiles;
         if (d == null || !Number.isFinite(d)) {
-          return true;
+          return false;
         }
         return d <= SOCIAL_MARKET_RADIUS_MILES;
       });
@@ -533,6 +543,82 @@ export default function SearchScreen() {
     void loadReceivedContactsForMarket();
   }, [loadReceivedContactsForMarket]);
 
+  const applyResolvedMarketLocation = useCallback(
+    (loc: {
+      latitude: number;
+      longitude: number;
+      zipcode: string | null;
+      city: string | null;
+      region: string | null;
+      country: string | null;
+      geoLabel: string | null;
+    }) => {
+      lastLocationRef.current = {
+        lat: loc.latitude,
+        lng: loc.longitude,
+        zipcode: loc.zipcode,
+        city: loc.city,
+        region: loc.region,
+        country: loc.country,
+        geoLabel: loc.geoLabel,
+      };
+      setMarketHasLocation(true);
+      setMarketGeoLabel(loc.geoLabel);
+    },
+    [],
+  );
+
+  const locationFailureCopy = useCallback(
+    (reason: SearchLocationFailureReason): { title: string; body: string } => {
+      if (reason === 'services_disabled') {
+        return { title: t('search_location_off_title'), body: t('search_location_off_body') };
+      }
+      if (reason === 'denied_permanent') {
+        return { title: t('search_location_denied_title'), body: t('search_location_denied_settings_body') };
+      }
+      if (reason === 'denied') {
+        return { title: t('search_location_denied_title'), body: t('search_location_denied_body') };
+      }
+      return { title: t('search_location_unavailable_title'), body: t('search_location_unavailable_body') };
+    },
+    [t],
+  );
+
+  const promptMarketLocationFailure = useCallback(
+    (reason: SearchLocationFailureReason, onRetry: () => void) => {
+      const { title, body } = locationFailureCopy(reason);
+      const openSettings = reason === 'denied_permanent' || reason === 'services_disabled';
+      Alert.alert(title, body, [
+        ...(openSettings
+          ? [{ text: t('search_location_open_settings'), onPress: () => void Linking.openSettings() }]
+          : []),
+        { text: t('search_location_retry'), onPress: onRetry },
+        { text: t('common_cancel'), style: 'cancel' as const },
+      ]);
+    },
+    [locationFailureCopy, t],
+  );
+
+  const acquireMarketLocation = useCallback(
+    async (onRetry: () => void): Promise<{ latitude: number; longitude: number } | null> => {
+      setLocationResolving(true);
+      try {
+        const r = await resolveSearchLocationForMarket();
+        if (r.ok) {
+          applyResolvedMarketLocation(r);
+          return { latitude: r.latitude, longitude: r.longitude };
+        }
+        setMarketHasLocation(false);
+        setMarketGeoLabel(null);
+        promptMarketLocationFailure(r.reason, onRetry);
+        return null;
+      } finally {
+        setLocationResolving(false);
+      }
+    },
+    [applyResolvedMarketLocation, promptMarketLocationFailure],
+  );
+
   const performMarketSearch = useCallback(
     async (query: string, latitude?: number, longitude?: number) => {
       const q = query.trim();
@@ -593,27 +679,44 @@ export default function SearchScreen() {
 
   const onSubmitMarketQuery = useCallback(
     (q: string) => {
+      const run = () => {
+        void (async () => {
+          const coords = await acquireMarketLocation(run);
+          if (!coords) {
+            return;
+          }
+          await performMarketSearch(q, coords.latitude, coords.longitude);
+        })();
+      };
+      run();
+    },
+    [acquireMarketLocation, performMarketSearch],
+  );
+
+  const onRefreshMarketLocation = useCallback(() => {
+    const run = () => {
       void (async () => {
-        const r = await startSearchLocationSession();
-        if (r.ok) {
-          lastLocationRef.current = {
-            lat: r.latitude,
-            lng: r.longitude,
-            zipcode: r.zipcode,
-            city: r.city,
-            region: r.region,
-            country: r.country,
-            geoLabel: r.geoLabel,
-          };
-          await performMarketSearch(q, r.latitude, r.longitude);
-        } else {
-          const cached = lastLocationRef.current;
-          await performMarketSearch(q, cached?.lat, cached?.lng);
+        setLocationResolving(true);
+        try {
+          const r = await startSearchLocationSession();
+          if (r.ok) {
+            applyResolvedMarketLocation(r);
+            const q = searchQueryRef.current.trim();
+            if (q) {
+              await performMarketSearch(q, r.latitude, r.longitude);
+            }
+            return;
+          }
+          setMarketHasLocation(false);
+          setMarketGeoLabel(null);
+          promptMarketLocationFailure(r.reason, run);
+        } finally {
+          setLocationResolving(false);
         }
       })();
-    },
-    [performMarketSearch],
-  );
+    };
+    run();
+  }, [applyResolvedMarketLocation, performMarketSearch, promptMarketLocationFailure]);
 
   const onClearMarketSearch = useCallback(() => {
     searchQueryRef.current = '';
@@ -692,12 +795,51 @@ export default function SearchScreen() {
       </Text>
 
       <SocialMarketSearchBar
-        loading={loading}
+        loading={loading || locationResolving}
         shell={shell}
         t={t}
         onSubmitQuery={onSubmitMarketQuery}
         onClearResults={onClearMarketSearch}
       />
+
+      {marketHasLocation && marketGeoLabel ? (
+        <View
+          style={[
+            styles.marketLocationBanner,
+            { backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(22,163,74,0.08)', borderColor: shell.border },
+          ]}
+        >
+          <MaterialCommunityIcons name="crosshairs-gps" size={18} color={shell.ctaAccent} />
+          <Text style={[styles.marketLocationBannerText, { color: shell.textPrimary }]} numberOfLines={2}>
+            {t('search_location_near', { place: marketGeoLabel })}
+          </Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.marketLocationBanner,
+            styles.marketLocationBannerAction,
+            { backgroundColor: shell.surfaceMuted, borderColor: shell.ctaAccent },
+          ]}
+          onPress={onRefreshMarketLocation}
+          disabled={locationResolving}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('search_location_enable_a11y')}
+        >
+          {locationResolving ? (
+            <ActivityIndicator size="small" color={shell.ctaAccent} />
+          ) : (
+            <MaterialCommunityIcons name="map-marker-alert-outline" size={18} color={shell.ctaAccent} />
+          )}
+          <Text style={[styles.marketLocationBannerText, { color: shell.textPrimary, flex: 1 }]} numberOfLines={2}>
+            {t('search_location_enable_hint')}
+          </Text>
+          <Text style={[styles.marketLocationBannerCta, { color: shell.ctaAccent }]}>
+            {t('search_location_enable_btn')}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.marketSortToolbar}>
         <View style={styles.marketSortPillCol}>
@@ -1602,6 +1744,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 15,
     letterSpacing: 0.8,
+  },
+  marketLocationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  marketLocationBannerAction: {
+    minHeight: 44,
+  },
+  marketLocationBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  marketLocationBannerCta: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   marketSortToolbar: {
     flexDirection: 'row',
