@@ -15,7 +15,10 @@ const fs = require('fs');
  * junto a `backend/`. Varias rutas candidatas + fallback `{}` evitan crash fatal (ENOENT → 503).
  */
 function resolveExistingPath(label, relativeFromLib, cwdRelative) {
+  const fileName = path.basename(String(cwdRelative || '').replace(/\\/g, '/'));
   const candidates = [
+    path.join(__dirname, '..', 'i18n', fileName),
+    path.join(process.cwd(), 'i18n', fileName),
     path.join(__dirname, relativeFromLib),
     path.join(process.cwd(), cwdRelative),
     path.join(process.cwd(), '..', cwdRelative),

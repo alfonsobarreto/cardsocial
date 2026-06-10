@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const path = require('path');
 
 const { verifyFirebaseIdToken } = require('../lib/firebaseAdminApp');
 const { sendEmail, isEmailSendConfigured } = require('../services/email.service');
@@ -16,8 +15,9 @@ const {
   wrapCorporateSignatureEmail,
 } = require('../lib/businessCardEmailSignatureHtml');
 const { resolveSignatureOriginsForEmail } = require('../lib/emailSignatureOrigins');
+const { readRepoI18nJson } = require('../lib/resolveRepoI18nJson');
 
-const emailLocales = require(path.join(__dirname, '../../../services/i18n/emailLocales.json'));
+const emailLocales = readRepoI18nJson('emailLocales.json', 'emailLocales');
 
 function corsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

@@ -1,0 +1,362 @@
+{
+  "email_sig_subject": {
+    "es": "Tu nueva firma corporativa",
+    "en": "Your new corporate signature",
+    "it": "La tua nuova firma aziendale",
+    "pt": "Sua nova assinatura corporativa",
+    "fr": "Votre nouvelle signature professionnelle",
+    "de": "Ihre neue Unternehmens-Signatur"
+  },
+  "email_sig_wrap_headline": {
+    "es": "Tu nueva firma corporativa",
+    "en": "Your new corporate signature",
+    "it": "La tua nuova firma aziendale",
+    "pt": "Sua nova assinatura corporativa",
+    "fr": "Votre nouvelle signature professionnelle",
+    "de": "Ihre neue Unternehmens-Signatur"
+  },
+  "email_sig_wrap_p1": {
+    "es": "Abre este correo en tu computadora. Selecciona la firma de abajo (solo el recuadro con logo y QR) y cópiala. Evita seleccionar la descripción textual — solo bloqueamos la tabla de la marca.",
+    "en": "Open this email on your desktop. Select the signature block below (the card with logo and QR code) and copy it. Prefer selecting only the branded table.",
+    "it": "Apri questa email sul computer. Seleziona il blocco firma sotto (logo e QR) e copialo. Evita il testo descrittivo: copia solo la tabella del brand.",
+    "pt": "Abra este e-mail no computador. Selecione o bloco de assinatura abaixo (logo e QR) e copie. Evite o texto descritivo — apenas a tabela da marca.",
+    "fr": "Ouvrez cet e-mail sur un ordinateur. Sélectionnez le bloc de signature ci-dessous (logo et QR) et copiez-le. Évitez le texte descriptif — uniquement le tableau de la marque.",
+    "de": "Öffnen Sie diese E-Mail am Computer. Wählen Sie den Signaturblock unten (Logo und QR) und kopieren Sie ihn. Vermeiden Sie den Beschreibungstext — nur die Marken-Tabelle."
+  },
+  "email_sig_wrap_p2": {
+    "es": "Pégala después en Gmail o Outlook Web: Configuración → Firma. En la app de correo móvil suele tratarse mejor el pegado cuando la firma llega así desde escritorio.",
+    "en": "Paste it into Gmail or Outlook Web: Settings → Signature. Mail apps on phones often behave better once the signature came from desktop email.",
+    "it": "Incollala in Gmail o Outlook Web: Impostazioni → Firma. Le app mobile spesso incollano meglio se la firma arriva dal desktop.",
+    "pt": "Cole no Gmail ou Outlook Web: Configurações → Assinatura. Apps móveis costumam colar melhor quando a assinatura veio do desktop.",
+    "fr": "Collez dans Gmail ou Outlook Web : Paramètres → Signature. Les applis mobile collent souvent mieux si la signature vient du bureau.",
+    "de": "Fügen Sie in Gmail oder Outlook Web ein: Einstellungen → Signatur. Mobile Apps funktionieren oft besser, wenn die Signatur vom Desktop kommt."
+  },
+  "email_sig_text_preamble": {
+    "es": "Instrucciones: abre en tu computadora, copia el bloque de firma desde el HTML del correo, y pégala en Gmail/Outlook.",
+    "en": "Instructions: open on desktop, copy the branded signature block from this email HTML, paste into Gmail/Outlook.",
+    "it": "Istruzioni: apri sul desktop, copia il blocco firma dall HTML di questa email, incollalo in Gmail/Outlook.",
+    "pt": "Instruções: abra no desktop, copie o bloco de assinatura do HTML deste e-mail e cole no Gmail/Outlook.",
+    "fr": "Instructions : sur ordinateur, copiez le bloc signature depuis l’HTML de cet e-mail et collez-le dans Gmail/Outlook.",
+    "de": "Anleitung: Am Desktop öffnen, Signaturblock aus dieser E-Mail-HTML kopieren, in Gmail/Outlook einfügen."
+  },
+  "email_sig_fallback_subtitle": {
+    "es": "Tarjeta de negocio",
+    "en": "Business card",
+    "it": "Carta aziendale",
+    "pt": "Cartão de negócios",
+    "fr": "Carte professionnelle",
+    "de": "Visitenkarte"
+  },
+  "email_sig_qr_alt": {
+    "es": "Código QR",
+    "en": "QR code",
+    "it": "Codice QR",
+    "pt": "Código QR",
+    "fr": "Code QR",
+    "de": "QR-Code"
+  },
+  "waitlist_interest_label_personal": {
+    "es": "Asegurar mi tarjeta personal",
+    "en": "Secure my personal card",
+    "it": "Proteggi la mia carta personale",
+    "pt": "Garantir meu cartão pessoal",
+    "fr": "Sécuriser ma carte personnelle",
+    "de": "Meine persönliche Karte sichern"
+  },
+  "waitlist_interest_label_business": {
+    "es": "Soy dueño de negocio",
+    "en": "I am a Business Owner",
+    "it": "Sono un imprenditore",
+    "pt": "Sou dono de negócio",
+    "fr": "Je suis chef d’entreprise",
+    "de": "Ich bin Unternehmer"
+  },
+  "waitlist_interest_label_investor": {
+    "es": "Soy inversionista",
+    "en": "I am an Investor",
+    "it": "Sono un investitore",
+    "pt": "Sou investidor",
+    "fr": "Je suis investisseur",
+    "de": "Ich bin Investor"
+  },
+  "waitlist_notify_subject_personal": {
+    "es": "Nuevo usuario interesado en su tarjeta personal",
+    "en": "New personal card lead for Card-Social",
+    "it": "Nuovo lead carta personale Card-Social",
+    "pt": "Novo lead cartão pessoal Card-Social",
+    "fr": "Nouveau lead carte personnelle Card-Social",
+    "de": "Neuer Lead persönliche Karte Card-Social"
+  },
+  "waitlist_notify_subject_business": {
+    "es": "Nuevo dueño de negocio interesado en Card-Social",
+    "en": "New business owner lead for Card-Social",
+    "it": "Nuovo imprenditore interessato a Card-Social",
+    "pt": "Novo dono de negócio interessado no Card-Social",
+    "fr": "Nouveau dirigeant intéressé par Card-Social",
+    "de": "Neuer Business-Inhaber-Lead Card-Social"
+  },
+  "waitlist_notify_subject_investor": {
+    "es": "Tienes un inversionista interesado en Card-Social",
+    "en": "You have a new investor lead for Card-Social",
+    "it": "Hai un nuovo lead investitore Card-Social",
+    "pt": "Você tem um novo lead investidor Card-Social",
+    "fr": "Nouveau lead investisseur Card-Social",
+    "de": "Neuer Investor-Lead Card-Social"
+  },
+  "waitlist_admin_intro": {
+    "es": "Tienes un nuevo lead desde la landing de Card-Social.",
+    "en": "You have a new lead from the Card-Social landing page.",
+    "it": "Hai un nuovo lead dalla landing Card-Social.",
+    "pt": "Você tem um novo lead da landing Card-Social.",
+    "fr": "Nouveau lead depuis la page Card-Social.",
+    "de": "Neuer Lead von der Card-Social-Landingpage."
+  },
+  "waitlist_admin_label_name": {
+    "es": "Nombre",
+    "en": "Name",
+    "it": "Nome",
+    "pt": "Nome",
+    "fr": "Nom",
+    "de": "Name"
+  },
+  "waitlist_admin_label_email": {
+    "es": "Email",
+    "en": "Email",
+    "it": "Email",
+    "pt": "E-mail",
+    "fr": "E-mail",
+    "de": "E-Mail"
+  },
+  "waitlist_admin_label_phone": {
+    "es": "Teléfono/WhatsApp",
+    "en": "Phone/WhatsApp",
+    "it": "Telefono/WhatsApp",
+    "pt": "Telefone/WhatsApp",
+    "fr": "Téléphone/WhatsApp",
+    "de": "Telefon/WhatsApp"
+  },
+  "waitlist_admin_label_interest": {
+    "es": "Interés",
+    "en": "Interest",
+    "it": "Interesse",
+    "pt": "Interesse",
+    "fr": "Intérêt",
+    "de": "Interesse"
+  },
+  "waitlist_admin_label_language": {
+    "es": "Idioma",
+    "en": "Language",
+    "it": "Lingua",
+    "pt": "Idioma",
+    "fr": "Langue",
+    "de": "Sprache"
+  },
+  "waitlist_admin_label_page": {
+    "es": "Página",
+    "en": "Page",
+    "it": "Pagina",
+    "pt": "Página",
+    "fr": "Page",
+    "de": "Seite"
+  },
+  "waitlist_admin_label_date": {
+    "es": "Fecha",
+    "en": "Date",
+    "it": "Data",
+    "pt": "Data",
+    "fr": "Date",
+    "de": "Datum"
+  },
+  "waitlist_lead_lang_es": {
+    "es": "Español",
+    "en": "Spanish",
+    "it": "Spagnolo",
+    "pt": "Espanhol",
+    "fr": "Espagnol",
+    "de": "Spanisch"
+  },
+  "waitlist_lead_lang_en": {
+    "es": "Inglés",
+    "en": "English",
+    "it": "Inglese",
+    "pt": "Inglês",
+    "fr": "Anglais",
+    "de": "Englisch"
+  },
+  "waitlist_lead_lang_it": {
+    "es": "Italiano",
+    "en": "Italian",
+    "it": "Italiano",
+    "pt": "Italiano",
+    "fr": "Italien",
+    "de": "Italienisch"
+  },
+  "waitlist_lead_lang_pt": {
+    "es": "Portugués",
+    "en": "Portuguese",
+    "it": "Portoghese",
+    "pt": "Português",
+    "fr": "Portugais",
+    "de": "Portugiesisch"
+  },
+  "waitlist_lead_lang_fr": {
+    "es": "Francés",
+    "en": "French",
+    "it": "Francese",
+    "pt": "Francês",
+    "fr": "Français",
+    "de": "Französisch"
+  },
+  "waitlist_lead_lang_de": {
+    "es": "Alemán",
+    "en": "German",
+    "it": "Tedesco",
+    "pt": "Alemão",
+    "fr": "Allemand",
+    "de": "Deutsch"
+  },
+  "waitlist_autoreply_subject_investor": {
+    "es": "Card-Social: acceso al resumen ejecutivo",
+    "en": "Card-Social: access to the executive summary",
+    "it": "Card-Social: accesso al riassunto esecutivo",
+    "pt": "Card-Social: acesso ao resumo executivo",
+    "fr": "Card-Social : accès au résumé exécutif",
+    "de": "Card-Social: Zugang zur Executive Summary"
+  },
+  "waitlist_autoreply_subject_beta": {
+    "es": "Bienvenido a la Beta privada de Card-Social",
+    "en": "Welcome to the Card-Social private beta",
+    "it": "Benvenuto alla beta privata Card-Social",
+    "pt": "Bem-vindo à beta privada Card-Social",
+    "fr": "Bienvenue dans la bêta privée Card-Social",
+    "de": "Willkommen in der Card-Social-Privat-Beta"
+  },
+  "waitlist_autoreply_investor_h2": {
+    "es": "Gracias por tu interés en Card-Social.",
+    "en": "Thank you for your interest in Card-Social.",
+    "it": "Grazie per il tuo interesse in Card-Social.",
+    "pt": "Obrigado pelo interesse no Card-Social.",
+    "fr": "Merci de votre intérêt pour Card-Social.",
+    "de": "Danke für Ihr Interesse an Card-Social."
+  },
+  "waitlist_autoreply_investor_p1": {
+    "es": "Recibimos tu solicitud como inversionista. Nuestro equipo revisará tu información y te contactará con los próximos pasos.",
+    "en": "We received your investor request. Our team will review your information and follow up with next steps.",
+    "it": "Abbiamo ricevuto la tua richiesta investitore. Il team esaminerà i dati e ti contatterà con i prossimi passi.",
+    "pt": "Recebemos sua solicitação de investidor. Nossa equipe analisará seus dados e retornará com os próximos passos.",
+    "fr": "Nous avons bien reçu votre demande investisseur. Notre équipe examinera vos informations et vous recontactera.",
+    "de": "Wir haben Ihre Investor-Anfrage erhalten. Unser Team prüft Ihre Angaben und meldet sich mit den nächsten Schritten."
+  },
+  "waitlist_autoreply_investor_link_text": {
+    "es": "Descarga nuestro Resumen Ejecutivo aquí",
+    "en": "Download our Executive Summary here",
+    "it": "Scarica qui il nostro Executive Summary",
+    "pt": "Baixe nosso Resumo Executivo aqui",
+    "fr": "Téléchargez notre résumé exécutif ici",
+    "de": "Laden Sie hier unsere Executive Summary herunter"
+  },
+  "waitlist_autoreply_investor_p2": {
+    "es": "Card-Social está construyendo una infraestructura de identidad, privacidad e inteligencia local para la nueva economía de networking.",
+    "en": "Card-Social is building identity, privacy, and local intelligence infrastructure for the new networking economy.",
+    "it": "Card-Social costruisce infrastrutture di identità, privacy e intelligenza locale per la nuova economia del networking.",
+    "pt": "A Card-Social constrói infraestrutura de identidade, privacidade e inteligência local para a nova economia de networking.",
+    "fr": "Card-Social construit une infrastructure d’identité, de vie privée et d’intelligence locale pour la nouvelle économie du networking.",
+    "de": "Card-Social baut Infrastruktur für Identität, Datenschutz und lokale Intelligenz für die neue Networking-Ökonomie."
+  },
+  "waitlist_autoreply_beta_h2": {
+    "es": "Bienvenido a Card-Social.",
+    "en": "Welcome to Card-Social.",
+    "it": "Benvenuto su Card-Social.",
+    "pt": "Bem-vindo ao Card-Social.",
+    "fr": "Bienvenue sur Card-Social.",
+    "de": "Willkommen bei Card-Social."
+  },
+  "waitlist_autoreply_beta_p1": {
+    "es": "Recibimos tu solicitud para la Beta privada. Estás en la lista para acceder a una nueva forma de proteger tu identidad, compartir tarjetas dinámicas y entrar al Social Market.",
+    "en": "We received your private beta request. You are on the list to access a new way to protect your identity, share dynamic cards, and enter the Social Market.",
+    "it": "Abbiamo ricevuto la richiesta per la beta privata. Sei in lista per proteggere la tua identità, condividere carte dinamiche e accedere al Social Market.",
+    "pt": "Recebemos seu pedido de beta privada. Você está na lista para proteger sua identidade, compartilhar cartões dinâmicos e entrar no Social Market.",
+    "fr": "Nous avons reçu votre demande de bêta privée. Vous êtes sur la liste pour protéger votre identité, partager des cartes dynamiques et accéder au Social Market.",
+    "de": "Wir haben Ihre Privat-Beta-Anfrage erhalten. Sie stehen auf der Liste für Identitätsschutz, dynamische Karten und den Social Market."
+  },
+  "waitlist_autoreply_beta_p2": {
+    "es": "Te contactaremos pronto con los próximos pasos.",
+    "en": "We will follow up soon with next steps.",
+    "it": "Ti contatteremo presto con i prossimi passi.",
+    "pt": "Em breve entraremos em contato com os próximos passos.",
+    "fr": "Nous vous recontacterons bientôt avec la suite.",
+    "de": "Wir melden uns bald mit den nächsten Schritten."
+  },
+  "legacy_benefit_subject": {
+    "es": "¡Tu beneficio físico de Card-Social está listo!",
+    "en": "Your Card-Social physical benefit is ready!",
+    "it": "Il tuo benefit fisico Card-Social è pronto!",
+    "pt": "Seu benefício físico Card-Social está pronto!",
+    "fr": "Votre avantage physique Card-Social est prêt !",
+    "de": "Ihr physischer Card-Social-Vorteil ist bereit!"
+  },
+  "legacy_benefit_greeting": {
+    "es": "Hola {{name}},",
+    "en": "Hi {{name}},",
+    "it": "Ciao {{name}},",
+    "pt": "Olá {{name}},",
+    "fr": "Bonjour {{name}},",
+    "de": "Hallo {{name}},"
+  },
+  "legacy_benefit_metal_p1": {
+    "es": "¡Felicitaciones! Ganaste estado Metal en el Camino Legacy (1000+ referidos completados). Preparamos tu tarjeta física Premium grabada en láser más un mes Business de cortesía.",
+    "en": "Congratulations! You earned Metal status on the Legacy Path (1000+ completed referrals). We prepared your laser-engraved Premium physical card plus a complimentary month of Business.",
+    "it": "Congratulazioni! Hai raggiunto lo stato Metal nel Percorso Legacy (1000+ referal completati). Abbiamo preparato la tua carta fisica Premium incisa al laser più un mese Business omaggio.",
+    "pt": "Parabéns! Você conquistou o status Metal no Caminho Legacy (1000+ indicações concluídas). Preparamos seu cartão físico Premium gravado a laser mais um mês Business cortesia.",
+    "fr": "Félicitations ! Vous avez obtenu le statut Metal — Parcours Legacy (1000+ parrainages). Nous préparons votre carte physique Premium gravée laser plus un mois Business offert.",
+    "de": "Glückwunsch! Sie haben Metal-Status auf dem Legacy-Pfad erreicht (1000+ abgeschlossene Empfehlungen). Wir bereiten Ihre lasergravierte Premium-Physischkarte plus einen komplementären Business-Monat vor."
+  },
+  "legacy_benefit_referrals_line": {
+    "es": "Referidos válidos registrados: {{count}}.",
+    "en": "Valid referrals recorded: {{count}}.",
+    "it": "Referral validi registrati: {{count}}.",
+    "pt": "Indicações válidas registradas: {{count}}.",
+    "fr": "Parrainages valides enregistrés : {{count}}.",
+    "de": "Gültige Empfehlungen erfasst: {{count}}."
+  },
+  "legacy_benefit_metal_closing": {
+    "es": "Nuestro equipo coordinará tu beneficio físico con la dirección ligada a tu cuenta.",
+    "en": "Our team will coordinate your physical benefit using the address linked to your account.",
+    "it": "Il team coordina il benefit fisico con l’indirizzo collegato al tuo account.",
+    "pt": "Nossa equipe coordenará seu benefício físico com o endereço vinculado à sua conta.",
+    "fr": "Notre équipe coordonnera votre avantage physique avec l’adresse liée à votre compte.",
+    "de": "Unser Team koordiniert Ihren physischen Vorteil mit der in Ihrem Konto hinterlegten Adresse."
+  },
+  "legacy_benefit_pvc_p1": {
+    "es": "¡Felicitaciones! Ganaste nivel Oro en el Camino Legacy (750+ referidos completados): mantienes Business Card gratis y prepararemos tu tarjeta física NFC en PVC con envío gratuito.",
+    "en": "Congratulations! You reached Gold level on the Legacy Path (750+ completed referrals): you keep Business Card free and we will prepare your NFC PVC physical card with free shipping.",
+    "it": "Congratulazioni! Livello Oro nel Percorso Legacy (750+ referal): mantieni la Business Card gratuita e prepariamo la tua carta fisica NFC in PVC con spedizione gratuita.",
+    "pt": "Parabéns! Nível Ouro no Caminho Legacy (750+ indicações): você mantém a Business Card grátis e preparamos seu cartão físico NFC em PVC com frete grátis.",
+    "fr": "Félicitations ! Niveau Or — Parcours Legacy (750+ parrainages) : la Business Card reste gratuite et nous préparons votre carte NFC PVC avec livraison offerte.",
+    "de": "Glückwunsch! Gold-Stufe auf dem Legacy-Pfad (750+ Empfehlungen): Business Card bleibt kostenlos und wir bereiten Ihre NFC-PVC-Karte mit kostenlosem Versand vor."
+  },
+  "legacy_benefit_pvc_closing": {
+    "es": "Nuestro equipo coordinará el envío usando los datos que tenemos sobre tu cuenta.",
+    "en": "Our team will coordinate shipping using the information we have on your account.",
+    "it": "Il team coordina la spedizione con i dati del tuo account.",
+    "pt": "Nossa equipe coordenará o envio com os dados da sua conta.",
+    "fr": "Notre équipe organisera l’expédition avec les données de votre compte.",
+    "de": "Unser Team organisiert den Versand mit den in Ihrem Konto hinterlegten Daten."
+  },
+  "legacy_benefit_signoff": {
+    "es": "Card-Social",
+    "en": "Card-Social",
+    "it": "Card-Social",
+    "pt": "Card-Social",
+    "fr": "Card-Social",
+    "de": "Card-Social"
+  },
+  "legacy_fallback_display_name": {
+    "es": "Card-Social Maker",
+    "en": "Card-Social Maker",
+    "it": "Card-Social Maker",
+    "pt": "Card-Social Maker",
+    "fr": "Card-Social Maker",
+    "de": "Card-Social Maker"
+  }
+}

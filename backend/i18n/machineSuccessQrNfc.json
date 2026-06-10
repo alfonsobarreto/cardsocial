@@ -1,0 +1,66 @@
+{
+  "PREMIUM_ACTIVATED": {
+    "es": "Tu suscripción premium está activa.",
+    "en": "Your premium subscription is active.",
+    "it": "Il tuo abbonamento premium è attivo.",
+    "pt": "Sua assinatura premium está ativa.",
+    "fr": "Votre abonnement premium est actif.",
+    "de": "Ihr Premium-Abonnement ist aktiv."
+  },
+  "PREMIUM_DEACTIVATED": {
+    "es": "La suscripción premium finalizó; tu cuenta pasó al modo estándar.",
+    "en": "Premium subscription ended; your account is now on the standard experience.",
+    "it": "L'abbonamento premium è terminato; ora hai l'esperienza standard.",
+    "pt": "A assinatura premium terminou; sua conta voltou à experiência padrão.",
+    "fr": "L'abonnement premium est terminé ; votre compte repasse en expérience standard.",
+    "de": "Das Premium-Abonnement ist beendet; Ihr Konto nutzt wieder das Standard-Erlebnis."
+  },
+  "EVENT_PROCESSED": {
+    "es": "Hemos registrado la notificación del proveedor de pagos.",
+    "en": "We’ve recorded the notification from the payment provider.",
+    "it": "Abbiamo registrato la notifica del fornitore di pagamenti.",
+    "pt": "Registramos a notificação do provedor de pagamentos.",
+    "fr": "Nous avons enregistré la notification du prestataire de paiement.",
+    "de": "Wir haben die Benachrichtigung des Zahlungsanbieters erfasst."
+  },
+  "VAULT_INITIALIZED": {
+    "es": "Tu colección inicial está lista con íconos gratuitos.",
+    "en": "Your starter collection is ready with free icons.",
+    "it": "La tua collezione iniziale è pronta con icone gratuite.",
+    "pt": "Sua coleção inicial está pronta com ícones gratuitos.",
+    "fr": "Votre collection de départ est prête avec des icônes gratuites.",
+    "de": "Ihre Starter-Sammlung ist mit kostenlosen Symbolen bereit."
+  },
+  "ASSET_DRAFT_CREATED": {
+    "es": "El recurso se creó en borrador.",
+    "en": "The asset was created as a draft.",
+    "it": "La risorsa è stata creata come bozza.",
+    "pt": "O recurso foi criado como rascunho.",
+    "fr": "La ressource a été créée en brouillon.",
+    "de": "Das Asset wurde als Entwurf angelegt."
+  },
+  "ASSET_PUBLISHED": {
+    "es": "El recurso se publicó correctamente.",
+    "en": "The asset was published successfully.",
+    "it": "La risorsa è stata pubblicata correttamente.",
+    "pt": "O recurso foi publicado com sucesso.",
+    "fr": "La ressource a été publiée avec succès.",
+    "de": "Das Asset wurde erfolgreich veröffentlicht."
+  },
+  "STATUS_OK": {
+    "es": "El servicio responde con normalidad.",
+    "en": "The service is responding normally.",
+    "it": "Il servizio risponde regolarmente.",
+    "pt": "O serviço está respondendo normalmente.",
+    "fr": "Le service répond normalement.",
+    "de": "Der Dienst antwortet regulär."
+  },
+  "ALREADY_SENT": {
+    "es": "Esta notificación ya se envió anteriormente.",
+    "en": "This notification was already sent.",
+    "it": "Questa notifica è già stata inviata.",
+    "pt": "Esta notificação já foi enviada.",
+    "fr": "Cette notification a déjà été envoyée.",
+    "de": "Diese Benachrichtigung wurde bereits gesendet."
+  }
+}

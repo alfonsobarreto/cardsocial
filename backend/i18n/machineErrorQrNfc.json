@@ -1,0 +1,642 @@
+{
+  "AUTH_REQUIRED": {
+    "es": "Esta acción no está disponible para tu cuenta actual o no cuentas con los permisos necesarios.",
+    "en": "This action is not available for your current account or you lack the required permissions.",
+    "it": "Questa azione non è disponibile per il tuo account attuale o non disponi dei permessi necessari.",
+    "pt": "Esta ação não está disponível para sua conta atual ou você não possui as permissões necessárias.",
+    "fr": "Cette action n'est pas disponible pour votre compte actuel ou vous ne disposez pas des permissions requises.",
+    "de": "Diese Aktion ist für Ihr aktuelles Konto nicht verfügbar oder Sie verfügen nicht über die erforderlichen Berechtigungen."
+  },
+  "SECURITY_LINK_REJECTED": {
+    "es": "El contenido o enlace no cumple con las políticas de seguridad y moderación de Card-Social.",
+    "en": "The content or link does not comply with Card-Social's security and moderation policies.",
+    "it": "Il contenuto o il link non è conforme alle politiche di sicurezza e moderazione di Card-Social.",
+    "pt": "O conteúdo ou link não cumpre as políticas de segurança e moderação da Card-Social.",
+    "fr": "Le contenu ou le lien n'est pas conforme aux politiques de sécurité et de modération de Card-Social.",
+    "de": "Der Inhalt oder Link entspricht nicht den Sicherheits- und Moderationsrichtlinien von Card-Social."
+  },
+  "CONTENT_SAFETY_BLOCKED": {
+    "es": "El contenido o enlace no cumple con las políticas de seguridad y moderación de Card-Social.",
+    "en": "The content or link does not comply with Card-Social's security and moderation policies.",
+    "it": "Il contenuto o il link non è conforme alle politiche di sicurezza e moderazione di Card-Social.",
+    "pt": "O conteúdo ou link não cumpre as políticas de segurança e moderação da Card-Social.",
+    "fr": "Le contenu ou le lien n'est pas conforme aux politiques de sécurité et de modération de Card-Social.",
+    "de": "Der Inhalt oder Link entspricht nicht den Sicherheits- und Moderationsrichtlinien von Card-Social."
+  },
+  "SERVER_INTERNAL_ERROR": {
+    "es": "Servicio temporalmente no disponible. Estamos optimizando la conexión, por favor intenta en un momento.",
+    "en": "Service temporarily unavailable. We are optimizing the connection, please try again in a moment.",
+    "it": "Servizio temporaneamente non disponibile. Stiamo ottimizzando la connessione, riprova tra un momento.",
+    "pt": "Serviço temporariamente indisponível. Estamos otimizando a conexão, por favor tente novamente em um momento.",
+    "fr": "Service temporairement indisponible. Nous optimisons la connexion, veuillez réessayer dans un instant.",
+    "de": "Dienst vorübergehend nicht verfügbar. Wir optimieren die Verbindung, bitte versuchen Sie es gleich noch einmal."
+  },
+  "REQUIRED_FIELDS_MISSING": {
+    "es": "Faltan datos necesarios para completar esta acción. Revísalos e inténtalo de nuevo.",
+    "en": "Some required information is missing. Check your input and try again.",
+    "it": "Mancano informazioni necessarie per completare questa azione. Controlla e riprova.",
+    "pt": "Faltam informações necessárias para concluir esta ação. Verifique e tente novamente.",
+    "fr": "Des informations nécessaires manquent pour cette action. Vérifiez et réessayez.",
+    "de": "Für diese Aktion fehlen erforderliche Angaben. Bitte prüfen und erneut versuchen."
+  },
+  "USER_NOT_FOUND": {
+    "es": "No encontramos una cuenta con esos datos.",
+    "en": "We couldn't find an account with that information.",
+    "it": "Non abbiamo trovato un account con questi dati.",
+    "pt": "Não encontramos uma conta com esses dados.",
+    "fr": "Nous n'avons trouvé aucun compte correspondant à ces informations.",
+    "de": "Wir konnten kein Konto mit diesen Angaben finden."
+  },
+  "USERNAME_ALREADY_IN_USE": {
+    "es": "Ese nombre de usuario ya está en uso.",
+    "en": "That username is already in use.",
+    "it": "Questo nome utente è già in uso.",
+    "pt": "Esse nome de usuário já está em uso.",
+    "fr": "Ce nom d'utilisateur est déjà utilisé.",
+    "de": "Dieser Benutzername ist bereits vergeben."
+  },
+  "CARD_NOT_FOUND_FOR_OWNER": {
+    "es": "No encontramos esa tarjeta o no pertenece a tu cuenta.",
+    "en": "We couldn't find that card or it doesn't belong to your account.",
+    "it": "Non abbiamo trovato quella carta o non appartiene al tuo account.",
+    "pt": "Não encontramos esse cartão ou ele não pertence à sua conta.",
+    "fr": "Nous n'avons pas trouvé cette carte ou elle n'appartient pas à votre compte.",
+    "de": "Wir konnten diese Karte nicht finden oder sie gehört nicht zu Ihrem Konto."
+  },
+  "INVITE_NOT_FOUND_OR_HANDLED": {
+    "es": "Esta invitación no está disponible o ya fue gestionada.",
+    "en": "This invitation isn't available or has already been handled.",
+    "it": "Questo invito non è disponibile o è già stato gestito.",
+    "pt": "Este convite não está disponível ou já foi tratado.",
+    "fr": "Cette invitation n'est pas disponible ou a déjà été traitée.",
+    "de": "Diese Einladung ist nicht verfügbar oder wurde bereits bearbeitet."
+  },
+  "QR_AVATAR_INVALID": {
+    "es": "La URL de la foto de perfil no es válida o es demasiado larga.",
+    "en": "The profile photo URL is invalid or too long.",
+    "it": "L'URL della foto profilo non è valido o è troppo lungo.",
+    "pt": "A URL da foto do perfil é inválida ou é longa demais.",
+    "fr": "L'URL de la photo de profil est invalide ou trop longue.",
+    "de": "Die Profilfoto-URL ist ungültig oder zu lang."
+  },
+  "QR_INVITE_ACTION_INVALID": {
+    "es": "La acción de la invitación no es válida.",
+    "en": "The invitation action isn't valid.",
+    "it": "L'azione dell'invito non è valida.",
+    "pt": "A ação do convite não é válida.",
+    "fr": "L'action d'invitation n'est pas valide.",
+    "de": "Die Einladungsaktion ist ungültig."
+  },
+  "QR_STORY_STATE_INVALID": {
+    "es": "El estado de la historia no es válido.",
+    "en": "The story state isn't valid.",
+    "it": "Lo stato della storia non è valido.",
+    "pt": "O estado da história não é válido.",
+    "fr": "L'état de l'histoire n'est pas valide.",
+    "de": "Der Story-Status ist ungültig."
+  },
+  "QR_ANALYTICS_TYPE_INVALID": {
+    "es": "El tipo de evento no es válido.",
+    "en": "The event type isn't valid.",
+    "it": "Il tipo di evento non è valido.",
+    "pt": "O tipo de evento não é válido.",
+    "fr": "Le type d'événement n'est pas valide.",
+    "de": "Der Ereignistyp ist ungültig."
+  },
+  "QR_TIMESTAMP_INVALID": {
+    "es": "La fecha u hora enviada no es válida.",
+    "en": "The timestamp sent isn't valid.",
+    "it": "La data o l'ora inviata non è valida.",
+    "pt": "A data ou hora enviada não é válida.",
+    "fr": "La date ou l'heure envoyée n'est pas valide.",
+    "de": "Der gesendete Zeitstempel ist ungültig."
+  },
+  "QR_CARD_KEY_INVALID": {
+    "es": "La referencia de la tarjeta no es válida.",
+    "en": "The card reference isn't valid.",
+    "it": "Il riferimento alla carta non è valido.",
+    "pt": "A referência do cartão não é válida.",
+    "fr": "La référence de la carte n'est pas valide.",
+    "de": "Der Kartenverweis ist ungültig."
+  },
+  "QR_SHARE_KEY_INVALID": {
+    "es": "La clave para compartir no es válida.",
+    "en": "The share key isn't valid.",
+    "it": "La chiave di condivisione non è valida.",
+    "pt": "A chave de compartilhamento não é válida.",
+    "fr": "La clé de partage n'est pas valide.",
+    "de": "Der Freigabeschlüssel ist ungültig."
+  },
+  "QR_CALL_DIRECTION_INVALID": {
+    "es": "El sentido de la llamada no es válido.",
+    "en": "The call direction isn't valid.",
+    "it": "La direzione della chiamata non è valida.",
+    "pt": "O sentido da chamada não é válido.",
+    "fr": "Le sens de l'appel n'est pas valide.",
+    "de": "Die Anrufrichtung ist ungültig."
+  },
+  "QR_CALL_STATUS_INVALID": {
+    "es": "El estado de la llamada no es válido.",
+    "en": "The call status isn't valid.",
+    "it": "Lo stato della chiamata non è valido.",
+    "pt": "O estado da chamada não é válido.",
+    "fr": "Le statut de l'appel n'est pas valide.",
+    "de": "Der Anrufstatus ist ungültig."
+  },
+  "CALL_LOG_NOT_FOUND": {
+    "es": "No encontramos ese registro de llamada.",
+    "en": "We couldn't find that call log.",
+    "it": "Non abbiamo trovato quel registro di chiamata.",
+    "pt": "Não encontramos esse registro de chamada.",
+    "fr": "Nous n'avons pas trouvé ce journal d'appel.",
+    "de": "Wir konnten dieses Anrufprotokoll nicht finden."
+  },
+  "TEMP_ACCESS_EXPIRED": {
+    "es": "El acceso temporal expiró o el enlace ya no es válido.",
+    "en": "Temporary access has expired or the link is no longer valid.",
+    "it": "L'accesso temporaneo è scaduto o il link non è più valido.",
+    "pt": "O acesso temporário expirou ou o link não é mais válido.",
+    "fr": "L'accès temporaire a expiré ou le lien n'est plus valide.",
+    "de": "Der temporäre Zugriff ist abgelaufen oder der Link ist nicht mehr gültig."
+  },
+  "TOKEN_PAYLOAD_INVALID": {
+    "es": "Los datos del acceso no son válidos.",
+    "en": "The access data in this link isn't valid.",
+    "it": "I dati di accesso in questo link non sono validi.",
+    "pt": "Os dados de acesso neste link não são válidos.",
+    "fr": "Les données d'accès de ce lien ne sont pas valides.",
+    "de": "Die Zugriffsdaten in diesem Link sind ungültig."
+  },
+  "CANNOT_ADD_SELF": {
+    "es": "No puedes agregarte a ti mismo.",
+    "en": "You can't add yourself.",
+    "it": "Non puoi aggiungere te stesso.",
+    "pt": "Você não pode adicionar a si mesmo.",
+    "fr": "Vous ne pouvez pas vous ajouter vous-même.",
+    "de": "Sie können sich nicht selbst hinzufügen."
+  },
+  "NFC_INVALID_CARD_ID": {
+    "es": "El identificador de la tarjeta NFC no es válido.",
+    "en": "The NFC card identifier isn't valid.",
+    "it": "L'identificatore della carta NFC non è valido.",
+    "pt": "O identificador do cartão NFC não é válido.",
+    "fr": "L'identifiant de la carte NFC n'est pas valide.",
+    "de": "Die NFC-Kartenkennung ist ungültig."
+  },
+  "NFC_INVALID_ACTIVATION_PIN": {
+    "es": "El PIN de activación no es válido.",
+    "en": "The activation PIN isn't valid.",
+    "it": "Il PIN di attivazione non è valido.",
+    "pt": "O PIN de ativação não é válido.",
+    "fr": "Le PIN d'activation n'est pas valide.",
+    "de": "Die Aktivierungs-PIN ist ungültig."
+  },
+  "NFC_CARD_NOT_PROVISIONED": {
+    "es": "Esta tarjeta NFC no está disponible para vincular.",
+    "en": "This NFC card isn't available to link.",
+    "it": "Questa carta NFC non è disponibile per l'associazione.",
+    "pt": "Este cartão NFC não está disponível para vinculação.",
+    "fr": "Cette carte NFC n'est pas disponible pour l'association.",
+    "de": "Diese NFC-Karte kann nicht verknüpft werden."
+  },
+  "NFC_CARD_ALREADY_CLAIMED": {
+    "es": "Esta tarjeta NFC ya está vinculada a otra cuenta.",
+    "en": "This NFC card is already linked to another account.",
+    "it": "Questa carta NFC è già collegata a un altro account.",
+    "pt": "Este cartão NFC já está vinculado a outra conta.",
+    "fr": "Cette carte NFC est déjà liée à un autre compte.",
+    "de": "Diese NFC-Karte ist bereits mit einem anderen Konto verknüpft."
+  },
+  "NFC_CARD_ALREADY_CLAIMED_REFRESH": {
+    "es": "Esta tarjeta NFC ya estaba vinculada. Actualiza e inténtalo de nuevo.",
+    "en": "This NFC card was already linked. Refresh and try again.",
+    "it": "Questa carta NFC era già collegata. Aggiorna e riprova.",
+    "pt": "Este cartão NFC já estava vinculado. Atualize e tente novamente.",
+    "fr": "Cette carte NFC était déjà liée. Actualisez et réessayez.",
+    "de": "Diese NFC-Karte war bereits verknüpft. Aktualisieren und erneut versuchen."
+  },
+  "NFC_CARD_NOT_FOUND": {
+    "es": "No encontramos esa tarjeta NFC.",
+    "en": "We couldn't find that NFC card.",
+    "it": "Non abbiamo trovato quella carta NFC.",
+    "pt": "Não encontramos esse cartão NFC.",
+    "fr": "Nous n'avons pas trouvé cette carte NFC.",
+    "de": "Wir konnten diese NFC-Karte nicht finden."
+  },
+  "NFC_INVALID_MOUNT_TARGET": {
+    "es": "El destino de vinculación no es válido.",
+    "en": "The link target isn't valid.",
+    "it": "La destinazione di collegamento non è valida.",
+    "pt": "O destino da vinculação não é válido.",
+    "fr": "La cible de liaison n'est pas valide.",
+    "de": "Das Verknüpfungsziel ist ungültig."
+  },
+  "NFC_FALLBACK_REQUIRED": {
+    "es": "Para esta tarjeta temporal se necesita un contacto de respaldo.",
+    "en": "A fallback contact is required for this temporary card.",
+    "it": "Per questa carta temporanea serve un contatto di riserva.",
+    "pt": "É necessário um contato de reserva para este cartão temporário.",
+    "fr": "Un contact de secours est requis pour cette carte temporaire.",
+    "de": "Für diese temporäre Karte ist ein Ersatzkontakt erforderlich."
+  },
+  "NFC_INVALID_STATUS_TRANSITION": {
+    "es": "No se puede cambiar el estado de la tarjeta de esa forma.",
+    "en": "This card status can't be changed that way.",
+    "it": "Lo stato della carta non può essere modificato in questo modo.",
+    "pt": "O estado do cartão não pode ser alterado assim.",
+    "fr": "Le statut de la carte ne peut pas être modifié ainsi.",
+    "de": "Der Kartenstatus kann auf diese Weise nicht geändert werden."
+  },
+  "GATEWAY_KEY_INVALID": {
+    "es": "La clave de acceso a la API no es válida.",
+    "en": "The API access key isn't valid.",
+    "it": "La chiave di accesso API non è valida.",
+    "pt": "A chave de acesso à API não é válida.",
+    "fr": "La clé d'accès API n'est pas valide.",
+    "de": "Der API-Zugangsschlüssel ist ungültig."
+  },
+  "GATEWAY_MISCONFIGURED": {
+    "es": "El servicio no está configurado correctamente en el servidor.",
+    "en": "The service isn't configured correctly on the server.",
+    "it": "Il servizio non è configurato correttamente sul server.",
+    "pt": "O serviço não está configurado corretamente no servidor.",
+    "fr": "Le service n'est pas correctement configuré sur le serveur.",
+    "de": "Der Dienst ist auf dem Server nicht richtig konfiguriert."
+  },
+  "JWT_TOKEN_MISSING": {
+    "es": "Falta el token de acceso. Inicia sesión de nuevo.",
+    "en": "The access token is missing. Please sign in again.",
+    "it": "Manca il token di accesso. Accedi di nuovo.",
+    "pt": "Falta o token de acesso. Entre novamente.",
+    "fr": "Jeton d'accès manquant. Veuillez vous reconnecter.",
+    "de": "Zugriffstoken fehlt. Bitte melden Sie sich erneut an."
+  },
+  "JWT_TOKEN_INVALID": {
+    "es": "El token de acceso no es válido o expiró. Inicia sesión de nuevo.",
+    "en": "The access token is invalid or expired. Please sign in again.",
+    "it": "Il token di accesso non è valido o è scaduto. Accedi di nuovo.",
+    "pt": "O token de acesso é inválido ou expirou. Entre novamente.",
+    "fr": "Jeton d'accès invalide ou expiré. Veuillez vous reconnecter.",
+    "de": "Das Zugriffstoken ist ungültig oder abgelaufen. Bitte erneut anmelden."
+  },
+  "QR_STUDIO_URL_MISSING": {
+    "es": "Falta la dirección para generar el código QR.",
+    "en": "A URL is required to generate the QR code.",
+    "it": "Manca l'indirizzo per generare il codice QR.",
+    "pt": "Falta o endereço para gerar o código QR.",
+    "fr": "L'adresse pour générer le code QR est requise.",
+    "de": "Zur QR-Code-Erzeugung wird eine Adresse benötigt."
+  },
+  "QR_STUDIO_URL_ENCODING_INVALID": {
+    "es": "La dirección no está codificada correctamente. Revísala e inténtalo de nuevo.",
+    "en": "The address isn't encoded correctly. Check it and try again.",
+    "it": "L'indirizzo non è codificato correttamente. Controllalo e riprova.",
+    "pt": "O endereço não está codificado corretamente. Verifique e tente novamente.",
+    "fr": "L'adresse n'est pas correctement encodée. Vérifiez et réessayez.",
+    "de": "Die Adresse ist nicht richtig kodiert. Bitte prüfen und erneut versuchen."
+  },
+  "QR_STUDIO_PAYLOAD_TOO_LONG": {
+    "es": "El contenido para el código QR es demasiado largo. Acórtalo e inténtalo de nuevo.",
+    "en": "The QR content is too long. Shorten it and try again.",
+    "it": "Il contenuto del QR è troppo lungo. Accorcilo e riprova.",
+    "pt": "O conteúdo do QR é longo demais. Reduza e tente novamente.",
+    "fr": "Le contenu du QR est trop long. Raccourcissez-le et réessayez.",
+    "de": "Der QR-Inhalt ist zu lang. Kürzen Sie ihn und versuchen Sie es erneut."
+  },
+  "QR_STUDIO_SVG_LOGO_UNSUPPORTED": {
+    "es": "El formato SVG no admite logo centrado. Usa PNG o genera el QR sin logo.",
+    "en": "SVG format doesn't support a centered logo. Use PNG or generate the QR without a logo.",
+    "it": "Il formato SVG non supporta il logo centrato. Usa PNG o genera il QR senza logo.",
+    "pt": "O formato SVG não suporta logo centralizado. Use PNG ou gere o QR sem logo.",
+    "fr": "Le format SVG ne prend pas en charge le logo centré. Utilisez PNG ou générez le QR sans logo.",
+    "de": "Das SVG-Format unterstützt kein zentriertes Logo. Verwenden Sie PNG oder erzeugen Sie den QR ohne Logo."
+  },
+  "QR_STUDIO_FORMAT_UNSUPPORTED": {
+    "es": "Formato no admitido. Usa PNG o SVG.",
+    "en": "Unsupported format. Use PNG or SVG.",
+    "it": "Formato non supportato. Usa PNG o SVG.",
+    "pt": "Formato não suportado. Use PNG ou SVG.",
+    "fr": "Format non pris en charge. Utilisez PNG ou SVG.",
+    "de": "Nicht unterstütztes Format. Verwenden Sie PNG oder SVG."
+  },
+  "FILE_UPLOAD_SIZE_EXCEEDED": {
+    "es": "El archivo supera el tamaño máximo permitido. Elige uno más pequeño.",
+    "en": "The file exceeds the maximum allowed size. Choose a smaller one.",
+    "it": "Il file supera la dimensione massima consentita. Scegline uno più piccolo.",
+    "pt": "O arquivo excede o tamanho máximo permitido. Escolha um menor.",
+    "fr": "Le fichier dépasse la taille maximale autorisée. Choisissez un fichier plus petit.",
+    "de": "Die Datei überschreitet die maximal zulässige Größe. Bitte eine kleinere Datei wählen."
+  },
+  "REVIEW_STARS_INVALID": {
+    "es": "La calificación debe estar entre 1 y 5.",
+    "en": "The rating must be between 1 and 5.",
+    "it": "La valutazione deve essere tra 1 e 5.",
+    "pt": "A avaliação deve ser entre 1 e 5.",
+    "fr": "La note doit être entre 1 et 5.",
+    "de": "Die Bewertung muss zwischen 1 und 5 liegen."
+  },
+  "ADMIN_INVALID_CREDENTIALS": {
+    "es": "Usuario o contraseña incorrectos.",
+    "en": "Incorrect username or password.",
+    "it": "Nome utente o password non corretti.",
+    "pt": "Usuário ou senha incorretos.",
+    "fr": "Identifiant ou mot de passe incorrect.",
+    "de": "Benutzername oder Passwort falsch."
+  },
+  "ADMIN_INVALID_COLLECTION_TYPE": {
+    "es": "El tipo de colección no es válido.",
+    "en": "The collection type isn't valid.",
+    "it": "Il tipo di collezione non è valido.",
+    "pt": "O tipo de coleção não é válido.",
+    "fr": "Le type de collection n'est pas valide.",
+    "de": "Der Kollektionstyp ist ungültig."
+  },
+  "NFC_BATCH_QUANTITY_INVALID": {
+    "es": "La cantidad debe estar entre 1 y 5000.",
+    "en": "Quantity must be between 1 and 5000.",
+    "it": "La quantità deve essere tra 1 e 5000.",
+    "pt": "A quantidade deve estar entre 1 e 5000.",
+    "fr": "La quantité doit être comprise entre 1 et 5000.",
+    "de": "Die Anzahl muss zwischen 1 und 5000 liegen."
+  },
+  "BROADCAST_INVALID_SEGMENT": {
+    "es": "El segmento de audiencia no es válido.",
+    "en": "The audience segment isn't valid.",
+    "it": "Il segmento di pubblico non è valido.",
+    "pt": "O segmento de público não é válido.",
+    "fr": "Le segment d'audience n'est pas valide.",
+    "de": "Das Zielgruppensegment ist ungültig."
+  },
+  "BROADCAST_CHANNEL_INVALID": {
+    "es": "El canal debe ser correo, notificación push o ambos.",
+    "en": "Channel must be email, push, or both.",
+    "it": "Il canale deve essere e-mail, notifica push o entrambi.",
+    "pt": "O canal deve ser e-mail, notificação push ou ambos.",
+    "fr": "Le canal doit être e-mail, notification push ou les deux.",
+    "de": "Der Kanal muss E-Mail, Push-Benachrichtigung oder beides sein."
+  },
+  "BROADCAST_CONFIRM_ACK_INVALID": {
+    "es": "Confirma la acción con el código de seguridad exacto indicado.",
+    "en": "Confirm with the exact security code you were shown.",
+    "it": "Conferma con il codice di sicurezza esatto indicato.",
+    "pt": "Confirme com o código de segurança exato indicado.",
+    "fr": "Confirmez avec le code de sécurité exact indiqué.",
+    "de": "Bestätigen Sie mit dem angezeigten Sicherheitscode."
+  },
+  "BROADCAST_MESSAGES_REQUIRED": {
+    "es": "Faltan los textos del mensaje por idioma.",
+    "en": "Translated message content per language is required.",
+    "it": "Mancano i testi del messaggio per lingua.",
+    "pt": "Faltam os textos da mensagem por idioma.",
+    "fr": "Les textes du message par langue sont requis.",
+    "de": "Nachrichtentexte pro Sprache fehlen."
+  },
+  "BROADCAST_MESSAGES_EN_BODY_REQUIRED": {
+    "es": "El texto del mensaje en inglés es obligatorio como respaldo.",
+    "en": "English message body text is required as a fallback.",
+    "it": "Il testo del messaggio in inglese è obbligatorio come riserva.",
+    "pt": "O texto da mensagem em inglês é obrigatório como reserva.",
+    "fr": "Le texte du message en anglais est requis comme secours.",
+    "de": "Der englische Nachrichtentext ist als Fallback erforderlich."
+  },
+  "BROADCAST_MESSAGES_EN_SUBJECT_REQUIRED": {
+    "es": "Para correo hace falta el asunto o título en inglés.",
+    "en": "For email, an English subject or title is required.",
+    "it": "Per l'e-mail serve l'oggetto o il titolo in inglese.",
+    "pt": "Para e-mail é necessário assunto ou título em inglês.",
+    "fr": "Pour l'e-mail, un objet ou titre en anglais est requis.",
+    "de": "Für E-Mail sind englischer Betreff oder Titel erforderlich."
+  },
+  "BROADCAST_AUDIENCE_COUNT_MISMATCH": {
+    "es": "El número de destinatarios no coincide con la vista previa. Vuelve a previsualizar.",
+    "en": "Recipient count doesn't match the preview. Run preview again.",
+    "it": "Il numero di destinatari non coincide con l'anteprima. Ripeti l'anteprima.",
+    "pt": "O número de destinatários não confere com a pré-visualização. Pré-visualize de novo.",
+    "fr": "Le nombre de destinataires ne correspond pas à l'aperçu. Relancez l'aperçu.",
+    "de": "Die Empfängeranzahl stimmt nicht mit der Vorschau überein. Vorschau erneut ausführen."
+  },
+  "BROADCAST_EMAIL_NOT_CONFIGURED": {
+    "es": "El envío de correo no está configurado en el servidor.",
+    "en": "Outgoing email isn't configured on the server.",
+    "it": "L'invio delle e-mail non è configurato sul server.",
+    "pt": "O envio de e-mail não está configurado no servidor.",
+    "fr": "L'envoi d'e-mails n'est pas configuré sur le serveur.",
+    "de": "Der E-Mail-Versand ist auf dem Server nicht eingerichtet."
+  },
+  "SMART_CARD_SID_REQUIRED": {
+    "es": "Falta la referencia de la tarjeta inteligente.",
+    "en": "The smart card reference is required.",
+    "it": "Manca il riferimento della tessera.",
+    "pt": "Falta a referência do cartão inteligente.",
+    "fr": "La référence de la carte est requise.",
+    "de": "Die Kartenreferenz fehlt."
+  },
+  "SMART_CARD_NOT_FOUND": {
+    "es": "No encontramos esa tarjeta.",
+    "en": "We couldn't find that card.",
+    "it": "Carta non trovata.",
+    "pt": "Cartão não encontrado.",
+    "fr": "Carte introuvable.",
+    "de": "Karte nicht gefunden."
+  },
+  "SMART_CARD_NOT_FOUND_OR_FORBIDDEN": {
+    "es": "No encontramos esa tarjeta o no tienes permiso.",
+    "en": "We couldn't find that card or you don't have permission.",
+    "it": "Carta non trovata o permesso negato.",
+    "pt": "Cartão não encontrado ou sem permissão.",
+    "fr": "Carte introuvable ou accès refusé.",
+    "de": "Karte nicht gefunden oder keine Berechtigung."
+  },
+  "PROFILE_FULL_NAME_REQUIRED": {
+    "es": "Completa tu nombre visible en el perfil antes de continuar.",
+    "en": "Add your visible full name in your profile before continuing.",
+    "it": "Completa il nome visibile nel profilo prima di continuare.",
+    "pt": "Complete o nome visível no perfil antes de continuar.",
+    "fr": "Renseignez votre nom visible dans le profil avant de continuer.",
+    "de": "Bitte tragen Sie Ihren sichtbaren Namen im Profil ein."
+  },
+  "NO_UPDATABLE_FIELDS": {
+    "es": "No hay datos válidos para actualizar.",
+    "en": "No valid fields to update.",
+    "it": "Nessun campo valido da aggiornare.",
+    "pt": "Não há campos válidos para atualizar.",
+    "fr": "Aucun champ valide à mettre à jour.",
+    "de": "Keine gültigen Felder zum Aktualisieren."
+  },
+  "BUSINESS_BID_REQUIRED": {
+    "es": "Falta la referencia de la tarjeta de negocio.",
+    "en": "The business card reference is required.",
+    "it": "Manca il riferimento della carta aziendale.",
+    "pt": "Falta a referência do cartão de negócios.",
+    "fr": "La référence de la carte professionnelle est requise.",
+    "de": "Die Geschäftskartenreferenz fehlt."
+  },
+  "BUSINESS_CARD_NOT_FOUND": {
+    "es": "No encontramos esa tarjeta de negocio.",
+    "en": "We couldn't find that business card.",
+    "it": "Carta aziendale non trovata.",
+    "pt": "Cartão de negócios não encontrado.",
+    "fr": "Carte professionnelle introuvable.",
+    "de": "Geschäftskarte nicht gefunden."
+  },
+  "BUSINESS_BC_NAME_REQUIRED": {
+    "es": "El nombre público del negocio es obligatorio.",
+    "en": "The public business name is required.",
+    "it": "Il nome pubblico dell'attività è obbligatorio.",
+    "pt": "O nome público do negócio é obrigatório.",
+    "fr": "Le nom public de l'entreprise est requis.",
+    "de": "Der öffentliche Firmenname ist erforderlich."
+  },
+  "BUSINESS_BC_CONTACT_REQUIRED": {
+    "es": "El nombre de contacto del negocio es obligatorio.",
+    "en": "The business contact name is required.",
+    "it": "Il nome del referente è obbligatorio.",
+    "pt": "O nome do contato do negócio é obrigatório.",
+    "fr": "Le nom du contact est requis.",
+    "de": "Der Kontaktname ist erforderlich."
+  },
+  "BUSINESS_GEO_REQUIRED": {
+    "es": "La ubicación en mapa (latitud y longitud) es obligatoria.",
+    "en": "Map location (latitude and longitude) is required.",
+    "it": "La posizione sulla mappa (latitudine e longitudine) è obbligatoria.",
+    "pt": "A localização no mapa (latitude e longitude) é obrigatória.",
+    "fr": "La position sur la carte (latitude et longitude) est requise.",
+    "de": "Standort auf der Karte (Breiten- und Längengrad) ist erforderlich."
+  },
+  "BUSINESS_TERMS_MUST_ACCEPT": {
+    "es": "Debes aceptar los términos del negocio.",
+    "en": "You must accept the business terms.",
+    "it": "Devi accettare i termini dell'attività.",
+    "pt": "Você precisa aceitar os termos do negócio.",
+    "fr": "Vous devez accepter les conditions.",
+    "de": "Sie müssen die Geschäftsbedingungen akzeptieren."
+  },
+  "BUSINESS_LATITUDE_INVALID": {
+    "es": "La latitud no es válida.",
+    "en": "Latitude isn't valid.",
+    "it": "La latitudine non è valida.",
+    "pt": "A latitude não é válida.",
+    "fr": "La latitude n'est pas valide.",
+    "de": "Der Breitengrad ist ungültig."
+  },
+  "BUSINESS_LONGITUDE_INVALID": {
+    "es": "La longitud no es válida.",
+    "en": "Longitude isn't valid.",
+    "it": "La longitudine non è valida.",
+    "pt": "A longitude não é válida.",
+    "fr": "La longitude n'est pas valide.",
+    "de": "Der Längengrad ist ungültig."
+  },
+  "BUSINESS_LOCATION_DATE_INVALID": {
+    "es": "La fecha de la ubicación no es válida.",
+    "en": "The location date isn't valid.",
+    "it": "La data della posizione non è valida.",
+    "pt": "A data da localização não é válida.",
+    "fr": "La date de localisation n'est pas valide.",
+    "de": "Das Standortdatum ist ungültig."
+  },
+  "BUSINESS_SUBSCRIPTION_EXPIRES_INVALID": {
+    "es": "La fecha de fin de suscripción no es válida.",
+    "en": "The subscription end date isn't valid.",
+    "it": "La data di fine abbonamento non è valida.",
+    "pt": "A data de fim da assinatura não é válida.",
+    "fr": "La date de fin d'abonnement n'est pas valide.",
+    "de": "Das Ablaufdatum des Abonnements ist ungültig."
+  },
+  "MARKET_VECTOR_BID_KEYWORD_REQUIRED": {
+    "es": "Faltan la referencia del negocio y la palabra clave.",
+    "en": "Business reference and keyword are required.",
+    "it": "Mancano il riferimento dell'attività e la parola chiave.",
+    "pt": "Faltam a referência do negócio e a palavra-chave.",
+    "fr": "La référence professionnelle et le mot-clé sont requis.",
+    "de": "Geschäftsreferenz und Stichwort fehlen."
+  },
+  "MARKET_VECTOR_BID_REQUIRED": {
+    "es": "Falta la referencia del negocio.",
+    "en": "The business reference is required.",
+    "it": "Manca il riferimento dell'attività.",
+    "pt": "Falta a referência do negócio.",
+    "fr": "La référence professionnelle est requise.",
+    "de": "Die Geschäftsreferenz fehlt."
+  },
+  "MARKET_VECTOR_CARD_NOT_FOUND": {
+    "es": "No encontramos esa tarjeta de negocio en tu cuenta.",
+    "en": "We couldn't find that business card on your account.",
+    "it": "Carta aziendale non trovata per il tuo account.",
+    "pt": "Não encontramos esse cartão de negócios na sua conta.",
+    "fr": "Carte professionnelle introuvable pour votre compte.",
+    "de": "Geschäftskarte für Ihr Konto nicht gefunden."
+  },
+  "ADMIN_BUDGET_REVENUE_INVALID": {
+    "es": "El ingreso neto declarado debe ser cero o mayor, o dejarse vacío.",
+    "en": "Reported net revenue must be zero or greater, or left empty.",
+    "it": "Il ricavo netto dichiarato deve essere zero o superiore, o vuoto.",
+    "pt": "A receita líquida informada deve ser zero ou maior, ou ficar vazia.",
+    "fr": "Le revenu net déclaré doit être nul ou positif, ou vide.",
+    "de": "Der gemeldete Nettoumsatz muss null oder größer sein, oder leer bleiben."
+  },
+  "ADMIN_BUDGET_NO_FIELDS": {
+    "es": "No hay datos válidos para actualizar.",
+    "en": "No valid fields to update.",
+    "it": "Nessun campo valido da aggiornare.",
+    "pt": "Não há campos válidos para atualizar.",
+    "fr": "Aucun champ valide à mettre à jour.",
+    "de": "Keine gültigen Felder zum Aktualisieren."
+  },
+  "REVENUECAT_WEBHOOK_UNAUTHORIZED": {
+    "es": "La clave de seguridad del proveedor de pagos no es válida.",
+    "en": "The payment provider security key isn't valid.",
+    "it": "La chiave di sicurezza del fornitore di pagamenti non è valida.",
+    "pt": "A chave de segurança do provedor de pagamentos não é válida.",
+    "fr": "La clé de sécurité du prestataire de paiement n'est pas valide.",
+    "de": "Der Sicherheitsschlüssel des Zahlungsanbieters ist ungültig."
+  },
+  "REVENUECAT_WEBHOOK_PAYLOAD_INVALID": {
+    "es": "Faltan datos del evento o del usuario en la solicitud.",
+    "en": "Event or user data is missing from the request.",
+    "it": "Mancano dati sull'evento o sull'utente nella richiesta.",
+    "pt": "Faltam dados do evento ou do usuário na solicitação.",
+    "fr": "Données d'événement ou d'utilisateur manquantes dans la requête.",
+    "de": "Ereignis- oder Nutzerdaten in der Anfrage fehlen."
+  },
+  "REVENUECAT_USER_ID_REQUIRED": {
+    "es": "Falta el identificador del usuario.",
+    "en": "User identifier is required.",
+    "it": "Manca l'identificativo utente.",
+    "pt": "Falta o identificador do usuário.",
+    "fr": "L'identifiant utilisateur est requis.",
+    "de": "Benutzerkennung fehlt."
+  },
+  "FIRESTORE_ADMIN_UNAVAILABLE": {
+    "es": "El servicio en la nube no está disponible en este momento.",
+    "en": "The cloud service isn't available right now.",
+    "it": "Il servizio cloud non è al momento disponibile.",
+    "pt": "O serviço na nuvem não está disponível no momento.",
+    "fr": "Le service cloud n'est pas disponible pour le moment.",
+    "de": "Der Clouddienst ist derzeit nicht verfügbar."
+  },
+  "REVENUECAT_USER_NOT_FOUND": {
+    "es": "No encontramos ese usuario.",
+    "en": "We couldn't find that user.",
+    "it": "Utente non trovato.",
+    "pt": "Usuário não encontrado.",
+    "fr": "Utilisateur introuvable.",
+    "de": "Benutzer nicht gefunden."
+  },
+  "SYNC_UID_REQUIRED": {
+    "es": "Falta el identificador del usuario.",
+    "en": "User identifier is required.",
+    "it": "Manca l'identificativo utente.",
+    "pt": "Falta o identificador do usuário.",
+    "fr": "L'identifiant utilisateur est requis.",
+    "de": "Benutzerkennung fehlt."
+  },
+  "SYNC_VAULT_NOT_FOUND": {
+    "es": "No encontramos datos guardados para este usuario.",
+    "en": "We couldn't find saved data for this user.",
+    "it": "Nessun archivio trovato per questo utente.",
+    "pt": "Não encontramos dados salvos para este usuário.",
+    "fr": "Aucune donnée enregistrée trouvée pour cet utilisateur.",
+    "de": "Keine gespeicherten Daten für diesen Benutzer gefunden."
+  }
+}

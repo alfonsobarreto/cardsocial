@@ -98,6 +98,15 @@ jobs:
           test -f backend/frontend-web/.next/BUILD_ID
           echo "Next bundle OK:" && ls -la backend/frontend-web/.next | head -24
 
+      - name: Copy shared i18n JSON into backend bundle (Azure wwwroot has no monorepo `services/`)
+        run: |
+          set -euo pipefail
+          mkdir -p backend/i18n
+          cp services/i18n/emailLocales.json backend/i18n/
+          cp services/i18n/machineErrorQrNfc.json backend/i18n/
+          cp services/i18n/machineSuccessQrNfc.json backend/i18n/
+          test -f backend/i18n/emailLocales.json
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
