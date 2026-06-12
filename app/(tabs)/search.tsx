@@ -1138,7 +1138,7 @@ export default function SearchScreen() {
                       <MaterialCommunityIcons
                         name={normalizeMaterialIconName(inferMciIconFromContext(f.type, f.label, f.value), 'card-account-details-outline') as 'help-circle'}
                         size={22}
-                        color="rgba(233,195,73,0.95)"
+                        color="rgba(47,123,255,0.95)"
                       />
                     </TouchableOpacity>
                   ))}
@@ -1369,7 +1369,7 @@ export default function SearchScreen() {
                 <QRCode
                   value={permanentLink}
                   size={64}
-                  color="#0A2540"
+                  color="#070226"
                   backgroundColor="#FFFFFF"
                   ecl="H"
                   {...(item.card.bcLogoUrl
@@ -1414,7 +1414,7 @@ export default function SearchScreen() {
                     <MaterialCommunityIcons
                       name={(normalizeMaterialIconName(f.iconName, '') || normalizeMaterialIconName(inferMciIconFromContext(f.type, f.label, f.value), 'card-account-details-outline')) as 'card-account-details-outline'}
                       size={22}
-                      color="rgba(233,195,73,0.95)"
+                      color="rgba(47,123,255,0.95)"
                     />
                   </TouchableOpacity>
                 ))}
@@ -1428,7 +1428,7 @@ export default function SearchScreen() {
 
   return (
     <>
-    <View style={[styles.wrapper, { backgroundColor: shell.background }]}> 
+    <View style={[styles.wrapper, { backgroundColor: 'transparent' }]}>
       <SectionList
         ref={sectionListRef}
         {...listScrollInteractionProps}
@@ -1595,7 +1595,7 @@ export default function SearchScreen() {
                   },
                   marketSortMode === option.key && {
                     borderColor: shell.ctaPrimary,
-                    backgroundColor: isDark ? 'rgba(233,195,73,0.18)' : 'rgba(233,195,73,0.10)',
+                    backgroundColor: isDark ? 'rgba(47,123,255,0.18)' : 'rgba(47,123,255,0.10)',
                   },
                 ]}
                 onPress={() => {

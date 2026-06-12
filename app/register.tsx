@@ -2013,7 +2013,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#E9C349',
+    color: '#2F7BFF',
     marginBottom: 24,
     alignSelf: 'center',
   },
@@ -2035,12 +2035,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   socialButtonText: {
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '700',
     fontSize: 12,
   },
   socialStateText: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 12,
     marginBottom: 16,
     textAlign: 'center',
@@ -2048,7 +2048,7 @@ const styles = StyleSheet.create({
   },
   label: {
     alignSelf: 'flex-start',
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 5,
@@ -2072,7 +2072,7 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   photoButtonText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontWeight: '700',
   },
   photoPreview: {
@@ -2099,7 +2099,7 @@ const styles = StyleSheet.create({
     maxHeight: '88%',
   },
   androidPhotoConfirmTitle: {
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '800',
     fontSize: 17,
     textAlign: 'center',
@@ -2138,12 +2138,12 @@ const styles = StyleSheet.create({
     borderColor: '#7BC2EC',
   },
   androidPhotoConfirmButtonSecondaryText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontWeight: '700',
     fontSize: 15,
   },
   androidPhotoConfirmButtonPrimary: {
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
   },
   androidPhotoConfirmButtonPrimaryText: {
     color: '#FFFFFF',
@@ -2191,7 +2191,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 18,
     marginBottom: 20,
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 16,
   },
   phoneRow: {
@@ -2213,12 +2213,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   phoneDialText: {
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '700',
     fontSize: 16,
   },
   phoneDialChevron: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 10,
   },
   phoneNationalInput: {
@@ -2239,7 +2239,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingLeft: 18,
     paddingRight: 8,
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 16,
   },
   passwordToggle: {
@@ -2281,14 +2281,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   geoButtonText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontWeight: '700',
     fontSize: 12,
   },
   readOnlyValue: {
     width: '100%',
     backgroundColor: 'rgba(255,255,255,0.1)',
-    color: '#E9C349',
+    color: '#2F7BFF',
     borderColor: '#7BC2EC',
     borderWidth: 1,
     borderRadius: 12,
@@ -2307,7 +2307,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#D8EAF6',
-    shadowColor: '#0A2540',
+    shadowColor: '#070226',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
@@ -2317,12 +2317,12 @@ const styles = StyleSheet.create({
     width: 52,
     height: 4,
     borderRadius: 999,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     alignSelf: 'center',
     marginBottom: 10,
   },
   dateModalTitle: {
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '800',
     fontSize: 18,
     textAlign: 'center',
@@ -2345,7 +2345,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dateSelectedBadgeText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -2368,7 +2368,7 @@ const styles = StyleSheet.create({
     flex: 0.9,
   },
   datePickerLabel: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 12,
     fontWeight: '700',
     paddingTop: 8,
@@ -2379,7 +2379,7 @@ const styles = StyleSheet.create({
   },
   datePickerItem: {
     fontSize: 16,
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '500',
   },
   dateModalActions: {
@@ -2398,12 +2398,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   dateModalButtonGhostText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontWeight: '700',
   },
   dateModalButtonPrimary: {
     flex: 1,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     borderRadius: 10,
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -2414,7 +2414,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   registerButton: {
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     paddingVertical: 18,
     width: '100%',
     borderRadius: 12,
@@ -2441,14 +2441,14 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#0A2540',
+    borderColor: '#070226',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.65)',
   },
   legalCheckboxChecked: {
-    backgroundColor: '#0A2540',
-    borderColor: '#0A2540',
+    backgroundColor: '#070226',
+    borderColor: '#070226',
   },
   legalCheckmark: {
     color: '#FFFFFF',
@@ -2458,7 +2458,7 @@ const styles = StyleSheet.create({
   },
   legalText: {
     flex: 1,
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '600',
@@ -2478,7 +2478,7 @@ const styles = StyleSheet.create({
     borderColor: '#7BC2EC',
   },
   uploadPercentage: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 32,
     fontWeight: '700',
     marginTop: 20,

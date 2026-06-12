@@ -47,14 +47,14 @@ const styles = StyleSheet.create({
   viewerDownloadButton: {
     minHeight: 38,
     borderRadius: 999,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   viewerDownloadText: {
-    color: '#0A2540',
+    color: '#071226',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -310,9 +310,9 @@ export function VaultDocumentViewerModal({ visible, item, onClose, fallbackMuted
         <View style={[styles.viewerTopBar, { paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 8 : 4) }]}>
           <TouchableOpacity style={styles.viewerDownloadButton} onPress={() => void handleDownload()} disabled={downloading}>
             {downloading ? (
-              <ActivityIndicator size="small" color="#0A2540" />
+              <ActivityIndicator size="small" color="#071226" />
             ) : (
-              <MaterialCommunityIcons name="download" color="#0A2540" size={18} />
+              <MaterialCommunityIcons name="download" color="#071226" size={18} />
             )}
             <Text style={styles.viewerDownloadText}>{t('common_download')}</Text>
           </TouchableOpacity>
@@ -353,7 +353,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, fallbackMuted
               PdfComponent ? (
                 pdfLoadFailed ? (
                   <View style={[styles.viewerFallback, { minHeight: pdfSize.height }]}>
-                    <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                    <MaterialCommunityIcons name="file-pdf-box" color="#7A42FF" size={54} />
                     <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
                       {t('vault_pdf_load_fail')}
                     </Text>
@@ -375,7 +375,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, fallbackMuted
                 )
               ) : (
                 <View style={[styles.viewerFallback, { minHeight: pdfSize.height }]}>
-                  <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                  <MaterialCommunityIcons name="file-pdf-box" color="#7A42FF" size={54} />
                   <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
                     {t('vault_pdf_expo_go')}
                   </Text>
@@ -383,7 +383,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, fallbackMuted
               )
             ) : (
               <View style={styles.viewerFallback}>
-                <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
+                <MaterialCommunityIcons name="file-alert-outline" color="#7A42FF" size={54} />
                 <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
                   {t('vault_preview_fail')}
                 </Text>

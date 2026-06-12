@@ -164,19 +164,19 @@ export default function AdminStatsScreen() {
     : coinsStats.totalRedeemed;
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#C5A065" /></View>;
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#7A42FF" /></View>;
   }
   if (!authorized) return null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* HEADER */}
-      <LinearGradient colors={['#020D1A', '#0A2540']} style={styles.header}>
+      <LinearGradient colors={['#020D1A', '#070226']} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="chevron-left" size={22} color="#C5A065" />
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#7A42FF" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <MaterialCommunityIcons name="chart-bar" size={18} color="#C5A065" />
+          <MaterialCommunityIcons name="chart-bar" size={18} color="#7A42FF" />
           <Text style={styles.headerTitle}>{tr('ESTADÍSTICAS', 'STATISTICS')}</Text>
         </View>
         <View style={{ width: 36 }} />
@@ -190,7 +190,7 @@ export default function AdminStatsScreen() {
             style={[styles.tab, activeTab === tab.key && styles.tabActive]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <MaterialCommunityIcons name={tab.icon as any} size={15} color={activeTab === tab.key ? '#C5A065' : '#999'} />
+            <MaterialCommunityIcons name={tab.icon as any} size={15} color={activeTab === tab.key ? '#7A42FF' : '#999'} />
             <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
@@ -203,15 +203,15 @@ export default function AdminStatsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{tr('Distribución de Usuarios', 'User distribution')}</Text>
             <View style={styles.kpiGrid}>
-              <KpiCard icon="account-multiple" label={tr('Total Usuarios', 'Total users')} value={userStats.total.toLocaleString(intlLocale)} color="#E9C349" />
-              <KpiCard icon="star-circle" label="Premium" value={userStats.premium.toLocaleString(intlLocale)} color="#C5A065" />
+              <KpiCard icon="account-multiple" label={tr('Total Usuarios', 'Total users')} value={userStats.total.toLocaleString(intlLocale)} color="#2F7BFF" />
+              <KpiCard icon="star-circle" label="Premium" value={userStats.premium.toLocaleString(intlLocale)} color="#7A42FF" />
               <KpiCard icon="card-account-details" label="Business Cards" value={userStats.business.toLocaleString(intlLocale)} color="#27AE60" />
               <KpiCard icon="card-off" label={tr('Cards Vacías', 'Empty cards')} value={userStats.businessNull.toLocaleString(intlLocale)} color="#E74C3C" />
             </View>
             <View style={styles.progressSection}>
               <Text style={styles.progressLabel}>{tr('Premium vs Free', 'Premium vs free')}</Text>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${userStats.total > 0 ? (userStats.premium / userStats.total) * 100 : 0}%`, backgroundColor: '#C5A065' }]} />
+                <View style={[styles.progressFill, { width: `${userStats.total > 0 ? (userStats.premium / userStats.total) * 100 : 0}%`, backgroundColor: '#7A42FF' }]} />
               </View>
               <Text style={styles.progressCaption}>
                 {userStats.premium} {tr('premium', 'premium')} · {userStats.total - userStats.premium} {tr('gratis', 'free')}
@@ -244,8 +244,8 @@ export default function AdminStatsScreen() {
             <View style={styles.kpiGrid}>
               <KpiCard icon="gift" label={tr('Total Gifted (histórico)', 'Total gifted (all-time)')} value={coinsStats.totalGifted.toLocaleString(intlLocale)} color="#9B59B6" />
               <KpiCard icon="check-all" label={tr('Total Canjeado (histórico)', 'Total redeemed (all-time)')} value={coinsStats.totalRedeemed.toLocaleString(intlLocale)} color="#27AE60" />
-              <KpiCard icon="calendar-month" label={tr('Canjeado este mes', 'Redeemed this month')} value={coinsStats.thisMonth.toLocaleString(intlLocale)} color="#E9C349" />
-              <KpiCard icon="calendar" label={tr('Canjeado este año', 'Redeemed this year')} value={coinsStats.thisYear.toLocaleString(intlLocale)} color="#C5A065" />
+              <KpiCard icon="calendar-month" label={tr('Canjeado este mes', 'Redeemed this month')} value={coinsStats.thisMonth.toLocaleString(intlLocale)} color="#2F7BFF" />
+              <KpiCard icon="calendar" label={tr('Canjeado este año', 'Redeemed this year')} value={coinsStats.thisYear.toLocaleString(intlLocale)} color="#7A42FF" />
             </View>
           </View>
         )}
@@ -278,7 +278,7 @@ export default function AdminStatsScreen() {
               style={styles.webLink}
               onPress={() => {/* deep link or open browser */}}
             >
-              <MaterialCommunityIcons name="open-in-new" size={15} color="#E9C349" />
+              <MaterialCommunityIcons name="open-in-new" size={15} color="#2F7BFF" />
               <Text style={styles.webLinkText}>
                 {tr('Ver costos detallados en cardsocial.me/admin', 'View detailed costs at cardsocial.me/admin')}
               </Text>
@@ -313,7 +313,7 @@ const kpiStyles = StyleSheet.create({
     gap: 6,
   },
   iconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  value: { fontSize: 22, fontWeight: '800', color: '#0A2540' },
+  value: { fontSize: 22, fontWeight: '800', color: '#070226' },
   label: { fontSize: 11, color: '#777', lineHeight: 14 },
 });
 
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { color: '#C5A065', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
+  headerTitle: { color: '#7A42FF', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
   tabScroll: { backgroundColor: '#020D1A', flexGrow: 0 },
   tabBar: {
     flexDirection: 'row',
@@ -346,32 +346,32 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: '#C5A065' },
+  tabActive: { borderBottomColor: '#7A42FF' },
   tabText: { color: '#999', fontSize: 12, fontWeight: '600' },
-  tabTextActive: { color: '#C5A065' },
+  tabTextActive: { color: '#7A42FF' },
   content: { flex: 1, backgroundColor: '#F5F7FA' },
   contentPad: { padding: 16, paddingBottom: 40 },
   section: { gap: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#0A2540' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#070226' },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   progressSection: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, gap: 8 },
-  progressLabel: { fontSize: 13, fontWeight: '600', color: '#0A2540' },
+  progressLabel: { fontSize: 13, fontWeight: '600', color: '#070226' },
   progressTrack: { height: 8, backgroundColor: '#E8EDF2', borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
   progressCaption: { fontSize: 11, color: '#777' },
   periodRow: { flexDirection: 'row', gap: 8 },
   periodBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E8EDF2' },
-  periodBtnActive: { backgroundColor: '#E9C349' },
+  periodBtnActive: { backgroundColor: '#2F7BFF' },
   periodText: { fontSize: 12, fontWeight: '600', color: '#777' },
   periodTextActive: { color: '#FFF' },
   bigKpi: {
-    backgroundColor: '#0A2540',
+    backgroundColor: '#070226',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     gap: 4,
   },
-  bigKpiValue: { color: '#C5A065', fontSize: 40, fontWeight: '900' },
+  bigKpiValue: { color: '#7A42FF', fontSize: 40, fontWeight: '900' },
   bigKpiLabel: { color: 'rgba(197,160,101,0.6)', fontSize: 13 },
   costsNote: { fontSize: 12, color: '#777', lineHeight: 18, backgroundColor: '#FFF', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#E8EDF2' },
   costRow: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     borderColor: '#E8EDF2',
   },
   costIconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  costName: { fontSize: 13, fontWeight: '700', color: '#0A2540' },
+  costName: { fontSize: 13, fontWeight: '700', color: '#070226' },
   costDesc: { fontSize: 11, color: '#999', marginTop: 2 },
   costActiveBadge: { backgroundColor: 'rgba(39,174,96,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   costActiveText: { fontSize: 9, fontWeight: '800', color: '#27AE60', letterSpacing: 0.5 },
@@ -399,5 +399,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D0E4FF',
   },
-  webLinkText: { fontSize: 13, color: '#E9C349', fontWeight: '600' },
+  webLinkText: { fontSize: 13, color: '#2F7BFF', fontWeight: '600' },
 });

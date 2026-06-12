@@ -890,10 +890,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <View style={[styles.tabRootShell, { backgroundColor: shell.backgroundSolid }]}>
+    <View style={[styles.tabRootShell, { backgroundColor: 'transparent' }]}>
       <Tabs
         initialRouteName="cards"
         screenOptions={{
+          sceneStyle: { backgroundColor: 'transparent' },
           tabBarActiveTintColor: shell.ctaAccent,
           tabBarInactiveTintColor: tabInactiveMuted,
           tabBarLabelStyle: {
@@ -930,7 +931,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               style={[
                 styles.headerBarRoot,
                 {
-                  backgroundColor: shell.backgroundSolid,
+                  backgroundColor: 'transparent',
                   borderBottomColor: shell.modalBorder,
                   paddingTop: insets.top,
                 },
@@ -1820,6 +1821,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   tabRootShell: {
     flex: 1,
+    position: 'relative',
   },
   tabBarIconFocusedWrap: {
     alignItems: 'center',
@@ -1959,7 +1961,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.35)',
+    borderColor: 'rgba(47,123,255,0.35)',
   },
   adminStatChipAlert: {
     backgroundColor: 'rgba(255,68,68,0.10)',
@@ -2008,9 +2010,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(233,195,73,0.12)',
+    backgroundColor: 'rgba(47,123,255,0.12)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(233,195,73,0.35)',
+    borderColor: 'rgba(47,123,255,0.35)',
     marginRight: 8,
   },
   drawerTitle: {
@@ -2105,7 +2107,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   backToMenuText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontWeight: '700',
   },
   blockedRow: {
@@ -2158,7 +2160,7 @@ const styles = StyleSheet.create({
   },
   unblockBtn: {
     borderRadius: 10,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
@@ -2202,7 +2204,7 @@ const styles = StyleSheet.create({
   editProfileBtn: {
     marginTop: 10,
     borderRadius: 12,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2235,7 +2237,7 @@ const styles = StyleSheet.create({
     maxHeight: '86%',
   },
   profileModalTitle: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 10,
@@ -2286,14 +2288,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   profileGhostBtnText: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontWeight: '700',
     fontSize: 13,
   },
   profileSaveBtn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
@@ -2304,7 +2306,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   legalTitle: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 8,

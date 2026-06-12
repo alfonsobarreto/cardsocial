@@ -1,4 +1,5 @@
 import { Platform, StyleSheet } from "react-native";
+import { FONT_DISPLAY } from '@/services/brandFontService';
 import type { AppShellTheme } from "../app/theme";
 
 export function makeContactsStyles(shell: AppShellTheme) {
@@ -16,7 +17,7 @@ export function makeContactsStyles(shell: AppShellTheme) {
   headerTitle: {
     color: shell.textPrimary,
     fontSize: 23,
-    fontFamily: 'Georgia',
+    fontFamily: FONT_DISPLAY,
     fontWeight: '800',
     letterSpacing: 0.25,
   },

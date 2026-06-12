@@ -149,7 +149,7 @@ export default function AdminModerationScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#C5A065" /></View>;
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#7A42FF" /></View>;
   }
   if (!authorized) return null;
 
@@ -159,14 +159,14 @@ export default function AdminModerationScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* HEADER */}
       <LinearGradient
-        colors={pendingCount > 0 ? ['#5C0A0A', '#020D1A'] : ['#0A2540', '#020D1A']}
+        colors={pendingCount > 0 ? ['#5C0A0A', '#020D1A'] : ['#070226', '#020D1A']}
         style={styles.header}
       >
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="chevron-left" size={22} color="#C5A065" />
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#7A42FF" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <MaterialCommunityIcons name="shield-alert" size={18} color="#C5A065" />
+          <MaterialCommunityIcons name="shield-alert" size={18} color="#7A42FF" />
           <Text style={styles.headerTitle}>{tr('SOPORTE', 'SUPPORT')}</Text>
           {pendingCount > 0 && (
             <View style={styles.countBadge}>
@@ -188,7 +188,7 @@ export default function AdminModerationScreen() {
             <MaterialCommunityIcons
               name={f.icon as any}
               size={15}
-              color={activeFilter === f.key ? '#C5A065' : '#999'}
+              color={activeFilter === f.key ? '#7A42FF' : '#999'}
             />
             <Text style={[styles.tabText, activeFilter === f.key && styles.tabTextActive]}>
               {f.label}
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { color: '#C5A065', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
+  headerTitle: { color: '#7A42FF', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
   countBadge: {
     backgroundColor: '#E74C3C',
     borderRadius: 10,
@@ -333,15 +333,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: '#C5A065' },
+  tabActive: { borderBottomColor: '#7A42FF' },
   tabText: { color: '#999', fontSize: 11, fontWeight: '600' },
-  tabTextActive: { color: '#C5A065' },
+  tabTextActive: { color: '#7A42FF' },
   tabBadge: { backgroundColor: '#E74C3C', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
   tabBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '800' },
   content: { flex: 1, backgroundColor: '#F5F7FA' },
   contentPad: { padding: 16, paddingBottom: 40 },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0A2540' },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#070226' },
   emptySubtitle: { fontSize: 13, color: '#999', textAlign: 'center' },
   reportCard: {
     backgroundColor: '#FFF',
@@ -356,11 +356,11 @@ const styles = StyleSheet.create({
   typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   typeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   reportDate: { fontSize: 11, color: '#AAA' },
-  reportReason: { fontSize: 13, fontWeight: '600', color: '#0A2540' },
+  reportReason: { fontSize: 13, fontWeight: '600', color: '#070226' },
   reportDetails: { fontSize: 12, color: '#666', lineHeight: 17 },
   reportMeta: { gap: 3, borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 8 },
   reportMetaText: { fontSize: 11, color: '#999' },
-  reportMetaValue: { color: '#0A2540', fontWeight: '600' },
+  reportMetaValue: { color: '#070226', fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: 8, borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 10 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8 },
   dismissBtn: { backgroundColor: '#F0F0F0' },

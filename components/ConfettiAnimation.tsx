@@ -123,6 +123,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 5,
-    backgroundColor: '#C5A065', // Dorado soft
+    backgroundColor: '#7A42FF', // Dorado soft
   },
 });

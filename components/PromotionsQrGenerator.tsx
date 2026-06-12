@@ -170,8 +170,8 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
       {...verticalScrollInteractionProps}
       showsVerticalScrollIndicator={false}
     >
-      <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-        <MaterialCommunityIcons name="crown" size={32} color="#C5A065" />
+      <LinearGradient colors={['#070226', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+        <MaterialCommunityIcons name="crown" size={32} color="#7A42FF" />
         <Text style={styles.headerTitle}>{t('promotions_qr_header_title')}</Text>
         <Text style={styles.headerSubtitle}>{t('promotions_qr_header_subtitle')}</Text>
       </LinearGradient>
@@ -293,7 +293,7 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
         <View style={styles.modalOverlay}>
           <View style={[styles.modal, { paddingBottom: modalFooterBottomPad }]}>
             <TouchableOpacity style={styles.modalClose} onPress={() => setQRModalVisible(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#0A2540" />
+              <MaterialCommunityIcons name="close" size={24} color="#070226" />
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>{t('promotions_qr_modal_title')}</Text>
@@ -302,7 +302,7 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
               <View style={styles.qrContainer}>
                 <View style={styles.qrSvgBox} collapsable={false}>
                   <LinearGradient
-                    colors={['#C5A065', '#E8C547']}
+                    colors={['#7A42FF', '#E8C547']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.qrFrame}
@@ -311,7 +311,7 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
                       ref={qrCodeRef}
                       value={`cardsocial://redeem?code=${generatedQR}`}
                       size={256}
-                      color="#0A2540"
+                      color="#070226"
                       backgroundColor="#FFF"
                       ecl="H"
                     />
@@ -330,10 +330,10 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
                 disabled={downloading}
               >
                 {downloading ? (
-                  <ActivityIndicator size="small" color="#0A2540" />
+                  <ActivityIndicator size="small" color="#070226" />
                 ) : (
                   <>
-                    <MaterialCommunityIcons name="image-multiple" size={18} color="#0A2540" />
+                    <MaterialCommunityIcons name="image-multiple" size={18} color="#070226" />
                     <Text style={styles.downloadBtnText}>{t('promotions_qr_download_png')}</Text>
                   </>
                 )}
@@ -345,10 +345,10 @@ const PromotionsQrGenerator: React.FC<PromotionsQrGeneratorProps> = ({ onClose: 
                 disabled={downloading}
               >
                 {downloading ? (
-                  <ActivityIndicator size="small" color="#0A2540" />
+                  <ActivityIndicator size="small" color="#070226" />
                 ) : (
                   <>
-                    <MaterialCommunityIcons name="file-pdf-box" size={18} color="#0A2540" />
+                    <MaterialCommunityIcons name="file-pdf-box" size={18} color="#070226" />
                     <Text style={styles.downloadBtnText}>{t('promotions_qr_for_pdf')}</Text>
                   </>
                 )}
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#070226',
     marginTop: 12,
   },
   headerSubtitle: {
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0A2540',
+    color: '#070226',
     marginBottom: 8,
   },
   input: {
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#0A2540',
+    color: '#070226',
     marginBottom: 6,
   },
   hint: {
@@ -445,8 +445,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   monthButtonActive: {
-    backgroundColor: '#C5A065',
-    borderColor: '#C5A065',
+    backgroundColor: '#7A42FF',
+    borderColor: '#7A42FF',
   },
   monthButtonText: {
     fontSize: 12,
@@ -472,8 +472,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   expiryButtonActive: {
-    backgroundColor: '#0A2540',
-    borderColor: '#0A2540',
+    backgroundColor: '#070226',
+    borderColor: '#070226',
   },
   expiryButtonText: {
     fontSize: 12,
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   estimateValue: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#070226',
   },
   buttonContainer: {
     paddingHorizontal: 16,
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: 11,
-    color: '#C5A065',
+    color: '#7A42FF',
     fontWeight: '500',
     marginTop: 12,
     textAlign: 'center',
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   securityTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#070226',
   },
   securityText: {
     fontSize: 11,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#070226',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   downloadBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0A2540',
+    color: '#070226',
   },
   shareBtn: {
     flexDirection: 'row',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#070226',
     borderRadius: 8,
     gap: 8,
     marginBottom: 12,
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   closeBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0A2540',
+    color: '#070226',
   },
 });
 

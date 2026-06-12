@@ -666,14 +666,14 @@ export default function CardStudioVault({
   const theme = useMemo(
     () => ({
       sheetBg: isNight ? '#121212' : '#FAF8F4',
-      border: '#E9C349',
-      labelGold: '#E9C349',
+      border: '#2F7BFF',
+      labelGold: '#2F7BFF',
       titleColor: isNight ? '#FFFFFF' : '#1A1510',
       textPrimary: isNight ? '#F2F0EB' : '#1C180F',
       textSecondary: isNight ? '#9A9388' : '#5C5346',
       /** Opaco #000: evita bleed-through bajo cabeceras sticky (día y noche). */
       sectionHeaderBg: '#000000',
-      sectionHeaderBorder: 'rgba(233,195,73,0.32)',
+      sectionHeaderBorder: 'rgba(47,123,255,0.32)',
       tileInactiveBg: isNight ? '#161616' : '#FFFFFF',
       tileInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
       selectedFillGradient: (isNight
@@ -682,16 +682,16 @@ export default function CardStudioVault({
       selectedText: '#0C0C0C',
       selectedIcon: '#0C0C0C',
       premiumBadgeBg: isNight ? '#221C12' : '#F3EBD4',
-      premiumBadgeText: '#E9C349',
+      premiumBadgeText: '#2F7BFF',
       headerAccentGradient: (isNight
         ? (['#3D3018', '#C9A227', '#F2CA50', '#C9A227', '#3D3018'] as const)
-        : (['#8B7349', '#E9C349', '#F5E6C8', '#E9C349', '#9A8048'] as const)) as readonly [string, string, ...string[]],
+        : (['#8B7349', '#2F7BFF', '#F5E6C8', '#2F7BFF', '#9A8048'] as const)) as readonly [string, string, ...string[]],
       storeSheetBg: isNight ? '#141210' : '#FFFCF7',
       storeSubtitle: isNight ? '#B5ADA2' : '#5C5346',
       bundleMeta: isNight ? '#A8A090' : '#6B6258',
       ctaGradient: (isNight
-        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#E9C349', '#6B5420'] as const)
-        : (['#8B7340', '#E9C349', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#2F7BFF', '#6B5420'] as const)
+        : (['#8B7340', '#2F7BFF', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
     }),
     [isNight],
   );
@@ -743,7 +743,7 @@ export default function CardStudioVault({
       </Text>
       {section.isPremium && (
         <View style={[styles.premiumBadge, { backgroundColor: theme.premiumBadgeBg }]}>
-          <MaterialCommunityIcons name="crown" color="#E9C349" size={12} />
+          <MaterialCommunityIcons name="crown" color="#2F7BFF" size={12} />
           <Text style={[styles.premiumBadgeText, { color: theme.premiumBadgeText }]}>
             {' '}Premium
           </Text>
@@ -848,7 +848,7 @@ export default function CardStudioVault({
       <View style={styles.emptySection}>
         <MaterialCommunityIcons
           name={section.isPremium ? 'lock' : 'image-plus'}
-          color="#E9C349"
+          color="#2F7BFF"
           size={28}
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
@@ -934,7 +934,7 @@ export default function CardStudioVault({
                     onPress={onClose}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <MaterialCommunityIcons name="close" color="#E9C349" size={24} />
+                    <MaterialCommunityIcons name="close" color="#2F7BFF" size={24} />
                   </TouchableOpacity>
                 </View>
 
@@ -1126,7 +1126,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     opacity: 0.5,
   },
   headerGoldLine: {
@@ -1247,7 +1247,7 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     zIndex: 1,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     borderRadius: 8,
     padding: 2,
   },
@@ -1259,7 +1259,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: '#0A1A2F',
-    backgroundColor: 'rgba(233,195,73,0.35)',
+    backgroundColor: 'rgba(47,123,255,0.35)',
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 6,
@@ -1344,7 +1344,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingVertical: 12,
     paddingHorizontal: 32,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     borderRadius: 12,
   },
   storeCloseBtnText: {
@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   bundleBuyBtn: {
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,

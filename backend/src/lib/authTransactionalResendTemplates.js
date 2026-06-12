@@ -5,13 +5,15 @@
 
 const { wrapPremiumTransactionalEmail, escHtml } = require('./premiumTransactionalEmailShell');
 
-const GOLD = '#E9C349';
-const GOLD_TEXT = '#0a0a0a';
+const { brandColors, brandGradients } = require('./brandTokens');
+
+const ACCENT = brandColors.electricBlue;
+const CTA_TEXT = brandColors.white;
 
 function ctaButton(url, label) {
   const safe = escHtml(url);
   const safeLabel = escHtml(label);
-  return `<a href="${safe}" style="display:inline-block;padding:14px 28px;background:linear-gradient(90deg,#F6DA87,${GOLD},#a87b1f);color:${GOLD_TEXT};text-decoration:none;border-radius:999px;font-weight:800;font-size:14px;letter-spacing:0.06em;text-transform:uppercase;margin:18px 0;">${safeLabel}</a>`;
+  return `<a href="${safe}" style="display:inline-block;padding:14px 28px;background:${brandGradients.cta};color:${CTA_TEXT};text-decoration:none;border-radius:999px;font-weight:800;font-size:14px;letter-spacing:0.06em;text-transform:uppercase;margin:18px 0;">${safeLabel}</a>`;
 }
 
 function linkFallback(url) {
@@ -31,11 +33,11 @@ function buildVerificationEmail({ verificationUrl, displayName, locale }) {
     ? `${greeting}<br><br>Gracias por unirte a <strong>Card-Social</strong>. Verifica tu dirección con el botón o el enlace siguiente (válido por tiempo limitado):<br><br>${ctaButton(
         verificationUrl,
         'Verificar correo',
-      )}<br>${linkFallback(verificationUrl)}<br><br><strong>Puedes contar con nosotros:</strong> si algo no cuadra, te ayudamos a resolverlo en <a href="https://cardsocial.me" style="color:${GOLD};">cardsocial.me</a> o vía soporte. Si no creaste una cuenta en Card-Social, puedes ignorar este mensaje.`
+      )}<br>${linkFallback(verificationUrl)}<br><br><strong>Puedes contar con nosotros:</strong> si algo no cuadra, te ayudamos a resolverlo en <a href="https://cardsocial.me" style="color:${ACCENT};">cardsocial.me</a> o vía soporte. Si no creaste una cuenta en Card-Social, puedes ignorar este mensaje.`
     : `${greeting}<br><br>Thank you for joining <strong>Card-Social</strong>. Verify your email using the button or link below (valid for a limited time):<br><br>${ctaButton(
         verificationUrl,
         'Verify email',
-      )}<br>${linkFallback(verificationUrl)}<br><br><strong>We've got you covered:</strong> if anything looks off, we'll help you sort it out at <a href="https://cardsocial.me" style="color:${GOLD};">cardsocial.me</a> or through support. If you didn't create a Card-Social account, you can ignore this message.`;
+      )}<br>${linkFallback(verificationUrl)}<br><br><strong>We've got you covered:</strong> if anything looks off, we'll help you sort it out at <a href="https://cardsocial.me" style="color:${ACCENT};">cardsocial.me</a> or through support. If you didn't create a Card-Social account, you can ignore this message.`;
 
   const text = es
     ? `${name ? `Hola ${name},` : 'Hola,'}\n\nGracias por unirte a Card-Social. Verifica tu correo:\n\n${verificationUrl}\n\nSi no ves el mensaje en la bandeja principal, revisa Spam o correo no deseado; como empresa nueva, algunos filtros son más estrictos al inicio.\n\nSi no creaste la cuenta, ignora este mensaje.\n\nCard-Social · cardsocial.me`
@@ -55,11 +57,11 @@ function buildPasswordResetEmail({ resetUrl, locale }) {
     ? `Hola,<br><br>Recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Card-Social</strong>. Usa el botón (válido por tiempo limitado):<br><br>${ctaButton(
         resetUrl,
         'Elegir nueva contraseña',
-      )}<br>${linkFallback(resetUrl)}<br><br>Si no fuiste tú, ignora este correo; tu contraseña actual no cambia. Para ayuda: <a href="mailto:support@cardsocial.me" style="color:${GOLD};">support@cardsocial.me</a>.`
+      )}<br>${linkFallback(resetUrl)}<br><br>Si no fuiste tú, ignora este correo; tu contraseña actual no cambia. Para ayuda: <a href="mailto:support@cardsocial.me" style="color:${ACCENT};">support@cardsocial.me</a>.`
     : `Hello,<br><br>We received a request to reset the password for your <strong>Card-Social</strong> account. Use the button below (valid for a limited time):<br><br>${ctaButton(
         resetUrl,
         'Choose a new password',
-      )}<br>${linkFallback(resetUrl)}<br><br>If you didn't request this, you can ignore this email; your current password stays the same. For help: <a href="mailto:support@cardsocial.me" style="color:${GOLD};">support@cardsocial.me</a>.`;
+      )}<br>${linkFallback(resetUrl)}<br><br>If you didn't request this, you can ignore this email; your current password stays the same. For help: <a href="mailto:support@cardsocial.me" style="color:${ACCENT};">support@cardsocial.me</a>.`;
 
   const text = es
     ? `Hola,\n\nRestablece tu contraseña de Card-Social con este enlace (tiempo limitado):\n\n${resetUrl}\n\nSi no fuiste tú, ignora el mensaje.\n\nSoporte: support@cardsocial.me`
@@ -81,11 +83,11 @@ function buildEmailChangeEmail({ confirmUrl, newEmail, locale }) {
     ? `Hola,<br><br>Alguien con acceso a tu cuenta de <strong>Card-Social</strong> solicitó usar <strong>${masked}</strong> como nuevo correo. Confirma con el botón (válido por tiempo limitado):<br><br>${ctaButton(
         confirmUrl,
         'Confirmar nuevo correo',
-      )}<br>${linkFallback(confirmUrl)}<br><br>Si no reconoces este cambio, contacta de inmediato a <a href="mailto:support@cardsocial.me" style="color:${GOLD};">support@cardsocial.me</a>.`
+      )}<br>${linkFallback(confirmUrl)}<br><br>Si no reconoces este cambio, contacta de inmediato a <a href="mailto:support@cardsocial.me" style="color:${ACCENT};">support@cardsocial.me</a>.`
     : `Hello,<br><br>Someone with access to your <strong>Card-Social</strong> account requested to use <strong>${masked}</strong> as the new email. Confirm with the button below (valid for a limited time):<br><br>${ctaButton(
         confirmUrl,
         'Confirm new email',
-      )}<br>${linkFallback(confirmUrl)}<br><br>If you don't recognize this change, contact <a href="mailto:support@cardsocial.me" style="color:${GOLD};">support@cardsocial.me</a> right away.`;
+      )}<br>${linkFallback(confirmUrl)}<br><br>If you don't recognize this change, contact <a href="mailto:support@cardsocial.me" style="color:${ACCENT};">support@cardsocial.me</a> right away.`;
 
   const text = es
     ? `Hola,\n\nConfirma el nuevo correo ${newEmail} para tu cuenta Card-Social:\n\n${confirmUrl}\n\nSi no fuiste tú, escribe a support@cardsocial.me.`

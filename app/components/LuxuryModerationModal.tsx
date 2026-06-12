@@ -44,14 +44,14 @@ export default function LuxuryModerationModal({
       <View style={styles.overlay}>
         <BlurView intensity={48} tint="light" style={styles.blurLayer}>
           <LinearGradient
-            colors={['rgba(233,195,73,0.22)', '#FFFFFF', 'rgba(242,242,247,0.98)']}
+            colors={['rgba(47,123,255,0.22)', '#FFFFFF', 'rgba(242,242,247,0.98)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.gradientBorder}
           >
             <View style={styles.cardInner}>
               <View style={styles.iconWrap}>
-                <MaterialCommunityIcons name="shield-crown" size={30} color="#E9C349" />
+                <MaterialCommunityIcons name="shield-crown" size={30} color="#2F7BFF" />
               </View>
 
               <Text style={styles.title}>{resolvedTitle}</Text>
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   title: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 22,
     fontFamily: 'Georgia',
     fontWeight: '700',
@@ -145,8 +145,8 @@ const styles = StyleSheet.create({
   },
   lockPanel: {
     width: '100%',
-    backgroundColor: 'rgba(233,195,73,0.12)',
-    borderColor: 'rgba(233,195,73,0.35)',
+    backgroundColor: 'rgba(47,123,255,0.12)',
+    borderColor: 'rgba(47,123,255,0.35)',
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   countdown: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',

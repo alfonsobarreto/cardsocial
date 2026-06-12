@@ -4,7 +4,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 type Props = {
   /** Pulse breve dorado tipo destello Ferrari (borde inset, no clipping del Swipeable). */
   visible: boolean;
-  /** Preferir `shell.ctaAccent` (≈ #E9C349 en tema ligero). */
+  /** Preferir `shell.ctaAccent` (≈ #2F7BFF en tema ligero). */
   accentColor: string;
   /** Radio alineado a `ThemedSharedCardSurface` en Contactos. */
   borderRadius?: number;

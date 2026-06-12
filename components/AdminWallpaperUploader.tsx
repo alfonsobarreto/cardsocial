@@ -144,8 +144,8 @@ const AdminWallpaperUploader: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.content]} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.header}>
-        <MaterialCommunityIcons name="image-multiple" size={28} color="#C5A065" />
+      <LinearGradient colors={['#070226', '#1A3D5C']} style={styles.header}>
+        <MaterialCommunityIcons name="image-multiple" size={28} color="#7A42FF" />
         <Text style={styles.headerTitle}>{tr('Wallpaper Uploader', 'Wallpaper Uploader')}</Text>
         <Text style={styles.headerSub}>
           {tr('Alta resolución + miniaturas automáticas', 'High resolution + auto thumbnails')}
@@ -155,7 +155,7 @@ const AdminWallpaperUploader: React.FC = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{tr('1) Imagen base', '1) Base image')}</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={pickWallpaper}>
-          <MaterialCommunityIcons name="cloud-upload-outline" size={28} color="#0A2540" />
+          <MaterialCommunityIcons name="cloud-upload-outline" size={28} color="#070226" />
           <Text style={styles.uploadText}>
             {state.fileName || tr('Seleccionar wallpaper (JPG/PNG)', 'Select wallpaper (JPG/PNG)')}
           </Text>
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   headerSub: { color: '#D4EAF7', fontSize: 12 },
   section: { marginHorizontal: 16, marginTop: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#0A2540', marginBottom: 8 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#070226', marginBottom: 8 },
   uploadBtn: {
     borderWidth: 1,
     borderColor: '#B6CCE0',
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#FFFFFF',
   },
-  uploadText: { color: '#0A2540', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  uploadText: { color: '#070226', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   preview: { marginTop: 10, width: '100%', height: 140, borderRadius: 10 },
   row: { flexDirection: 'row', gap: 10 },
   chip: {
@@ -280,15 +280,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
-  chipActive: { borderColor: '#C5A065', backgroundColor: 'rgba(197, 160, 101, 0.15)' },
+  chipActive: { borderColor: '#7A42FF', backgroundColor: 'rgba(197, 160, 101, 0.15)' },
   chipText: { color: '#4A4A4A', fontWeight: '600' },
-  chipTextActive: { color: '#0A2540' },
+  chipTextActive: { color: '#070226' },
   input: {
     borderWidth: 1,
     borderColor: '#B6CCE0',
     borderRadius: 10,
     backgroundColor: '#FFFFFF',
-    color: '#0A2540',
+    color: '#070226',
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontWeight: '600',
@@ -300,13 +300,13 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#EAF3FA',
   },
-  pathsTitle: { color: '#0A2540', fontWeight: '700', marginBottom: 8 },
+  pathsTitle: { color: '#070226', fontWeight: '700', marginBottom: 8 },
   pathLine: { color: '#35566F', fontSize: 12, marginBottom: 2 },
   submitBtn: {
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#070226',
     paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'center',

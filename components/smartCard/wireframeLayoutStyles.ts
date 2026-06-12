@@ -193,7 +193,7 @@ export const wireframeLayoutStyles = StyleSheet.create({
     paddingVertical: 4,
   },
   wireUsersPillText: {
-    color: '#0A2540',
+    color: '#071226',
     fontSize: 10,
     fontWeight: '800',
   },

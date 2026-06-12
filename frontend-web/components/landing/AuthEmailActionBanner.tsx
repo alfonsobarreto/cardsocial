@@ -52,14 +52,14 @@ export function AuthEmailActionBanner({ locale }: { locale: LandingLocale }) {
   return (
     <div
       role="status"
-      className="fixed left-0 right-0 top-16 z-[60] border-b border-[#E9C349]/40 bg-[#0A0A0A]/95 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-8"
+      className="fixed left-0 right-0 top-16 z-[60] border-b border-[#2F7BFF]/40 bg-[#101E34]/95 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-8"
     >
       <div className="mx-auto flex max-w-7xl items-start justify-between gap-4 sm:items-center">
-        <p className="text-sm font-bold leading-snug text-[#F6DA87] sm:text-base">{text}</p>
+        <p className="text-sm font-bold leading-snug text-[#4D8FFF] sm:text-base">{text}</p>
         <button
           type="button"
           onClick={close}
-          className="shrink-0 rounded-full border border-[#E9C349]/45 bg-[#E9C349]/12 px-4 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#F6DA87] transition hover:bg-[#E9C349]/22"
+          className="shrink-0 rounded-full border border-[#2F7BFF]/45 bg-[#2F7BFF]/12 px-4 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#4D8FFF] transition hover:bg-[#2F7BFF]/22"
         >
           {copy.authBannerClose}
         </button>

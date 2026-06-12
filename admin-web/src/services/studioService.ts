@@ -495,8 +495,8 @@ function normalizeBackgroundMode(value: unknown): StudioBackgroundMode {
 
 function normalizeTheme(id: string, data: Record<string, unknown>): StudioThemeDoc {
   const legacyBg = String(data.backgroundColor || '#F2FBFF');
-  const primary = String(data.primaryColor || data.btnBg || '#E9C349');
-  const btnBg = String(data.btnBg ?? data.primaryColor ?? '#E9C349');
+  const primary = String(data.primaryColor || data.btnBg || '#2F7BFF');
+  const btnBg = String(data.btnBg ?? data.primaryColor ?? '#2F7BFF');
   return {
     id,
     name: String(data.name || 'Theme'),
@@ -516,8 +516,8 @@ function normalizeTheme(id: string, data: Record<string, unknown>): StudioThemeD
     btnRadius: Math.max(0, Math.min(50, Number(data.btnRadius ?? data.borderRadiusPx ?? 16) || 16)),
     btnBorderWidth: Math.max(0, Math.min(10, Number(data.btnBorderWidth ?? 1) || 1)),
     btnGlow: Boolean(data.btnGlow ?? false),
-    secondaryColor: String(data.secondaryColor || '#C5A065'),
-    textColor: String(data.textColor || '#E9C349'),
+    secondaryColor: String(data.secondaryColor || '#7A4DFF'),
+    textColor: String(data.textColor || '#2F7BFF'),
     borderRadiusPx: Math.max(0, Math.min(50, Number(data.borderRadiusPx ?? data.btnRadius ?? 16) || 16)),
     fontLibraryId: data.fontLibraryId ? String(data.fontLibraryId) : null,
     fontFamilyCss: data.fontFamilyCss ? String(data.fontFamilyCss) : null,

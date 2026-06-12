@@ -75,7 +75,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         title: tr('ESTADÍSTICAS', 'STATISTICS'),
         subtitle: tr('Usuarios · CS Coins · Costos', 'Users · CS coins · Costs'),
         icon: 'chart-bar' as const,
-        colors: ['#2A2618', '#E9C349'] as [string, string],
+        colors: ['#2A2618', '#2F7BFF'] as [string, string],
         badge: `${stats.totalUsers.toLocaleString(intlLocale)} ${tr('usuarios', 'users')}`,
         alert: false,
         route: '/admin/stats',
@@ -85,7 +85,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         title: tr('SOPORTE', 'SUPPORT'),
         subtitle: tr('Reportes · Denuncias · Bans', 'Reports · Flags · Bans'),
         icon: 'shield-alert' as const,
-        colors: (stats.pendingReports > 0 ? ['#7B1818', '#A51D1D'] : ['#2A2618', '#E9C349']) as [string, string],
+        colors: (stats.pendingReports > 0 ? ['#7B1818', '#A51D1D'] : ['#2A2618', '#2F7BFF']) as [string, string],
         badge:
           stats.pendingReports > 0
             ? `${stats.pendingReports} ${tr('pendientes', 'pending')}`
@@ -100,7 +100,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#C5A065" />
+        <ActivityIndicator size="large" color="#7A42FF" />
         <Text style={styles.loadingText}>{tr('Cargando panel…', 'Loading panel…')}</Text>
       </View>
     );
@@ -109,27 +109,27 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   return (
     <ScrollView style={styles.container} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.scrollContent]} showsVerticalScrollIndicator={false}>
       {/* ── HEADER ─────────────────────────────────────────── */}
-      <LinearGradient colors={['#020D1A', '#0A2540']} style={styles.header}>
+      <LinearGradient colors={['#020D1A', '#070226']} style={styles.header}>
         <View style={styles.headerRow}>
           {onClose ? (
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={20} color="#C5A065" />
+              <MaterialCommunityIcons name="close" size={20} color="#7A42FF" />
             </TouchableOpacity>
           ) : <View style={{ width: 36 }} />}
           <View style={styles.headerTitleRow}>
-            <MaterialCommunityIcons name="crown" size={20} color="#C5A065" />
+            <MaterialCommunityIcons name="crown" size={20} color="#7A42FF" />
             <Text style={styles.headerTitle}>{tr('PANEL ADMIN', 'ADMIN PANEL')}</Text>
           </View>
           <View style={{ width: 36 }} />
         </View>
         <View style={styles.balanceStrip}>
           <View style={styles.balanceItem}>
-            <MaterialCommunityIcons name="cash-multiple" size={14} color="#C5A065" />
+            <MaterialCommunityIcons name="cash-multiple" size={14} color="#7A42FF" />
             <Text style={styles.balanceText}>{stats.balance.toLocaleString()} CS</Text>
           </View>
           <View style={styles.balanceDivider} />
           <View style={styles.balanceItem}>
-            <MaterialCommunityIcons name="account-group" size={14} color="#C5A065" />
+            <MaterialCommunityIcons name="account-group" size={14} color="#7A42FF" />
             <Text style={styles.balanceText}>
               {stats.totalUsers.toLocaleString(intlLocale)} {tr('usuarios', 'users')}
             </Text>
@@ -158,7 +158,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             activeOpacity={0.82}
           >
             <LinearGradient colors={mod.colors} style={styles.cardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <MaterialCommunityIcons name={mod.icon} size={30} color="#C5A065" />
+              <MaterialCommunityIcons name={mod.icon} size={30} color="#7A42FF" />
               <Text style={styles.cardTitle}>{mod.title}</Text>
               <Text style={styles.cardSubtitle}>{mod.subtitle}</Text>
               {mod.badge ? (
@@ -177,7 +177,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           activeOpacity={0.82}
         >
           <LinearGradient colors={['#1A1A2E', '#16213E']} style={styles.cardGradientFull} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <MaterialCommunityIcons name="cog" size={26} color="#C5A065" />
+            <MaterialCommunityIcons name="cog" size={26} color="#7A42FF" />
             <View style={styles.cardFullText}>
               <Text style={styles.cardTitle}>{tr('CONFIG SIST', 'SYS CONFIG')}</Text>
               <Text style={[styles.cardSubtitle, { opacity: 0.65 }]}>
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: '#C5A065',
+    color: '#7A42FF',
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    color: '#C5A065',
+    color: '#7A42FF',
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 3,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   balanceText: {
-    color: '#C5A065',
+    color: '#7A42FF',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(231,76,60,0.2)',
   },
   cardBadgeText: {
-    color: '#C5A065',
+    color: '#7A42FF',
     fontSize: 10,
     fontWeight: '700',
   },

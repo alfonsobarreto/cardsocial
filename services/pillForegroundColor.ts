@@ -3,7 +3,7 @@
  * Usa el color de icono del theme si hay contraste suficiente; si no, elige claro u oscuro.
  */
 
-const FALLBACK_DARK = '#0A2540';
+const FALLBACK_DARK = '#071226';
 const FALLBACK_LIGHT = '#FFFFFF';
 
 function parseCssColor(input: string): { r: number; g: number; b: number; a: number } | null {

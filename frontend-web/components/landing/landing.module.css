@@ -1,7 +1,7 @@
 /* Alineado a `styles/_premiumTheme.ts` (dark) + botón oro app (btnPrimary / Editar tarjeta) */
 .root {
   /* premiumTheme.dark */
-  --bg: #000000;
+  --bg: #071226;
   --surface: #1c1c1e;
   --surface-elevated: #2c2c2e;
   --text: #ffffff;
@@ -9,19 +9,19 @@
   --subtle: #48484a;
   --border-app: #3a3a3c;
   --line: rgba(58, 58, 60, 0.95);
-  /* Acentos luxury bronce / cálido (wireframe, chips) */
-  --bronze: #c5a065;
-  --bronze-mid: #b8942e;
-  --bronze-dim: rgba(197, 160, 101, 0.16);
-  --bronze-glow: rgba(197, 160, 101, 0.12);
-  /* CTA primario = pd.accent + pd.onAccent (mismo que “Editar tarjeta” en espejo) */
-  --cta-gold: #d4af37;
-  --cta-gold-mid: #c5a028;
-  --cta-gold-top: #f2ca50;
-  --on-cta: #0c0c0c;
-  --accent-glow: rgba(233, 195, 73, 0.14);
-  --font-display: var(--font-playfair), ui-serif, Georgia, serif;
-  --font-body: var(--font-dm), ui-sans-serif, system-ui, sans-serif;
+  /* Acentos marca azul / violeta */
+  --bronze: #7A4DFF;
+  --bronze-mid: #2F7BFF;
+  --bronze-dim: rgba(47, 123, 255, 0.16);
+  --bronze-glow: rgba(122, 66, 255, 0.12);
+  /* CTA primario */
+  --cta-gold: #2F7BFF;
+  --cta-gold-mid: #4D8FFF;
+  --cta-gold-top: #7A4DFF;
+  --on-cta: #ffffff;
+  --accent-glow: rgba(47, 123, 255, 0.14);
+  --font-display: Satoshi, ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
 
   background: var(--bg);
   color: var(--text);
@@ -129,13 +129,13 @@
   text-decoration: none;
   border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 24px rgba(233, 195, 73, 0.22);
+  box-shadow: 0 4px 24px rgba(47, 123, 255, 0.22);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .ctaPrimary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 32px rgba(233, 195, 73, 0.28);
+  box-shadow: 0 8px 32px rgba(47, 123, 255, 0.28);
   filter: brightness(1.02);
 }
 
@@ -646,7 +646,7 @@
 /* Footer */
 .footer {
   border-top: 1px solid var(--line);
-  background: #000000;
+  background: #071226;
   padding: 2.5rem 0 2rem;
 }
 

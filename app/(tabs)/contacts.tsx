@@ -1087,7 +1087,7 @@ function ContactsContent() {
 
   return (
     <>
-    <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
+    <View style={styles.container}>
       {/* Header with title and Sort button */}
       <View style={styles.headerBar}>
         <Text style={[styles.headerTitle, { color: shell.textPrimary }]}>{t('contacts_title')}</Text>
@@ -1449,7 +1449,7 @@ function ContactsContent() {
                                 String(row.uid).trim(),
                               )}
                               size={64}
-                              color="#0A2540"
+                              color="#070226"
                               backgroundColor="#FFFFFF"
                               ecl="H"
                               {...(bizLogoUri
@@ -1534,7 +1534,7 @@ function ContactsContent() {
                   styles.sortOptionRow,
                   sortMode === option.key && styles.sortOptionRowActive,
                   {
-                    backgroundColor: sortMode === option.key ? (isNight ? 'rgba(233,195,73,0.18)' : shell.modalRowBg) : shell.modalRowBg,
+                    backgroundColor: sortMode === option.key ? (isNight ? 'rgba(47,123,255,0.18)' : shell.modalRowBg) : shell.modalRowBg,
                     borderColor: sortMode === option.key ? shell.ctaAccent : shell.modalRowBorder,
                   },
                 ]}
@@ -1759,7 +1759,7 @@ function ContactsContent() {
         ratingCardType={selectedContact?.cardType ?? 'smart'}
         medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
       />
-    </LinearGradient>
+    </View>
 
       <ReceptorScreenModal
         visible={receptorModalVisible}

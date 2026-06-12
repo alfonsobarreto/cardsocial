@@ -61,13 +61,13 @@ export default function VerificationSelfieCoachModal({
     ? {
         overlay: 'rgba(0,0,0,0.72)',
         cardBg: ['#14110C', '#0D0B08'] as const,
-        cardBorder: 'rgba(233,195,73,0.45)',
+        cardBorder: 'rgba(47,123,255,0.45)',
         title: '#F6E6C8',
-        headline: '#E9C349',
+        headline: '#2F7BFF',
         body: 'rgba(246,230,200,0.88)',
         tip: 'rgba(246,230,200,0.72)',
-        chipBg: 'rgba(233,195,73,0.12)',
-        ctaGradient: ['#E9C349', '#C9A227', '#8A6B18'] as const,
+        chipBg: 'rgba(47,123,255,0.12)',
+        ctaGradient: ['#2F7BFF', '#C9A227', '#8A6B18'] as const,
         ctaText: '#1B1205',
         secondary: 'rgba(246,230,200,0.55)',
       }
@@ -79,8 +79,8 @@ export default function VerificationSelfieCoachModal({
         headline: '#7A5A12',
         body: 'rgba(27,18,5,0.88)',
         tip: 'rgba(27,18,5,0.72)',
-        chipBg: 'rgba(233,195,73,0.18)',
-        ctaGradient: ['#F6DA87', '#E9C349', '#A87B1F'] as const,
+        chipBg: 'rgba(47,123,255,0.18)',
+        ctaGradient: ['#4D8FFF', '#2F7BFF', '#6235E0'] as const,
         ctaText: '#1B1205',
         secondary: 'rgba(27,18,5,0.5)',
       };
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 40,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.35)',
+    borderColor: 'rgba(47,123,255,0.35)',
   },
   title: {
     fontSize: 13,

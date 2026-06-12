@@ -1394,7 +1394,7 @@ export default function CreateBusinessCardScreen() {
     }
   };
 
-  const bg = shell.backgroundSolid;
+  const bg = 'transparent';
   const card = shell.modalBg;
   const text = shell.text;
   const sub = shell.textSecondary;
@@ -2092,7 +2092,7 @@ export default function CreateBusinessCardScreen() {
                         <View
                           style={[
                             styles.themesLockerTierLine,
-                            { backgroundColor: tier === 'luxury' ? '#E9C349' : shell.divider },
+                            { backgroundColor: tier === 'luxury' ? '#2F7BFF' : shell.divider },
                           ]}
                         />
                       </View>
@@ -2270,7 +2270,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2511,13 +2511,13 @@ const styles = StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   vaultChipBadgeText: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 10,
     fontWeight: '800',
   },
@@ -2642,7 +2642,7 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
   vaultTileSelected: {
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     borderWidth: 2,
   },
   vaultTileCheck: {
@@ -2652,13 +2652,13 @@ const styles = StyleSheet.create({
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
   vaultTileOrderText: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 12,
     fontWeight: '900',
   },

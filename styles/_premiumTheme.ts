@@ -1,84 +1,93 @@
 /**
  * Prefijo `_` en el nombre: Expo Router ignora este archivo (no es una pantalla).
- * Paleta premium (derivada / corregida del brief Stitch).
- * - Sintaxis válida, `as const` para tuplas.
- * - Modo claro: `onAccent` oscuro sobre oro (#E9C349) para contraste WCAG en CTAs shell.
- * - Superficies (Fase 2): día `#FFFFFF` sobre shell; noche `#1C1C1E` sobre lienzo `#000000`.
- * - Acento único cascarón (Fase 4): `#E9C349` dorado vibrante — sin azules de sistema (#007AFF / #0D4D8A).
- * Mapea estos tokens a `app/theme.ts` cuando integres el diseño global.
+ * Paleta premium alineada con Sistema Visual de Marca (Creature / kri-chühr).
+ * - Acento cascarón: Electric Blue (#2F7BFF) + Digital Violet (#7A4DFF).
+ * - Lienzo noche: Midnight Navy (#071226); día: Ice Blue / Soft Lavender.
+ * Mapea estos tokens a `app/theme.ts`.
  */
 
-/** Dorado principal shell (todas las plataformas que lean premium). */
-export const SHELL_ACCENT_GOLD = '#E9C349' as const;
+import {
+  brandAccentAlpha,
+  brandColors,
+  brandDarkSurfaces,
+  brandGradients,
+  brandTextOnDark,
+  SHELL_ACCENT,
+  SHELL_ACCENT_GOLD,
+} from '@/styles/brandTokens';
+
+export { SHELL_ACCENT, SHELL_ACCENT_GOLD };
+
+const accentPressed = '#1F63D9';
+const accentPressedDark = '#2568E0';
 
 export const premiumTheme = {
   light: {
-    /** Lienzo del cascarón (Fase 1): pared única día. */
-    background: '#F2F2F7',
-    /** Misma tinta para capas sobre gradiente/tab bar cuando aplica blur. */
-    backgroundTranslucent: 'rgba(242, 242, 247, 0.94)',
-    text: '#1C1C1E',
-    textSecondary: '#636366',
-    divider: '#E5E5EA',
-    accent: '#E9C349',
+    background: brandColors.iceBlue,
+    backgroundTranslucent: 'rgba(230, 244, 255, 0.94)',
+    text: '#0A0A14',
+    textSecondary: '#4A4A5C',
+    divider: '#C8D8F0',
+    accent: brandColors.electricBlue,
+    accentSecondary: brandColors.digitalViolet,
     success: '#34C759',
     danger: '#FF3B30',
 
-    surface: '#FFFFFF',
-    surfaceElevated: '#FFFFFF',
-    border: '#C6C6C8',
-    muted: '#8E8E93',
-    overlay: 'rgba(0, 0, 0, 0.5)',
-    /** Texto/iconos sobre CTAs dorados (#E9C349). */
-    onAccent: '#1C1C1E',
-    /** Texto/iconos sobre la franja VIP (gradiente oscuro → oro). */
-    onVipBanner: '#FFFFFF',
-    vipBannerIcon: '#1C1C1E',
-    vipBannerChevron: '#F5F0E6',
+    surface: brandColors.white,
+    surfaceElevated: brandColors.white,
+    border: '#B8CCE8',
+    muted: '#6E6E80',
+    overlay: 'rgba(7, 18, 38, 0.5)',
+    onAccent: brandColors.white,
+    onVipBanner: brandColors.white,
+    vipBannerIcon: brandColors.white,
+    vipBannerChevron: brandColors.softLavender,
 
-    accentPressed: '#BF9E26',
-    accentDisabled: '#E5E5EA',
+    accentPressed,
+    accentDisabled: '#D8E4F5',
     dangerMuted: 'rgba(255, 59, 48, 0.1)',
-    focus: '#E9C349',
+    focus: brandColors.electricBlue,
 
-    tabShellGradient: ['#F2F2F7', '#F2F2F7', '#F2F2F7'] as const,
-    vipBannerGradient: ['#0F1419', '#1A2332', '#D4BD45'] as const,
-    /** Marco modal / drawer (oro vibrante). */
-    luxuryFrameGradient: ['#A68B5B', '#E9C349', '#F8EED0', '#E9C349', '#9A8048'] as const,
-    /** Botón primario metálico (CREAR, Card-Studio, etc.). */
-    luxuryCtaGradient: ['#8B7340', '#E9C349', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const,
+    tabShellGradient: [brandColors.iceBlue, brandColors.iceBlue, brandColors.iceBlue] as const,
+    vipBannerGradient: brandGradients.vipBanner,
+    luxuryFrameGradient: brandGradients.frame,
+    luxuryCtaGradient: brandGradients.cta,
   },
 
   dark: {
-    background: '#000000',
-    /** Pared cascarón noche (sin gris intermedios en el gradiente shell). */
-    backgroundTranslucent: '#000000',
-    text: '#FFFFFF',
-    textSecondary: '#8E8E93',
-    divider: '#3A3A3C',
-    accent: '#E9C349',
+    background: brandColors.midnightNavy,
+    backgroundTranslucent: brandColors.midnightNavy,
+    text: brandTextOnDark.primary,
+    textSecondary: brandTextOnDark.muted,
+    divider: brandAccentAlpha.border22,
+    accent: brandColors.electricBlue,
+    accentSecondary: brandColors.digitalViolet,
     success: '#30D158',
     danger: '#FF453A',
 
-    surface: '#1C1C1E',
-    surfaceElevated: '#1C1C1E',
-    border: '#3A3A3C',
-    muted: '#48484A',
-    overlay: 'rgba(0, 0, 0, 0.5)',
-    onAccent: '#0C0C0C',
-    onVipBanner: '#FFFFFF',
-    vipBannerIcon: '#0C0C0C',
-    vipBannerChevron: '#F5F0E6',
+    surface: brandDarkSurfaces.surface,
+    surfaceElevated: brandDarkSurfaces.surfaceElevated,
+    border: brandDarkSurfaces.searchBorder,
+    muted: brandTextOnDark.subtle,
+    overlay: 'rgba(7, 18, 38, 0.72)',
+    onAccent: brandColors.white,
+    onVipBanner: brandColors.white,
+    vipBannerIcon: brandColors.white,
+    vipBannerChevron: brandColors.softLavender,
 
-    accentPressed: '#D1B848',
-    accentDisabled: '#2C2C2E',
+    accentPressed: accentPressedDark,
+    accentDisabled: brandDarkSurfaces.surface,
     dangerMuted: 'rgba(255, 69, 58, 0.15)',
-    focus: '#E9C349',
+    focus: brandColors.digitalViolet,
 
-    tabShellGradient: ['#000000', '#000000', '#000000'] as const,
-    vipBannerGradient: ['#0A0804', '#1C1810', '#DCA832'] as const,
-    luxuryFrameGradient: ['#5C4D32', '#B8942E', '#E8D4A3', '#DCA832', '#5C4D32'] as const,
-    luxuryCtaGradient: ['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#E9C349', '#6B5420'] as const,
+    tabShellGradient: [
+      brandColors.midnightNavy,
+      brandColors.midnightNavy,
+      brandColors.midnightNavy,
+    ] as const,
+    vipBannerGradient: brandGradients.vipBanner,
+    luxuryFrameGradient: brandGradients.frame,
+    luxuryCtaGradient: brandGradients.cta,
   },
 } as const;
 

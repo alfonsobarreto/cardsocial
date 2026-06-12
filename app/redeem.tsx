@@ -79,7 +79,7 @@ export default function RedeemScreen() {
         divider: {
           width: 1,
           height: 60,
-          backgroundColor: 'rgba(233,195,73,0.35)',
+          backgroundColor: 'rgba(47,123,255,0.35)',
           marginHorizontal: 16,
         },
         rewardValue: {

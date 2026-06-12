@@ -73,7 +73,7 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
             <MaterialCommunityIcons
               name="lock"
               size={80}
-              color="#C5A065" // Dorado
+              color="#7A42FF" // Dorado
             />
           </View>
 
@@ -90,7 +90,7 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
           <View style={[styles.buttonsContainer, { paddingBottom: modalFooterBottomPad }]}>
             {/* Botón Premium (Gradient Azul/Dorado) */}
             <LinearGradient
-              colors={['#0A2540', '#1a3a5a']}
+              colors={['#071226', '#1a3a5a']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.premiumButtonGradient}
@@ -99,7 +99,7 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
                 <MaterialCommunityIcons
                   name="star"
                   size={20}
-                  color="#C5A065"
+                  color="#7A42FF"
                   style={styles.buttonIcon}
                 />
                 <Text style={styles.premiumButtonText}>
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   lockTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#071226',
     marginBottom: 8,
     textAlign: 'center',
   },

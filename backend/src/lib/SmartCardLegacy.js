@@ -4,6 +4,7 @@
  */
 
 const { acceptLanguageHeaderIsSpanish } = require('./httpRequestLocale');
+const { brandColors, brandAccentAlpha, brandGradients } = require('./brandTokens');
 const CARD_STUDIO_MAT_PATHS = require('./cardStudioMatPaths.js');
 const PUBLIC_MEDAL_PATHS = require('./publicMedalPaths.cjs');
 
@@ -67,14 +68,14 @@ function buildPublicLegalFooterHtml(isEs) {
   </footer>`;
 }
 
-/** Estética alineada con `LuxWaitlistLanding` (fondo #050505, acentos #E9C349, Inter). */
+/** Estética alineada con `LuxWaitlistLanding` / Sistema Visual de Marca (Azure + Next). */
 const LANDING_LEGACY_BASE_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
   :root {
-    --shell-bg: #050505;
-    --shell-mid: #0a0a0a;
-    --gold: #e9c349;
-    --gold-bright: #f6da87;
+    --shell-bg: ${brandColors.midnightNavy};
+    --shell-mid: #101E34;
+    --accent: ${brandColors.electricBlue};
+    --accent-bright: #4D8FFF;
     --text: rgba(255,255,255,0.72);
     --text-soft: rgba(255,255,255,0.48);
     --border: rgba(255,255,255,0.10);
@@ -87,9 +88,9 @@ const LANDING_LEGACY_BASE_CSS = `
     color: var(--text);
     background-color: var(--shell-bg);
     background-image:
-      radial-gradient(circle at 18% 0%, rgba(233,195,73,0.14), transparent 32%),
-      radial-gradient(circle at 82% 6%, rgba(246,218,135,0.08), transparent 28%),
-      linear-gradient(180deg, #050505 0%, #0a0a0a 45%, #050505 100%);
+      ${brandGradients.radialBlue},
+      ${brandGradients.radialViolet},
+      ${brandGradients.pageBg};
   }
   .landing-grid-bg {
     pointer-events: none;
@@ -107,7 +108,7 @@ const LANDING_LEGACY_BASE_CSS = `
     top: 0;
     z-index: 20;
     border-bottom: 1px solid var(--border);
-    background: rgba(5,5,5,0.74);
+    background: rgba(7, 2, 38, 0.74);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
   }
@@ -127,7 +128,7 @@ const LANDING_LEGACY_BASE_CSS = `
     color: #fff;
     text-decoration: none;
   }
-  .brand:hover { color: var(--gold-bright); }
+  .brand:hover { color: var(--accent-bright); }
   .page-inner {
     position: relative;
     z-index: 1;
@@ -139,9 +140,9 @@ const LANDING_LEGACY_BASE_CSS = `
     text-align: center;
     padding: 28px 22px;
     border-radius: 1.5rem;
-    border: 1px solid rgba(233,195,73,0.32);
-    background: rgba(17,17,17,0.76);
-    box-shadow: 0 0 80px rgba(233,195,73,0.10), 0 24px 60px rgba(0,0,0,0.45);
+    border: 1px solid ${brandAccentAlpha.border32};
+    background: rgba(18, 8, 58, 0.76);
+    box-shadow: 0 0 80px ${brandAccentAlpha.glow10}, 0 24px 60px rgba(0,0,0,0.45);
     backdrop-filter: blur(12px);
   }
   .message-panel h1 {
@@ -170,7 +171,7 @@ const LANDING_LEGACY_BASE_CSS = `
     color: var(--text-soft);
   }
   .legal-foot-inner a {
-    color: rgba(246,218,135,0.92);
+    color: ${brandAccentAlpha.violet92};
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -180,7 +181,7 @@ const LANDING_LEGACY_BASE_CSS = `
     top: 0;
     z-index: 20;
     border-bottom: 1px solid var(--border);
-    background: rgba(5,5,5,0.74);
+    background: rgba(7, 2, 38, 0.74);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
   }
@@ -199,9 +200,9 @@ const LANDING_LEGACY_BASE_CSS = `
     font-size: 0.88rem;
     letter-spacing: 0.02em;
     border-top: 1px solid rgba(255,255,255,0.06);
-    color: var(--gold-bright);
-    text-shadow: 0 0 24px rgba(233,195,73,0.22);
-    background: linear-gradient(180deg, rgba(233,195,73,0.10), transparent);
+    color: var(--accent-bright);
+    text-shadow: 0 0 24px ${brandAccentAlpha.glow22};
+    background: linear-gradient(180deg, ${brandAccentAlpha.border14}, transparent);
   }
   .courtesy-wrap {
     position: relative;
@@ -212,19 +213,19 @@ const LANDING_LEGACY_BASE_CSS = `
   }
   .courtesy-wrap .card {
     color: var(--tc);
-    border: 1px solid rgba(233,195,73,0.35);
+    border: 1px solid ${brandAccentAlpha.border35};
     border-radius: 1.5rem;
-    box-shadow: 0 0 80px rgba(233,195,73,0.08), 0 24px 60px rgba(0,0,0,0.45);
+    box-shadow: 0 0 80px ${brandAccentAlpha.glow08}, 0 24px 60px rgba(0,0,0,0.45);
     overflow: hidden;
     padding: 0;
     background: linear-gradient(180deg, var(--bg0), var(--bg1), var(--bg2));
   }
   .courtesy-wrap .btn-primary {
-    background: linear-gradient(90deg, #f6da87, #e9c349, #a87b1f);
-    color: #0a0a0a;
+    background: ${brandGradients.cta};
+    color: ${brandGradients.ctaText};
     border-radius: 999px;
     border: none;
-    box-shadow: 0 0 28px rgba(233,195,73,0.28);
+    box-shadow: 0 0 28px ${brandAccentAlpha.glow28};
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -232,7 +233,7 @@ const LANDING_LEGACY_BASE_CSS = `
   }
   .courtesy-wrap .btn-ghost {
     background: rgba(17,17,17,0.55);
-    color: var(--gold-bright);
+    color: var(--accent-bright);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 999px;
     font-weight: 700;
@@ -250,7 +251,7 @@ function buildExpiredHtml(isEs) {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="#050505"/>
+  <meta name="theme-color" content="${brandColors.midnightNavy}"/>
   <title>${title}</title>
   <style>${LANDING_LEGACY_BASE_CSS}</style>
 </head>
@@ -267,7 +268,7 @@ function buildExpiredHtml(isEs) {
       <h1><span aria-hidden="true" style="display:block;font-size:1.75rem;margin-bottom:8px">⏱</span>${isEs ? 'Acceso expirado' : 'Access expired'}</h1>
       <p>${msg}</p>
       <p style="margin-top:20px">
-        <a href="${CARDSOCIAL_SITE}/" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 28px;border-radius:999px;font-weight:800;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;color:#000;background:linear-gradient(90deg,#f6da87,#e9c349,#a87b1f);box-shadow:0 0 28px rgba(233,195,73,0.35)">${homeLabel}</a>
+        <a href="${CARDSOCIAL_SITE}/" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 28px;border-radius:999px;font-weight:800;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;color:#fff;background:${brandGradients.cta};box-shadow:0 0 28px ${brandAccentAlpha.glow35}">${homeLabel}</a>
       </p>
     </div>
     <div class="legal-wrap">${buildPublicLegalFooterHtml(isEs)}</div>
@@ -314,7 +315,7 @@ function buildValidCourtesyPageHtml(opts) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <meta name="theme-color" content="${dt.bg[0]}"/>
-  <meta name="theme-color" content="#050505"/>
+  <meta name="theme-color" content="${brandColors.midnightNavy}"/>
   <title>${t.title}</title>
   <style>
 ${LANDING_LEGACY_BASE_CSS}

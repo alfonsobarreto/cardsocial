@@ -7,9 +7,9 @@ import copy, { type ExecLocale } from './investorCopy';
 import { investorDemoHref, investorPitchDeckHref, pitchDeckOpensInNewTab } from './investorUrls';
 
 /* ─── tokens ──────────────────────────────────────────────────── */
-const G = '#E9C349';
-const GL = '#F6DA87';
-const GD = '#A87B1F';
+const G = '#2F7BFF';
+const GL = '#4D8FFF';
+const GD = '#6235E0';
 
 const rv: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -33,11 +33,11 @@ function Rev({ children, className = '' }: { children: ReactNode; className?: st
 function SL({ letter, eyebrow, title }: { letter: string; eyebrow: string; title: string }) {
   return (
     <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-10">
-      <div className="flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center rounded-3xl border-2 border-[#E9C349]/55 bg-gradient-to-br from-[#E9C349]/22 to-transparent text-2xl font-black text-[#F6DA87] shadow-[0_0_40px_rgba(233,195,73,0.22)]">
+      <div className="flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center rounded-3xl border-2 border-[#2F7BFF]/55 bg-gradient-to-br from-[#2F7BFF]/22 to-transparent text-2xl font-black text-[#4D8FFF] shadow-[0_0_40px_rgba(47,123,255,0.22)]">
         {letter}
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-black uppercase tracking-[0.32em] text-[#E9C349]">{eyebrow}</p>
+        <p className="text-xs font-black uppercase tracking-[0.32em] text-[#2F7BFF]">{eyebrow}</p>
         <h2 className="mt-3 text-[clamp(1.75rem,4vw,2.85rem)] font-black tracking-[-0.055em] text-white">{title}</h2>
       </div>
     </div>
@@ -80,7 +80,7 @@ export function CompetitiveAnalysis({ locale }: { locale: ExecLocale }) {
     <Rev>
       <section id="inv-competitive" className="scroll-mt-36">
         <SL letter="F" eyebrow={c.compEyebrow} title={c.compTitle} />
-        <p className="mb-10 max-w-3xl border-l-[3px] border-[#E9C349] pl-7 text-base font-semibold leading-8 text-white/68">
+        <p className="mb-10 max-w-3xl border-l-[3px] border-[#2F7BFF] pl-7 text-base font-semibold leading-8 text-white/68">
           {c.compQuote}
         </p>
 
@@ -88,26 +88,26 @@ export function CompetitiveAnalysis({ locale }: { locale: ExecLocale }) {
         <div className="hidden overflow-hidden rounded-[1.85rem] border border-white/[0.08] bg-[#080808]/92 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-2xl lg:block">
           <div className="grid grid-cols-[9rem_1fr_1fr_1fr] gap-px border-b border-white/[0.07] bg-white/[0.04]">
             {[c.compColCompetitor, c.compColWeapon, c.compColDestroyer, c.compColAngle].map((h, i) => (
-              <div key={h} className={`px-6 py-4 text-[9px] font-black uppercase tracking-[0.28em] ${i === 2 ? 'text-[#E9C349]/70' : 'text-white/28'}`}>{h}</div>
+              <div key={h} className={`px-6 py-4 text-[9px] font-black uppercase tracking-[0.28em] ${i === 2 ? 'text-[#2F7BFF]/70' : 'text-white/28'}`}>{h}</div>
             ))}
           </div>
           <motion.div variants={st} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} className="divide-y divide-white/[0.05]">
             {c.competitors.map((comp) => (
-              <motion.div key={comp.name} variants={rv} className="group grid grid-cols-[9rem_1fr_1fr_1fr] gap-px transition-colors duration-200 hover:bg-[#E9C349]/[0.035]">
+              <motion.div key={comp.name} variants={rv} className="group grid grid-cols-[9rem_1fr_1fr_1fr] gap-px transition-colors duration-200 hover:bg-[#2F7BFF]/[0.035]">
                 <div className="flex flex-col justify-center gap-2 px-6 py-6">
                   <p className="text-base font-black text-white/80 group-hover:text-white">{comp.name}</p>
                   <span className="w-fit rounded-full border border-white/10 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white/30">{comp.chip}</span>
                 </div>
                 <div className="px-6 py-6"><p className="text-xs leading-6 text-white/40">{comp.weapon}</p></div>
-                <div className="border-l border-[#E9C349]/15 bg-[#E9C349]/[0.025] px-6 py-6 group-hover:bg-[#E9C349]/[0.05]">
+                <div className="border-l border-[#2F7BFF]/15 bg-[#2F7BFF]/[0.025] px-6 py-6 group-hover:bg-[#2F7BFF]/[0.05]">
                   <p className="text-xs leading-6 text-white/65">{comp.destroyer}</p>
                 </div>
-                <div className="px-6 py-6"><p className="text-xs font-semibold italic leading-6 text-[#F6DA87]/75">&ldquo;{comp.angle}&rdquo;</p></div>
+                <div className="px-6 py-6"><p className="text-xs font-semibold italic leading-6 text-[#4D8FFF]/75">&ldquo;{comp.angle}&rdquo;</p></div>
               </motion.div>
             ))}
           </motion.div>
-          <div className="border-t border-[#E9C349]/18 bg-[#E9C349]/[0.04] px-7 py-4">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-[#F6DA87]/55">{c.compFooter}</p>
+          <div className="border-t border-[#2F7BFF]/18 bg-[#2F7BFF]/[0.04] px-7 py-4">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-[#4D8FFF]/55">{c.compFooter}</p>
           </div>
         </div>
 
@@ -126,13 +126,13 @@ export function CompetitiveAnalysis({ locale }: { locale: ExecLocale }) {
                   <p className="mb-2 text-[9px] font-black uppercase tracking-[0.26em] text-white/28">{c.compWeaponLabel}</p>
                   <p className="text-xs leading-6 text-white/45">{comp.weapon}</p>
                 </div>
-                <div className="bg-[#E9C349]/[0.04] px-6 py-5">
-                  <p className="mb-2 text-[9px] font-black uppercase tracking-[0.26em] text-[#E9C349]/70">{c.compDestroyerLabel}</p>
+                <div className="bg-[#2F7BFF]/[0.04] px-6 py-5">
+                  <p className="mb-2 text-[9px] font-black uppercase tracking-[0.26em] text-[#2F7BFF]/70">{c.compDestroyerLabel}</p>
                   <p className="text-xs leading-6 text-white/65">{comp.destroyer}</p>
                 </div>
                 <div className="px-6 py-5">
                   <p className="mb-2 text-[9px] font-black uppercase tracking-[0.26em] text-white/28">{c.compAngleLabel}</p>
-                  <p className="text-xs font-semibold italic leading-6 text-[#F6DA87]/75">&ldquo;{comp.angle}&rdquo;</p>
+                  <p className="text-xs font-semibold italic leading-6 text-[#4D8FFF]/75">&ldquo;{comp.angle}&rdquo;</p>
                 </div>
               </div>
             </motion.article>
@@ -250,16 +250,16 @@ export function FinancialProjections({ locale }: { locale: ExecLocale }) {
                 viewport={{ once: true }}
                 className={`relative overflow-hidden rounded-[1.85rem] border p-8 backdrop-blur-2xl ${
                   d.highlight
-                    ? 'border-[#E9C349]/45 bg-[linear-gradient(145deg,rgba(233,195,73,0.13),rgba(10,10,10,0.92)_55%)] shadow-[0_0_90px_rgba(233,195,73,0.13)]'
+                    ? 'border-[#2F7BFF]/45 bg-[linear-gradient(145deg,rgba(47,123,255,0.13),rgba(10,10,10,0.92)_55%)] shadow-[0_0_90px_rgba(47,123,255,0.13)]'
                     : 'border-white/[0.08] bg-[#0e0e0e]/80'
                 }`}
               >
                 {d.highlight && (
-                  <div className="absolute right-6 top-6 rounded-full border border-[#E9C349]/50 bg-[#E9C349]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.3em] text-[#F6DA87]">
+                  <div className="absolute right-6 top-6 rounded-full border border-[#2F7BFF]/50 bg-[#2F7BFF]/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.3em] text-[#4D8FFF]">
                     {c.projTargetBadge}
                   </div>
                 )}
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#E9C349]/75">{yr.tag}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#2F7BFF]/75">{yr.tag}</p>
                 <p className="mt-3 text-4xl font-black tracking-[-0.05em] text-white">{yr.year}</p>
                 <div className="my-7 grid grid-cols-2 gap-3">
                   {[
@@ -267,9 +267,9 @@ export function FinancialProjections({ locale }: { locale: ExecLocale }) {
                     { label: c.projLabelMrr, val: d.mrr },
                     { label: c.projLabelArr, val: d.arr },
                   ].map((stat) => (
-                    <div key={stat.label} className={`rounded-2xl border px-4 py-4 ${d.highlight ? 'border-[#E9C349]/22 bg-[#E9C349]/06' : 'border-white/[0.07] bg-white/[0.02]'}`}>
+                    <div key={stat.label} className={`rounded-2xl border px-4 py-4 ${d.highlight ? 'border-[#2F7BFF]/22 bg-[#2F7BFF]/06' : 'border-white/[0.07] bg-white/[0.02]'}`}>
                       <p className="text-[9px] uppercase tracking-[0.22em] text-white/30">{stat.label}</p>
-                      <p className={`mt-1.5 font-mono text-xl font-black ${d.highlight ? 'text-[#F6DA87]' : 'text-white'}`}>{stat.val}</p>
+                      <p className={`mt-1.5 font-mono text-xl font-black ${d.highlight ? 'text-[#4D8FFF]' : 'text-white'}`}>{stat.val}</p>
                     </div>
                   ))}
                 </div>
@@ -284,7 +284,7 @@ export function FinancialProjections({ locale }: { locale: ExecLocale }) {
                   ].map(([label, val]) => (
                     <div key={label} className="flex items-center justify-between">
                       <span className="text-xs text-white/38">{label}</span>
-                      <span className={`font-mono text-xs font-bold ${d.highlight ? 'text-[#F6DA87]/80' : 'text-white/55'}`}>{val}</span>
+                      <span className={`font-mono text-xs font-bold ${d.highlight ? 'text-[#4D8FFF]/80' : 'text-white/55'}`}>{val}</span>
                     </div>
                   ))}
                 </div>
@@ -301,7 +301,7 @@ export function FinancialProjections({ locale }: { locale: ExecLocale }) {
           <div className="flex items-end gap-6" style={{ height: '120px' }}>
             {[504_000, 2_520_000, 11_100_000].map((arr, idx) => (
               <div key={idx} className="flex flex-1 flex-col items-center gap-3">
-                <p className="font-mono text-[10px] text-[#F6DA87]/60">${(arr / 1_000_000).toFixed(1)}M</p>
+                <p className="font-mono text-[10px] text-[#4D8FFF]/60">${(arr / 1_000_000).toFixed(1)}M</p>
                 <div className="relative w-full overflow-hidden rounded-t-xl bg-white/[0.05]" style={{ height: '90px' }}>
                   <motion.div
                     initial={{ scaleY: 0 }}
@@ -311,7 +311,7 @@ export function FinancialProjections({ locale }: { locale: ExecLocale }) {
                     style={{
                       originY: 1,
                       height: `${(arr / 11_100_000) * 100}%`,
-                      background: arr === 11_100_000 ? `linear-gradient(180deg, ${GL}, ${G})` : `linear-gradient(180deg,rgba(233,195,73,0.5),rgba(168,123,31,0.5))`,
+                      background: arr === 11_100_000 ? `linear-gradient(180deg, ${GL}, ${G})` : `linear-gradient(180deg,rgba(47,123,255,0.5),rgba(168,123,31,0.5))`,
                     }}
                     className="absolute bottom-0 left-0 right-0 rounded-t-xl"
                   />
@@ -342,18 +342,18 @@ export function TeamFounders({ locale }: { locale: ExecLocale }) {
         </p>
         <motion.div variants={st} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {c.teamMembers.map((m, i) => (
-            <motion.article key={m.initials} variants={rv} className="group relative overflow-hidden rounded-[1.85rem] border border-white/[0.09] bg-[#0d0d0d]/85 p-7 backdrop-blur-2xl transition duration-300 hover:border-[#E9C349]/35">
-              <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#E9C349]/05 blur-3xl" />
+            <motion.article key={m.initials} variants={rv} className="group relative overflow-hidden rounded-[1.85rem] border border-white/[0.09] bg-[#0d0d0d]/85 p-7 backdrop-blur-2xl transition duration-300 hover:border-[#2F7BFF]/35">
+              <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#2F7BFF]/05 blur-3xl" />
               <div className="relative">
-                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[1.5rem] border-2 border-[#E9C349]/35 bg-gradient-to-br from-[#E9C349]/20 to-transparent text-2xl font-black text-[#F6DA87] shadow-[0_0_32px_rgba(233,195,73,0.18)]">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[1.5rem] border-2 border-[#2F7BFF]/35 bg-gradient-to-br from-[#2F7BFF]/20 to-transparent text-2xl font-black text-[#4D8FFF] shadow-[0_0_32px_rgba(47,123,255,0.18)]">
                   {m.initials}
                 </div>
                 <p className="text-xl font-black tracking-tight text-white">{m.name}</p>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#E9C349]/75">{m.role}</p>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#2F7BFF]/75">{m.role}</p>
                 <p className="mt-5 text-sm leading-7 text-white/62">{bios[i] ?? ''}</p>
                 <div className="mt-7 flex flex-wrap gap-2">
                   {m.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 group-hover:border-[#E9C349]/25 group-hover:text-[#F6DA87]/55">
+                    <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 group-hover:border-[#2F7BFF]/25 group-hover:text-[#4D8FFF]/55">
                       {tag}
                     </span>
                   ))}
@@ -394,8 +394,8 @@ export function TractionSlide({ locale }: { locale: ExecLocale }) {
           </div>
           <p className="text-sm leading-8 text-white/62">{c.tracLoiBody}</p>
         </motion.div>
-        <div className="mb-10 rounded-[1.5rem] border border-[#E9C349]/25 bg-[#E9C349]/05 px-7 py-5">
-          <p className="text-xs leading-6 text-[#F6DA87]/70">
+        <div className="mb-10 rounded-[1.5rem] border border-[#2F7BFF]/25 bg-[#2F7BFF]/05 px-7 py-5">
+          <p className="text-xs leading-6 text-[#4D8FFF]/70">
             <strong className="font-black">{locale === 'es' ? 'Para completar:' : 'To complete:'}</strong>{' '}
             {c.tracUpdateNote.replace('Para completar: ', '').replace('To complete: ', '')}
           </p>
@@ -408,12 +408,12 @@ export function TractionSlide({ locale }: { locale: ExecLocale }) {
               variants={rv}
               className={`group relative overflow-hidden rounded-[1.85rem] border p-8 backdrop-blur-2xl transition duration-300 ${
                 s.highlight
-                  ? 'border-[#E9C349]/45 bg-[linear-gradient(145deg,rgba(233,195,73,0.13),rgba(10,10,10,0.92))] shadow-[0_0_60px_rgba(233,195,73,0.12)]'
-                  : 'border-white/[0.08] bg-[#0e0e0e]/80 hover:border-[#E9C349]/25'
+                  ? 'border-[#2F7BFF]/45 bg-[linear-gradient(145deg,rgba(47,123,255,0.13),rgba(10,10,10,0.92))] shadow-[0_0_60px_rgba(47,123,255,0.12)]'
+                  : 'border-white/[0.08] bg-[#0e0e0e]/80 hover:border-[#2F7BFF]/25'
               }`}
             >
-              <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[#E9C349]/06 blur-3xl" />
-              <p className={`relative font-mono text-5xl font-black ${s.highlight ? 'text-[#F6DA87]' : 'text-white'}`}>
+              <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[#2F7BFF]/06 blur-3xl" />
+              <p className={`relative font-mono text-5xl font-black ${s.highlight ? 'text-[#4D8FFF]' : 'text-white'}`}>
                 <Ticker target={TRACTION_VALUES[i]} suffix={TRACTION_SUFFIXES[i]} />
               </p>
               <p className="relative mt-4 text-sm font-bold text-white/55">{s.label}</p>
@@ -423,7 +423,7 @@ export function TractionSlide({ locale }: { locale: ExecLocale }) {
         </motion.div>
 
         <div className="relative">
-          <div className="absolute bottom-0 left-[1.75rem] top-0 w-[2px] bg-gradient-to-b from-[#E9C349]/50 via-[#E9C349]/25 to-transparent sm:left-[2rem]" />
+          <div className="absolute bottom-0 left-[1.75rem] top-0 w-[2px] bg-gradient-to-b from-[#2F7BFF]/50 via-[#2F7BFF]/25 to-transparent sm:left-[2rem]" />
           <div className="grid gap-5">
             {c.tracMilestones.map((m, i) => (
               <motion.div key={m.date} variants={rv} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid grid-cols-[3.5rem_1fr] gap-6 sm:grid-cols-[4rem_1fr] sm:gap-10">
@@ -436,16 +436,16 @@ export function TractionSlide({ locale }: { locale: ExecLocale }) {
                     }
                     className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border-2 text-[10px] font-black text-black"
                   >
-                    {m.future ? <span className="text-[#E9C349] opacity-60">→</span> : <span>{String(i + 1).padStart(2, '0')}</span>}
+                    {m.future ? <span className="text-[#2F7BFF] opacity-60">→</span> : <span>{String(i + 1).padStart(2, '0')}</span>}
                   </div>
                 </div>
                 <div
                   className={`mb-5 rounded-[1.6rem] border p-6 backdrop-blur-xl ${
-                    m.future ? 'border-dashed border-[#E9C349]/28 bg-[#E9C349]/[0.04]' : 'border-white/[0.08] bg-[#0f0f0f]/80'
+                    m.future ? 'border-dashed border-[#2F7BFF]/28 bg-[#2F7BFF]/[0.04]' : 'border-white/[0.08] bg-[#0f0f0f]/80'
                   }`}
                 >
-                  <p className={`font-mono text-[10px] font-black uppercase tracking-[0.28em] ${m.future ? 'text-[#E9C349]' : 'text-white/35'}`}>{m.date}</p>
-                  <p className={`mt-2 text-lg font-black tracking-tight ${m.future ? 'text-[#F6DA87]' : 'text-white'}`}>{m.label}</p>
+                  <p className={`font-mono text-[10px] font-black uppercase tracking-[0.28em] ${m.future ? 'text-[#2F7BFF]' : 'text-white/35'}`}>{m.date}</p>
+                  <p className={`mt-2 text-lg font-black tracking-tight ${m.future ? 'text-[#4D8FFF]' : 'text-white'}`}>{m.label}</p>
                   <p className="mt-3 text-sm leading-7 text-white/50">{m.desc}</p>
                 </div>
               </motion.div>
@@ -470,36 +470,36 @@ export function InvestorCTA({ locale }: { locale: ExecLocale }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-          className="relative overflow-hidden rounded-[2.85rem] border border-[#E9C349]/40 bg-[#080808]/92 p-10 shadow-[0_0_160px_rgba(233,195,73,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-3xl sm:p-14 lg:p-16"
+          className="relative overflow-hidden rounded-[2.85rem] border border-[#2F7BFF]/40 bg-[#080808]/92 p-10 shadow-[0_0_160px_rgba(47,123,255,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-3xl sm:p-14 lg:p-16"
         >
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(233,195,73,0.18)_0%,transparent_40%,rgba(246,218,135,0.06)_100%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(47,123,255,0.18)_0%,transparent_40%,rgba(246,218,135,0.06)_100%)]" />
           <div className="relative mx-auto max-w-4xl text-center">
-            <p className="font-mono text-[11px] uppercase tracking-[0.44em] text-[#F6DA87]/65">{c.ctaEyebrow}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.44em] text-[#4D8FFF]/65">{c.ctaEyebrow}</p>
             <h2 className="mt-8 bg-gradient-to-br from-white via-[#fef7d9] to-[#c9a035] bg-clip-text text-[clamp(2rem,5vw,3.75rem)] font-black leading-[1.02] tracking-[-0.06em] text-transparent">
               {c.ctaTitle}
             </h2>
             <p className="mx-auto mt-8 max-w-2xl text-base leading-8 text-white/58">{c.ctaBody1}</p>
             <p className="mx-auto mt-5 max-w-2xl text-base font-semibold leading-8 text-white/75">
               {c.ctaBody2}{' '}
-              <span className="text-[#F6DA87]">{c.ctaBody2Gold}</span>
+              <span className="text-[#4D8FFF]">{c.ctaBody2Gold}</span>
             </p>
             <div className="mt-14 flex flex-wrap justify-center gap-4">
               <a
                 href={investorDemoHref(locale)}
-                className="inline-flex min-h-14 items-center justify-center rounded-full bg-gradient-to-r from-[#F6DA87] via-[#E9C349] to-[#A87B1F] px-10 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_0_44px_rgba(233,195,73,0.38)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_70px_rgba(233,195,73,0.55)]"
+                className="inline-flex min-h-14 items-center justify-center rounded-full bg-gradient-to-r from-[#4D8FFF] via-[#2F7BFF] to-[#6235E0] px-10 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_0_44px_rgba(47,123,255,0.38)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_70px_rgba(47,123,255,0.55)]"
               >
                 {c.ctaBtnMeeting}
               </a>
               <a
                 href={investorPitchDeckHref()}
                 {...(pitchDeckOpensInNewTab() ? { target: '_blank' as const, rel: 'noopener noreferrer' } : {})}
-                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#E9C349]/50 bg-[#E9C349]/12 px-10 text-sm font-black uppercase tracking-[0.16em] text-[#F6DA87] transition duration-300 hover:border-[#F6DA87]/60 hover:bg-[#E9C349]/18"
+                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#2F7BFF]/50 bg-[#2F7BFF]/12 px-10 text-sm font-black uppercase tracking-[0.16em] text-[#4D8FFF] transition duration-300 hover:border-[#4D8FFF]/60 hover:bg-[#2F7BFF]/18"
               >
                 {c.ctaBtnDeck}
               </a>
               <a
                 href="mailto:pochobs@gmail.com?subject=Card-Social Seed Round — Investment Inquiry"
-                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#E9C349]/40 bg-[#E9C349]/08 px-10 text-sm font-black uppercase tracking-[0.16em] text-[#F6DA87] transition duration-300 hover:border-[#E9C349]/70 hover:bg-[#E9C349]/14"
+                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#2F7BFF]/40 bg-[#2F7BFF]/08 px-10 text-sm font-black uppercase tracking-[0.16em] text-[#4D8FFF] transition duration-300 hover:border-[#2F7BFF]/70 hover:bg-[#2F7BFF]/14"
               >
                 {c.ctaBtnEmail}
               </a>
@@ -507,7 +507,7 @@ export function InvestorCTA({ locale }: { locale: ExecLocale }) {
             <div className="mt-14 grid grid-cols-2 gap-4 border-t border-white/[0.07] pt-12 sm:grid-cols-4">
               {c.ctaStats.map((s) => (
                 <div key={s.label} className="text-center">
-                  <p className="font-mono text-2xl font-black text-[#F6DA87]">{s.val}</p>
+                  <p className="font-mono text-2xl font-black text-[#4D8FFF]">{s.val}</p>
                   <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/32">{s.label}</p>
                 </div>
               ))}

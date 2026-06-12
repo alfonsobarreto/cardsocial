@@ -147,7 +147,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/cs-icon-logo.png",
-          "color": "#C5A065",
+          "color": "#2F7BFF",
           "defaultChannel": "ghost-link-calls",
           "sounds": [],
           "enableBackgroundRemoteNotifications": true

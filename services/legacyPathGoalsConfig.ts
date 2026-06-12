@@ -3,7 +3,7 @@
  * Los valores de progreso (current / ceiling) los inyecta el dashboard; después se conectarán a la DB de referidos.
  */
 
-export const LEGACY_VIBRANT_GOLD = '#E9C349';
+export const LEGACY_VIBRANT_GOLD = '#2F7BFF';
 
 export const LEGACY_MODAL_CANVAS_HEX = '#1C1C1E';
 

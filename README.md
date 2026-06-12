@@ -69,24 +69,32 @@ Todas las rutas definidas en `backend/src/routes/qrRoutes.js` llevan prefijo **`
 3. **Arranque en Azure:** comando de inicio **`node src/server.js`** desde la raíz del paquete desplegado (carpeta `backend` del repo). No hace falta cambiar el startup solo por Next; el backend localiza `frontend-web` y arranca el hijo.
 4. Variables en **`backend/.env`:** `PUBLIC_UNIVERSAL_CARD_BASE_URL`, `INTERNAL_API_URL`, `UNIVERSAL_VALID_REDIRECT_USE_ROOT` si aplica (ver `backend/.env.example`).
 
-### Deep linking — archivos en `https://cardsocial.me/.well-known/`
+### Deep linking — `https://cardsocial.me/.well-known/`
 
-En el monorepo, al hacer **Expo Web** (`npx expo export --platform web` o flujo EAS), la carpeta **`public/.well-known/`** se copia al sitio:
+En **producción (Azure)** el backend sirve AASA y assetlinks directamente (`backend/src/server.js`). También puedes publicar copias estáticas en `public/.well-known/` si hace falta.
 
 - `apple-app-site-association` — sustituye **`APPLE_TEAM_ID`** por tu Team ID de Apple Developer.
 - `assetlinks.json` — sustituye el **SHA-256** del certificado de firma de release (Play Console o `keytool`).
 
-**Cabeceras:** donde sea posible, sirve `apple-app-site-association` con `Content-Type: application/json` (algunos hosts lo exigen para Universal Links).
+**App nativa (opcional):** `app.json` conserva `associatedDomains` / `intentFilters` para builds móviles legacy.
 
-**App nativa:** `app.json` incluye `ios.associatedDomains` (`applinks:cardsocial.me`) e `android.intentFilters` para `https://cardsocial.me/u`.
-
-## App móvil (Expo)
-
-Variables: copia **`.env.example`** en la raíz a **`.env`** y rellena `EXPO_PUBLIC_*` (ver comentarios en el ejemplo). Nunca subas `.env` con secretos al repositorio.
+## Producción local (Azure stack)
 
 ```bash
 npm install
-npx expo start
+cd frontend-web && npm ci && npm run build && cd ..
+node scripts/bundle-frontend-web-into-backend.mjs
+npm run backend:start
+```
+
+El sitio público (`cardsocial.me`) es **Next.js empaquetado en el backend** — ver CI en `.github/workflows/main_card-social-api.yml`.
+
+## App móvil (opcional / legacy Expo)
+
+Variables: **`.env.example`** en la raíz (`EXPO_PUBLIC_*`). No es el canal de build principal.
+
+```bash
+npm run start:mobile
 ```
 
 **Contexto fresco para la app (lista Mis Tarjetas, scroll, reorden, preview, wireframe):** `funcionalidades.md` (sección *Mis Tarjetas* bajo Tarjetas inteligentes).

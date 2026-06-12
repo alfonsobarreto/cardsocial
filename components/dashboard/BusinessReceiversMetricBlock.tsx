@@ -170,7 +170,7 @@ export function BusinessReceiversMetricBlock({
         <LinearGradient
           colors={
             chrome.isNight
-              ? ['rgba(233,195,73,0.22)', 'rgba(30,28,24,0.95)', 'rgba(18,16,12,0.98)']
+              ? ['rgba(47,123,255,0.22)', 'rgba(30,28,24,0.95)', 'rgba(18,16,12,0.98)']
               : ['#FAFAF8', '#F5F3EE', '#EBE6DA']
           }
           start={{ x: 0, y: 0 }}
@@ -182,7 +182,7 @@ export function BusinessReceiversMetricBlock({
             style={[
               styles.heroIconWrap,
               {
-                backgroundColor: chrome.isNight ? 'rgba(233,195,73,0.18)' : 'rgba(122,92,16,0.10)',
+                backgroundColor: chrome.isNight ? 'rgba(47,123,255,0.18)' : 'rgba(122,92,16,0.10)',
               },
             ]}
           >
@@ -326,7 +326,7 @@ export function BusinessReceiversMetricBlock({
                       <View key={b.key} style={styles.barCol}>
                         <Text style={[styles.barCount, { color: chrome.text }]}>{b.count}</Text>
                         <LinearGradient
-                          colors={['rgba(255,222,128,0.95)', 'rgba(233,195,73,0.55)', 'rgba(122,92,16,0.35)']}
+                          colors={['rgba(255,222,128,0.95)', 'rgba(47,123,255,0.55)', 'rgba(122,92,16,0.35)']}
                           style={[styles.barFill, { height: h, borderColor: chrome.analyticsCardBorder }]}
                         />
                         <Text style={[styles.barLabel, { color: chrome.textMuted }]} numberOfLines={1}>

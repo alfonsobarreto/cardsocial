@@ -240,12 +240,12 @@ const AdminIconUploader: React.FC = () => {
     >
       {/* HEADER */}
       <LinearGradient
-        colors={['#0A2540', '#1A3D5C']}
+        colors={['#070226', '#1A3D5C']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <MaterialCommunityIcons name="palette-advanced" size={32} color="#C5A065" />
+        <MaterialCommunityIcons name="palette-advanced" size={32} color="#7A42FF" />
         <Text style={styles.headerTitle}>{tr('Icon Library Manager', 'Icon Library Manager')}</Text>
         <Text style={styles.headerSubtitle}>
           {tr('Sube diseños PNG/GIF a Firebase Storage', 'Upload PNG/GIF designs to Firebase Storage')}
@@ -266,7 +266,7 @@ const AdminIconUploader: React.FC = () => {
           </View>
         ) : (
           <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-            <MaterialCommunityIcons name="cloud-upload-outline" size={32} color="#C5A065" />
+            <MaterialCommunityIcons name="cloud-upload-outline" size={32} color="#7A42FF" />
             <Text style={styles.uploadButtonText}>
               {tr('Toca para seleccionar imagen', 'Tap to select an image')}
             </Text>
@@ -292,7 +292,7 @@ const AdminIconUploader: React.FC = () => {
             <MaterialCommunityIcons
               name="gift-open"
               size={20}
-              color={state.type === 'free' ? '#C5A065' : '#999'}
+              color={state.type === 'free' ? '#7A42FF' : '#999'}
             />
             <Text
               style={[
@@ -314,7 +314,7 @@ const AdminIconUploader: React.FC = () => {
             <MaterialCommunityIcons
               name="star"
               size={20}
-              color={state.type === 'premium' ? '#C5A065' : '#999'}
+              color={state.type === 'premium' ? '#7A42FF' : '#999'}
             />
             <Text
               style={[
@@ -366,7 +366,7 @@ const AdminIconUploader: React.FC = () => {
             style={styles.categoryChipAdd}
             onPress={() => setShowCategoryInput(true)}
           >
-            <MaterialCommunityIcons name="plus" size={16} color="#C5A065" />
+            <MaterialCommunityIcons name="plus" size={16} color="#7A42FF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -579,14 +579,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#070226',
     marginBottom: 12,
   },
 
   uploadButton: {
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0A2540',
+    color: '#070226',
   },
   uploadButtonHint: {
     fontSize: 12,
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: '#0A2540',
+    color: '#070226',
   },
 
   typeSelector: {
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   },
   typeButtonActive: {
     backgroundColor: 'rgba(197, 160, 101, 0.15)',
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
   },
   typeButtonText: {
     fontSize: 12,
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   typeButtonTextActive: {
-    color: '#C5A065',
+    color: '#7A42FF',
   },
 
   typeInfo: {
@@ -669,19 +669,19 @@ const styles = StyleSheet.create({
   },
   dropToggle: {
     borderWidth: 1,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#FFF',
   },
   dropToggleActive: {
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
   },
   dropToggleText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#C5A065',
+    color: '#7A42FF',
   },
   dropToggleTextActive: {
     color: '#FFF',
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#0A2540',
+    color: '#070226',
   },
   dropInputRow: {
     flexDirection: 'row',
@@ -731,8 +731,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7FAFC',
   },
   sectionChipActive: {
-    borderColor: '#0A2540',
-    backgroundColor: '#0A2540',
+    borderColor: '#070226',
+    backgroundColor: '#070226',
   },
   sectionChipText: {
     fontSize: 10,
@@ -757,8 +757,8 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   categoryChipActive: {
-    backgroundColor: '#C5A065',
-    borderColor: '#C5A065',
+    backgroundColor: '#7A42FF',
+    borderColor: '#7A42FF',
   },
   categoryChipText: {
     fontSize: 12,
@@ -774,14 +774,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 36,
     borderWidth: 1,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   uploadActionButton: {
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     borderRadius: 12,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#070226',
   },
   modalInput: {
     borderWidth: 1,
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 13,
-    color: '#0A2540',
+    color: '#070226',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -863,7 +863,7 @@ const styles = StyleSheet.create({
   },
   modalButtonConfirm: {
     flex: 1,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0A2540',
+    color: '#070226',
   },
 });
 

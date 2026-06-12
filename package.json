@@ -6,10 +6,13 @@
     "node": "22.x"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "npm run backend:start",
+    "start:mobile": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
+    "web:expo": "expo start --web",
+    "build:web": "npm run build --prefix frontend-web",
+    "build:web:bundle": "npm run build:web && node scripts/bundle-frontend-web-into-backend.mjs",
     "backend:start": "node backend/src/server.js",
     "smoke:test": "node scripts/smoke-test-all.mjs",
     "test:search-phase2": "tsx scripts/test-search-phase2.ts",

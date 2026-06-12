@@ -13,6 +13,7 @@ import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
 import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
 import { installGhostLinkNotificationOpenHandlers, registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
+import { loadBrandFonts } from '@/services/brandFontService';
 import { applyAndroidNavigationBarChrome, installAndroidNavigationBarImmersiveGuard } from '@/services/androidNavigationChrome';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -23,6 +24,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import Toast from 'react-native-toast-message';
 import { useLookMode } from '@/services/lookMode';
+import BrandNodesBackground from '@/components/BrandNodesBackground';
 import palette from './theme';
 
 export default function RootLayout() {
@@ -75,7 +77,7 @@ function RootNavigator() {
 
   const rootStackScreenOptions = useMemo(
     () => ({
-      contentStyle: { backgroundColor: shell.backgroundSolid },
+      contentStyle: { backgroundColor: 'transparent' },
       animation: 'default' as const,
     }),
     [shell.backgroundSolid],
@@ -138,6 +140,10 @@ function RootNavigator() {
   }, []);
 
   useEffect(() => {
+    void loadBrandFonts();
+  }, []);
+
+  useEffect(() => {
     void registerPushToken();
   }, []);
 
@@ -162,6 +168,8 @@ function RootNavigator() {
 
   return (
     <View style={styles.rootShell}>
+      <BrandNodesBackground mode={isDark ? 'night' : 'day'} />
+      <View style={styles.appContent}>
       <GhostLinkCallProvider>
         <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />
         <Stack screenOptions={rootStackScreenOptions}>
@@ -206,6 +214,7 @@ function RootNavigator() {
       {privacyOverlayVisible ? (
         <View style={privacyOverlayStyle} pointerEvents="none" />
       ) : null}
+      </View>
     </View>
   );
 }
@@ -213,5 +222,11 @@ function RootNavigator() {
 const styles = StyleSheet.create({
   rootShell: {
     flex: 1,
+    position: 'relative',
+  },
+  appContent: {
+    flex: 1,
+    zIndex: 1,
+    elevation: 1,
   },
 });

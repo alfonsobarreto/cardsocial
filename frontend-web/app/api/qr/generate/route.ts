@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
     margin: 2,
     errorCorrectionLevel: 'H' as const,
     color: {
-      dark: '#0A2540',
+      dark: '#071226',
       light: '#FFFFFF',
     },
   };

@@ -61,9 +61,9 @@ const L = {
   bg: '#000000',
   text: '#FFFFFF',
   textMuted: '#B8B8B8',
-  gold: '#E9C349',
+  gold: '#2F7BFF',
   goldDeep: '#C9A227',
-  goldGlow: 'rgba(233, 195, 73, 0.45)',
+  goldGlow: 'rgba(47, 123, 255, 0.45)',
   hairline: 'rgba(255,255,255,0.12)',
 };
 
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   remindPressable: {
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(233, 195, 73, 0.35)',
+    borderColor: 'rgba(47, 123, 255, 0.35)',
     paddingHorizontal: 10,
     justifyContent: 'center',
     alignItems: 'center',

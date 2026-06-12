@@ -106,7 +106,7 @@ export default function AdminDashboardScreen() {
     return (
       <LinearGradient colors={['#F8F9FA', '#E8F0F8']} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0A2540" />
+          <ActivityIndicator size="large" color="#070226" />
           <Text style={styles.loadingText}>{tr('Validando acceso…', 'Validating access…')}</Text>
         </View>
       </LinearGradient>
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '500',
   },
   deniedContainer: {

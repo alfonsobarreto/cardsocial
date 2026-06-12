@@ -80,7 +80,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A2540', // Azul Marino
+    backgroundColor: '#070226', // Azul Marino
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
-    color: '#0A2540',
+    color: '#070226',
   },
   registerButton: {
     backgroundColor: '#1EA7FF', // Dorado Soft

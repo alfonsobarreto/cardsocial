@@ -1,8 +1,13 @@
-import { premiumTheme, SHELL_ACCENT_GOLD } from '@/styles/_premiumTheme';
+import { brandColors, brandDarkSurfaces } from '@/styles/brandTokens';
+import { premiumTheme, SHELL_ACCENT } from '@/styles/_premiumTheme';
 
-/** Dorado oficial para pantallas auth / premium — alineado con acento cascarón. */
-export const AUTH_GOLD = SHELL_ACCENT_GOLD;
-export const AUTH_ON_GOLD_DARK = premiumTheme.dark.onAccent;
+/** Acento oficial para pantallas auth / premium — alineado con cascarón de marca. */
+export const AUTH_ACCENT = SHELL_ACCENT;
+/** @deprecated Usar AUTH_ACCENT */
+export const AUTH_GOLD = AUTH_ACCENT;
+export const AUTH_ON_ACCENT = premiumTheme.dark.onAccent;
+/** @deprecated Usar AUTH_ON_ACCENT */
+export const AUTH_ON_GOLD_DARK = AUTH_ON_ACCENT;
 
 export function oauthProviderLabel(id: string | null | undefined): string {
   const provider = String(id || '').toLowerCase();
@@ -15,7 +20,9 @@ export function oauthProviderLabel(id: string | null | undefined): string {
 const pl = premiumTheme.light;
 
 export const authScreenGradient = (isNight: boolean) =>
-  isNight ? (['#000000', '#0A0A0A', '#141414'] as const) : (['#FFFFFF', '#F6F4EE', '#EDE8DC'] as const);
+  isNight
+    ? ([brandColors.midnightNavy, brandColors.midnightNavy, brandDarkSurfaces.surface] as const)
+    : ([brandColors.white, brandColors.iceBlue, brandColors.softLavender] as const);
 
 export const bunkerLockGradient = (isNight: boolean) => authScreenGradient(isNight);
 
@@ -98,34 +105,34 @@ export function authScreenLook(isNight: boolean): AuthScreenLook {
     return {
       gradient: authScreenGradient(true),
       heroRingBg: '#1C1C1E',
-      heroRingBorder: AUTH_GOLD,
+      heroRingBorder: AUTH_ACCENT,
       title: '#FFFFFF',
       subtitle: '#AEAEB2',
       socialTitle: '#8E8E93',
       inputWrapBg: '#1C1C1E',
-      inputWrapBorder: AUTH_GOLD,
+      inputWrapBorder: AUTH_ACCENT,
       inputText: '#FFFFFF',
       placeholderColor: '#8E8E93',
-      iconColor: AUTH_GOLD,
-      primaryBtnBg: AUTH_GOLD,
-      primaryBtnText: AUTH_ON_GOLD_DARK,
-      footerLink: AUTH_GOLD,
-      secondaryLink: AUTH_GOLD,
+      iconColor: AUTH_ACCENT,
+      primaryBtnBg: AUTH_ACCENT,
+      primaryBtnText: AUTH_ON_ACCENT,
+      footerLink: AUTH_ACCENT,
+      secondaryLink: AUTH_ACCENT,
       submitOverlay: 'rgba(0,0,0,0.72)',
       /** Modal validación: superficie clara para alinear con GIF spinner (fondo blanco). */
       submitCardBg: '#FFFFFF',
-      submitCardBorder: AUTH_GOLD,
+      submitCardBorder: AUTH_ACCENT,
       submitText: '#1C1C1E',
       recoveryCardBg: '#1C1C1E',
-      recoveryCardBorder: AUTH_GOLD,
+      recoveryCardBorder: AUTH_ACCENT,
       recoveryTitle: '#FFFFFF',
       recoveryBody: '#AEAEB2',
       recoveryInputWrapBg: '#0A0A0A',
-      recoveryInputWrapBorder: AUTH_GOLD,
+      recoveryInputWrapBorder: AUTH_ACCENT,
       recoveryInputText: '#FFFFFF',
-      spinnerColor: AUTH_GOLD,
+      spinnerColor: AUTH_ACCENT,
       spinnerWellBg: '#FFFFFF',
-      spinnerWellBorder: `${AUTH_GOLD}44`,
+      spinnerWellBorder: `${AUTH_ACCENT}44`,
     };
   }
 

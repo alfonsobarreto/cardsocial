@@ -167,7 +167,7 @@ export default function AdminConfigScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#C5A065" /></View>;
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#7A42FF" /></View>;
   }
   if (!authorized) return null;
 
@@ -176,10 +176,10 @@ export default function AdminConfigScreen() {
       {/* HEADER */}
       <LinearGradient colors={['#1A1A2E', '#020D1A']} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="chevron-left" size={22} color="#C5A065" />
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#7A42FF" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <MaterialCommunityIcons name="cog" size={18} color="#C5A065" />
+          <MaterialCommunityIcons name="cog" size={18} color="#7A42FF" />
           <Text style={styles.headerTitle}>{tr('CONFIG SIST', 'SYS CONFIG')}</Text>
         </View>
         <View style={{ width: 36 }} />
@@ -190,7 +190,7 @@ export default function AdminConfigScreen() {
         {/* ── FREE TIER LIMITS (read-only) ── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="lock-outline" size={16} color="#E9C349" />
+            <MaterialCommunityIcons name="lock-outline" size={16} color="#2F7BFF" />
             <Text style={styles.cardTitle}>{tr('Límites Free Tier', 'Free tier limits')}</Text>
             <View style={styles.readOnlyBadge}>
               <Text style={styles.readOnlyText}>{tr('Sólo código', 'Code only')}</Text>
@@ -203,12 +203,12 @@ export default function AdminConfigScreen() {
           </Text>
           <View style={styles.limitRow}>
             <View style={styles.limitBox}>
-              <MaterialCommunityIcons name="cards" size={20} color="#E9C349" />
+              <MaterialCommunityIcons name="cards" size={20} color="#2F7BFF" />
               <Text style={styles.limitValue}>{FREE_TIER_POLICY.cards}</Text>
               <Text style={styles.limitLabel}>{tr('Tarjetas sociales', 'Social cards')}</Text>
             </View>
             <View style={styles.limitBox}>
-              <MaterialCommunityIcons name="database" size={20} color="#E9C349" />
+              <MaterialCommunityIcons name="database" size={20} color="#2F7BFF" />
               <Text style={styles.limitValue}>{FREE_TIER_POLICY.vaultItems}</Text>
               <Text style={styles.limitLabel}>{tr('Items en Búnker', 'Bunker items')}</Text>
             </View>
@@ -229,7 +229,7 @@ export default function AdminConfigScreen() {
             <Switch
               value={broadcastActive}
               onValueChange={(v) => setBroadcastActive(v)}
-              trackColor={{ false: '#E0E0E0', true: '#C5A065' }}
+              trackColor={{ false: '#E0E0E0', true: '#7A42FF' }}
               thumbColor="#FFF"
             />
           </View>
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { color: '#C5A065', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
+  headerTitle: { color: '#7A42FF', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
   content: { flex: 1, backgroundColor: '#F5F7FA' },
   contentPad: { padding: 16, paddingBottom: 40, gap: 14 },
   card: {
@@ -353,11 +353,11 @@ const styles = StyleSheet.create({
   },
   dangerCard: { borderColor: 'rgba(231,76,60,0.3)', backgroundColor: '#FFF8F8' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#0A2540', flex: 1 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#070226', flex: 1 },
   cardNote: { fontSize: 12, color: '#888', lineHeight: 17 },
   readOnlyBadge: { backgroundColor: '#F0F0F0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   readOnlyText: { fontSize: 10, fontWeight: '600', color: '#999' },
-  codeRef: { fontFamily: 'monospace', color: '#E9C349', fontWeight: '700' },
+  codeRef: { fontFamily: 'monospace', color: '#2F7BFF', fontWeight: '700' },
   limitRow: { flexDirection: 'row', gap: 12 },
   limitBox: {
     flex: 1,
@@ -367,10 +367,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  limitValue: { fontSize: 28, fontWeight: '900', color: '#0A2540' },
+  limitValue: { fontSize: 28, fontWeight: '900', color: '#070226' },
   limitLabel: { fontSize: 11, color: '#888', textAlign: 'center' },
   activeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  activeLabel: { fontSize: 13, fontWeight: '600', color: '#0A2540' },
+  activeLabel: { fontSize: 13, fontWeight: '600', color: '#070226' },
   textInput: {
     backgroundColor: '#F5F7FA',
     borderRadius: 10,
@@ -378,14 +378,14 @@ const styles = StyleSheet.create({
     borderColor: '#E0E6EF',
     padding: 12,
     fontSize: 13,
-    color: '#0A2540',
+    color: '#070226',
     minHeight: 80,
     textAlignVertical: 'top',
   },
   textInputDisabled: { opacity: 0.4 },
   charCount: { fontSize: 11, color: '#BBB', textAlign: 'right' },
   saveBtn: {
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   flagRowDanger: { borderTopColor: 'rgba(231,76,60,0.15)' },
   flagIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(155,89,182,0.1)', justifyContent: 'center', alignItems: 'center' },
   flagIconDanger: { backgroundColor: 'rgba(231,76,60,0.08)' },
-  flagLabel: { fontSize: 13, fontWeight: '600', color: '#0A2540' },
+  flagLabel: { fontSize: 13, fontWeight: '600', color: '#070226' },
   flagLabelDanger: { color: '#E74C3C' },
   flagDesc: { fontSize: 11, color: '#999', marginTop: 2 },
   dangerNote: { fontSize: 12, color: '#E74C3C', lineHeight: 17 },

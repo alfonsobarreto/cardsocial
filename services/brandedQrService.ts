@@ -4,6 +4,8 @@
  * Para Business Cards: QR permanente + logo del negocio en el centro
  */
 
+import { brandColors } from '@/styles/brandTokens';
+
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform, Share } from 'react-native';
@@ -31,7 +33,7 @@ function buildQrSvgString(data: string, widthPx: number): string {
   const opts: QrRenderOpts = {
     errorCorrectionLevel: 'H',
     margin: 1,
-    color: { dark: '#0A2540', light: '#FFFFFF' },
+    color: { dark: brandColors.midnightNavy, light: brandColors.white },
     width: widthPx,
   };
   const qr = QRCore.create(String(data), { errorCorrectionLevel: 'H' });

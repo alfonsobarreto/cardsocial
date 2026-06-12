@@ -3532,7 +3532,7 @@ export default function CardsFactoryScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('common_statistics')}
           >
-            <MaterialCommunityIcons name="chart-line-variant" size={17} color="rgba(233,195,73,0.95)" />
+            <MaterialCommunityIcons name="chart-line-variant" size={17} color="rgba(47,123,255,0.95)" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
@@ -3767,7 +3767,7 @@ export default function CardsFactoryScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
           <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{t('cards_header_title')}</Text>
@@ -4435,7 +4435,7 @@ export default function CardsFactoryScreen() {
                           <View
                             style={[
                               styles.themesLockerTierLine,
-                              { backgroundColor: tier === 'luxury' ? '#E9C349' : cardsTheme.divider },
+                              { backgroundColor: tier === 'luxury' ? '#2F7BFF' : cardsTheme.divider },
                             ]}
                           />
                         </View>
@@ -5212,7 +5212,7 @@ export default function CardsFactoryScreen() {
                           </Text>
                           <View style={[styles.cardStatsRankTrack, { backgroundColor: cardsTheme.pillBg }]}>
                             <LinearGradient
-                              colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
+                              colors={['rgba(47,123,255,0.95)', 'rgba(47,123,255,0.28)']}
                               style={[styles.cardStatsRankFill, { width: `${row.percent}%` }]}
                             />
                           </View>
@@ -5330,7 +5330,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#1C1C1E',
     borderWidth: 1,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -5892,14 +5892,14 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
   },
   wireAvatarFallback: {
     width: 110,
     height: 110,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -5909,14 +5909,14 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
   },
   wireAvatarFallbackSm: {
     width: 72,
     height: 72,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -6141,7 +6141,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -6368,7 +6368,7 @@ const styles = StyleSheet.create({
   viewerDownloadButton: {
     minHeight: 38,
     borderRadius: 999,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -6590,14 +6590,14 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     borderWidth: 2,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
   },
   identityAvatarLgFallback: {
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 2,
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     backgroundColor: '#F2F2F7',
     alignItems: 'center',
     justifyContent: 'center',
@@ -6639,7 +6639,7 @@ const styles = StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -6806,7 +6806,7 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
   selectorItemTileSelected: {
-    borderColor: '#C5A065',
+    borderColor: '#7A42FF',
     borderWidth: 2,
     backgroundColor: '#FFFBF0',
   },
@@ -6817,7 +6817,7 @@ const styles = StyleSheet.create({
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
@@ -6852,12 +6852,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRadius: 999,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     paddingHorizontal: 16,
     paddingVertical: 9,
     marginBottom: 10,
     alignSelf: 'center',
-    shadowColor: '#C5A065',
+    shadowColor: '#7A42FF',
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -6993,11 +6993,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRadius: 999,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     paddingHorizontal: 16,
     paddingVertical: 11,
     marginBottom: 10,
-    shadowColor: '#C5A065',
+    shadowColor: '#7A42FF',
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },

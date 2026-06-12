@@ -11,6 +11,7 @@ import { syncStudioVaultDeleteToMongoCards } from '@/lib/studioVaultCardSync';
 import { studioGradients, studioTheme } from '@/lib/studioTheme';
 import { runStudioVaultItemPrimaryAction } from '@/lib/runStudioVaultItemPrimaryAction';
 import StudioMdiGlyph from '@/components/studio/StudioMdiGlyph';
+import BrandGradientText from '@/components/brand/BrandGradientText';
 import type { StudioProfile } from '@/components/studio/ProfileColumn';
 
 type Props = {
@@ -196,7 +197,7 @@ export default function VaultColumn({
         display: 'flex',
         flexDirection: 'column',
         borderRight: `1px solid ${studioTheme.border}`,
-        background: studioTheme.bg,
+        background: 'transparent',
         position: 'relative',
       }}
     >
@@ -211,7 +212,9 @@ export default function VaultColumn({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 26, fontWeight: 800, color: studioTheme.text, lineHeight: 1.2 }}>{displayName}</span>
+          <BrandGradientText as="span" style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.2 }}>
+            {displayName}
+          </BrandGradientText>
           {verified ? (
             <span
               title="Verified"
@@ -242,17 +245,9 @@ export default function VaultColumn({
             flexWrap: 'wrap',
           }}
         >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 22,
-              fontWeight: 800,
-              color: studioTheme.gold,
-              lineHeight: 1.25,
-            }}
-          >
+          <BrandGradientText as="p" style={{ margin: 0, fontSize: 22, fontWeight: 800, lineHeight: 1.25 }}>
             {counterLabel}
-          </p>
+          </BrandGradientText>
           <button
             type="button"
             onClick={onAddClick}
@@ -272,7 +267,7 @@ export default function VaultColumn({
               fontSize: 26,
               fontWeight: 300,
               lineHeight: 1,
-              boxShadow: '0 6px 18px rgba(197, 160, 101, 0.3)',
+              boxShadow: '0 6px 18px rgba(47, 123, 255, 0.28)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -291,8 +286,8 @@ export default function VaultColumn({
               alignItems: 'center',
               gap: 8,
               borderRadius: 12,
-              border: `1px solid ${studioTheme.border}`,
-              background: studioTheme.surfaceElevated,
+              border: `1px solid ${studioTheme.searchBorder}`,
+              background: studioTheme.searchBg,
               padding: '0 12px',
               height: 40,
             }}
@@ -336,7 +331,7 @@ export default function VaultColumn({
       ) : null}
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-        <div style={{ height: '100%', overflowY: 'auto', padding: '12px 12px 16px' }}>
+        <div style={{ height: '100%', overflowY: 'auto', padding: '12px 12px 16px', position: 'relative', zIndex: 1 }}>
           {filtered.length === 0 ? (
             <p style={{ color: studioTheme.textMuted, fontSize: 14, lineHeight: 1.5, margin: '24px 8px' }}>{t('vault.empty')}</p>
           ) : (
@@ -385,7 +380,8 @@ export default function VaultColumn({
                             height: 58,
                             borderRadius: 999,
                             background: studioTheme.iconCircleBg,
-                            boxShadow: '0 3px 6px rgba(0,0,0,0.35)',
+                            border: `1px solid ${studioTheme.iconCircleBorder}`,
+                            boxShadow: '0 3px 8px rgba(7, 18, 38, 0.45)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -684,7 +680,7 @@ export default function VaultColumn({
                 objectFit: 'contain',
                 borderRadius: 12,
                 border: `1px solid ${studioTheme.border}`,
-                background: '#050505',
+                background: '#071226',
               }}
             />
           </div>

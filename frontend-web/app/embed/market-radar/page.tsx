@@ -180,7 +180,7 @@ function EmbedMarketRadarContent() {
           gap: 12,
           padding: '10px 14px',
           borderBottom: `1px solid ${studioTheme.border}`,
-          background: '#000000',
+          background: '#071226',
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>

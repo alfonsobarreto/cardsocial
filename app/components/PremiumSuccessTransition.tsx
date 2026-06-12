@@ -153,7 +153,7 @@ export default function PremiumSuccessTransition({
             ]}
           >
             <LinearGradient
-              colors={['#0A2540', '#1EA7FF', '#0A2540']}
+              colors={['#070226', '#1EA7FF', '#070226']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.badgeGradient}

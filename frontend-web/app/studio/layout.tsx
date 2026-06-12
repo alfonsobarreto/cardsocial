@@ -12,7 +12,6 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
         minHeight: '100vh',
         margin: 0,
         padding: 0,
-        backgroundColor: '#000000',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
       }}
     >

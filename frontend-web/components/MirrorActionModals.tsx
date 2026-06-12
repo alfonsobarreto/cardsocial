@@ -23,7 +23,7 @@ export function MirrorActionModals({
   callInterstitialProfile,
   onClose,
   tr,
-  accent = '#E9C349',
+  accent = '#2F7BFF',
 }: {
   plan: GhostPlan | null;
   callInterstitialProfile?: CallInterstitialProfile | null;

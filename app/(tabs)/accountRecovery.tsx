@@ -37,7 +37,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: shell.backgroundSolid,
+          backgroundColor: 'transparent',
         },
         scrollContent: {
           paddingBottom: 32,

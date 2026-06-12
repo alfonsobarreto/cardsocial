@@ -254,14 +254,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       premiumElevated: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
       chipInactiveBg: isNight ? '#161616' : '#F3EFE8',
       chipInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
-      border: '#E9C349',
-      labelGold: '#E9C349',
+      border: '#2F7BFF',
+      labelGold: '#2F7BFF',
       titleColor: isNight ? '#FFFFFF' : '#1A1510',
       textPrimary: isNight ? '#F2F0EB' : '#1C180F',
       textSecondary: isNight ? '#9A9388' : '#5C5346',
       inputBg: isNight ? '#101010' : '#FFFCF7',
       inputText: isNight ? '#F0EDE8' : '#1C180F',
-      inputPlaceholder: isNight ? 'rgba(233,195,73,0.42)' : 'rgba(92,77,50,0.45)',
+      inputPlaceholder: isNight ? 'rgba(47,123,255,0.42)' : 'rgba(92,77,50,0.45)',
       onLuxuryCta: '#0C0C0C',
       /** Icono fallback dentro del aro (fondo oscuro → trazo claro). */
       previewIconInCircle: isNight ? premiumTheme.dark.onVipBanner : premiumTheme.light.onAccent,
@@ -271,23 +271,23 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       selectedPillGlow: '#C9A227',
       selectedBgInput: isNight ? '#1C1810' : '#FFF3DC',
       iconPreviewCircleBg: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
-      iconPreviewCircleBorder: isNight ? '#C5A065' : '#E9C349',
+      iconPreviewCircleBorder: isNight ? '#7A42FF' : '#2F7BFF',
       /** Marco de inputs (oro). */
       gradientColors: (isNight
         ? (['#5C4D32', '#B8942E', '#E8D4A3', '#C9A227', '#5C4D32'] as const)
-        : (['#A68B5B', '#E9C349', '#F8EED0', '#E9C349', '#8B7349'] as const)) as readonly [string, string, ...string[]],
+        : (['#A68B5B', '#2F7BFF', '#F8EED0', '#2F7BFF', '#8B7349'] as const)) as readonly [string, string, ...string[]],
       /** Chips activos (relleno metálico). */
       chipActiveFillGradient: (isNight
         ? (['#5A4820', '#C9A227', '#FFF2C4', '#E8D4A3', '#B8942E', '#5A4820'] as const)
         : (['#7A6528', '#E0C068', '#FFF8E8', '#F0D878', '#C9A227', '#7A6528'] as const)) as readonly [string, string, ...string[]],
       /** Botón CREAR. */
       ctaGradient: (isNight
-        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#E9C349', '#6B5420'] as const)
-        : (['#8B7340', '#E9C349', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#2F7BFF', '#6B5420'] as const)
+        : (['#8B7340', '#2F7BFF', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
       previewCardBg: isNight ? 'rgba(18,16,12,0.96)' : 'rgba(255,252,247,0.98)',
       previewCardBorder: (isNight
         ? (['#5C4D32', '#E8C76F', '#F2CA50', '#C9A227', '#5C4D32'] as const)
-        : (['#A68B5B', '#E8D0A0', '#F5E6C8', '#E9C349', '#9A8358'] as const)) as readonly [string, string, ...string[]],
+        : (['#A68B5B', '#E8D0A0', '#F5E6C8', '#2F7BFF', '#9A8358'] as const)) as readonly [string, string, ...string[]],
     }),
     [isNight],
   );
@@ -846,7 +846,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </Text>
           {faviconLoading ? (
             <View style={styles.faviconPromptLoading}>
-              <BrandedSpinner size={36} color="#E9C349" />
+              <BrandedSpinner size={36} color="#2F7BFF" />
               <Text style={[styles.faviconPromptLoadingText, { color: formTheme.textSecondary }]}>
                 {tcx('form_favicon_searching')}
               </Text>
@@ -2568,7 +2568,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.closeButton}
           >
-            <MaterialCommunityIcons name="close" color="#E9C349" size={28} />
+            <MaterialCommunityIcons name="close" color="#2F7BFF" size={28} />
           </TouchableOpacity>
         </View>
 
@@ -2675,9 +2675,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 style={[
                   styles.autoTypeBanner,
                   {
-                    backgroundColor: isNight ? 'rgba(233,195,73,0.16)' : 'rgba(233,195,73,0.22)',
+                    backgroundColor: isNight ? 'rgba(47,123,255,0.16)' : 'rgba(47,123,255,0.22)',
                     borderWidth: 1,
-                    borderColor: 'rgba(233,195,73,0.45)',
+                    borderColor: 'rgba(47,123,255,0.45)',
                   },
                 ]}
                 onPress={() => {
@@ -2835,7 +2835,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               {faviconLoading && dataType === 'Enlaces' ? (
                 <View style={styles.iconLuxuryThumb}>
                   <View style={styles.spinnerPriorityLayer}>
-                    <BrandedSpinner size={40} color="#E9C349" />
+                    <BrandedSpinner size={40} color="#2F7BFF" />
                   </View>
                 </View>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
@@ -3057,7 +3057,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                           isRowCreate && {
                             borderWidth: StyleSheet.hairlineWidth + 1,
                             borderStyle: Platform.OS === 'ios' ? 'dashed' : 'solid',
-                            borderColor: 'rgba(233,195,73,0.55)',
+                            borderColor: 'rgba(47,123,255,0.55)',
                           },
                           isRowCreate && !isActive ? { opacity: Platform.OS === 'android' ? 0.92 : 1 } : undefined,
                         ]}
@@ -3078,7 +3078,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       >
                         {!isRowCreate ? null : (
                           <LinearGradient
-                            colors={['rgba(233,195,73,0.18)', formTheme.surfaceBg]}
+                            colors={['rgba(47,123,255,0.18)', formTheme.surfaceBg]}
                             style={[
                               StyleSheet.absoluteFillObject,
                               { borderRadius: 12, opacity: isActive ? 1 : 0.55 },
@@ -3129,11 +3129,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   <Text style={styles.faviconPopupTitle}>{tcx('form_favicon_modal_title')}</Text>
                   <View style={styles.faviconPopupPreviewBox}>
                     {faviconLoading ? (
-                      <BrandedSpinner size={44} color="#E9C349" />
+                      <BrandedSpinner size={44} color="#2F7BFF" />
                     ) : faviconUrl ? (
                       <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
                     ) : (
-                      <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
+                      <MaterialCommunityIcons name="web" color="#070226" size={36} />
                     )}
                   </View>
                   <View style={styles.faviconPopupActions}>
@@ -3273,7 +3273,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 },
               ]}
             >
-              <BrandedSpinner size={56} color="#E9C349" />
+              <BrandedSpinner size={56} color="#2F7BFF" />
               <Text style={[styles.compressText, { color: formTheme.textPrimary }]}>
                 {isCompressing
                   ? tcx('form_overlay_optimize')
@@ -3283,14 +3283,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </Text>
               {!isSaving && (
                 <TouchableOpacity
-                  style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: 'rgba(233,195,73,0.2)' }}
+                  style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: 'rgba(47,123,255,0.2)' }}
                   onPress={() => {
                     setIsCompressing(false);
                     setIsUploading(false);
                     setUploadModalVisible(false);
                   }}
                 >
-                  <Text style={{ color: '#E9C349', fontWeight: '700', fontSize: 14 }}>{tcx('form_cancel')}</Text>
+                  <Text style={{ color: '#2F7BFF', fontWeight: '700', fontSize: 14 }}>{tcx('form_cancel')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -3351,7 +3351,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(233,195,73,0.55)',
+    backgroundColor: 'rgba(47,123,255,0.55)',
   },
   closeButton: {
     padding: 8,
@@ -3361,7 +3361,7 @@ const styles = StyleSheet.create({
   titleMain: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#E9C349',
+    color: '#2F7BFF',
     marginTop: 20,
   },
   titleDragZone: {
@@ -3424,7 +3424,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 4,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     backgroundColor: PREMIUM_PANEL,
   },
   typePillActive: {
@@ -3602,7 +3602,7 @@ const styles = StyleSheet.create({
   },
   dropdownButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     borderWidth: 4,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -3629,7 +3629,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -3644,7 +3644,7 @@ const styles = StyleSheet.create({
   },
   countryCodeButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -3670,7 +3670,7 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_PANEL,
     borderRadius: 12,
     borderWidth: 4,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -3687,7 +3687,7 @@ const styles = StyleSheet.create({
   },
   useFaviconButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 16,
@@ -3708,7 +3708,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   useFaviconTextActive: {
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '700',
   },
   wordCount: {
@@ -3718,7 +3718,7 @@ const styles = StyleSheet.create({
   },
   documentButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     borderWidth: 4,
     borderStyle: 'dashed',
     borderRadius: 10,
@@ -3736,7 +3736,7 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: PREMIUM_PANEL,
     borderRadius: 10,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     borderWidth: 4,
   },
   previewLabel: {
@@ -3803,7 +3803,7 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     backgroundColor: 'rgba(84,193,251,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3825,14 +3825,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E9C349',
-    backgroundColor: 'rgba(233,195,73,0.1)',
+    borderColor: '#2F7BFF',
+    backgroundColor: 'rgba(47,123,255,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
   },
   faviconPromptTitle: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -3863,7 +3863,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   faviconPromptPrimaryBtn: {
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
   },
   faviconPromptGhostBtn: {
     backgroundColor: '#E9EEF2',
@@ -3877,7 +3877,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   faviconPromptGhostBtnText: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
@@ -3938,7 +3938,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   faviconPopupTitle: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 19,
     fontWeight: '800',
     marginBottom: 14,
@@ -3978,7 +3978,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   faviconConfirmButton: {
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
   },
   faviconCancelButton: {
     backgroundColor: '#E9EEF2',
@@ -3989,7 +3989,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   faviconCancelButtonText: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -3999,7 +3999,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.65,
     borderTopWidth: 3,
-    borderTopColor: '#E9C349',
+    borderTopColor: '#2F7BFF',
   },
   bottomSheetDragHandleWrap: {
     width: '100%',
@@ -4011,7 +4011,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(233,195,73,0.55)',
+    backgroundColor: 'rgba(47,123,255,0.55)',
   },
   iconModalHeader: {
     flexDirection: 'row',
@@ -4020,12 +4020,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(233,195,73,0.3)',
+    borderBottomColor: 'rgba(47,123,255,0.3)',
   },
   iconModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#E9C349',
+    color: '#2F7BFF',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -4076,7 +4076,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: PREMIUM_PANEL,
     borderWidth: 0.5,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
   },
   iconItemSelected: {
     backgroundColor: PREMIUM_PANEL,
@@ -4138,7 +4138,7 @@ const styles = StyleSheet.create({
     minHeight: 150,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     backgroundColor: PREMIUM_PANEL,
     alignItems: 'center',
     justifyContent: 'center',
@@ -4165,7 +4165,7 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_PANEL,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E9C349',
+    borderColor: '#2F7BFF',
     padding: 14,
   },
   assetPreviewTitle: {
@@ -4212,7 +4212,7 @@ const styles = StyleSheet.create({
   },
   assetConfirmButton: {
     flex: 1,
-    backgroundColor: '#E9C349',
+    backgroundColor: '#2F7BFF',
     borderRadius: 999,
     minHeight: 46,
     alignItems: 'center',

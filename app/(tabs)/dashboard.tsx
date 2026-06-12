@@ -182,8 +182,8 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
   const shell = shellIn as typeof appPalette.light;
 
   const accent = shell.ctaAccent;
-  /** Legible sobre blanco / crema (~5.5:1). Evita #E9C349 sobre fondos claros. */
-  const goldReadable = isNight ? '#F6DA87' : '#7A5C10';
+  /** Legible sobre blanco / crema (~5.5:1). Evita #2F7BFF sobre fondos claros. */
+  const goldReadable = isNight ? '#4D8FFF' : '#7A5C10';
   const goldDeep = isNight ? accent : '#5C4509';
   /** 8‑digit `#RRGGBBAA` (React Native): acento sobre superficies shell. */
   const a = (suffix: string) => `${accent}${suffix}` as const;
@@ -227,13 +227,13 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     periodTabActiveText: goldReadable,
     periodTitleColor: shell.textPrimary,
     periodArrowBg: isNight ? 'rgba(0,0,0,0.28)' : sv,
-    periodArrowBorder: isNight ? 'rgba(233,195,73,0.24)' : shell.border,
+    periodArrowBorder: isNight ? 'rgba(47,123,255,0.24)' : shell.border,
     periodArrowIcon: goldReadable,
     periodArrowDisabledBg: isNight ? 'rgba(255,255,255,0.03)' : shell.modalRowBg,
     periodArrowDisabledBorder: isNight ? 'rgba(255,255,255,0.08)' : shell.border,
     periodArrowDisabled: shell.textMuted ?? shell.textSecondary,
     clickRateValueEmpty: isNight ? 'rgba(255,255,255,0.55)' : shell.textMuted,
-    metricsEmptyIconBg: isNight ? 'rgba(233,195,73,0.16)' : 'rgba(122,92,16,0.10)',
+    metricsEmptyIconBg: isNight ? 'rgba(47,123,255,0.16)' : 'rgba(122,92,16,0.10)',
     bigMetricColor: shell.textPrimary,
     rankLabel: shell.textPrimary,
     rankEmpty: shell.textSecondary,
@@ -441,7 +441,7 @@ function MiniLineChart({
               return (
                 <View key={`${value}-${index}`} style={styles.barSlot}>
                   <LinearGradient
-                    colors={['rgba(255,222,128,0.95)', 'rgba(233,195,73,0.55)', 'rgba(80,53,14,0.25)']}
+                    colors={['rgba(255,222,128,0.95)', 'rgba(47,123,255,0.55)', 'rgba(80,53,14,0.25)']}
                     style={[styles.chartBar, { height: barHeight }]}
                   />
                 </View>
@@ -458,7 +458,7 @@ function MiniLineChart({
         </>
       ) : (
         <View style={styles.noViewsBox}>
-          <MaterialCommunityIcons name="chart-bell-curve-cumulative" size={22} color="rgba(233,195,73,0.68)" />
+          <MaterialCommunityIcons name="chart-bell-curve-cumulative" size={22} color="rgba(47,123,255,0.68)" />
           <Text style={[styles.noViewsText, { color: labelColor }]}>{emptyHint}</Text>
         </View>
       )}
@@ -501,7 +501,7 @@ function ExpirationBadge({
   const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 0.95] });
 
   if (variant === 'trial') {
-    const text = badgeIsNight ? '#F6DA87' : '#5C4509';
+    const text = badgeIsNight ? '#4D8FFF' : '#5C4509';
     return (
       <View
         style={[
@@ -526,7 +526,7 @@ function ExpirationBadge({
           glow: badgeIsNight ? SHELL_ACCENT_GOLD : '#7A5C10',
           bg: badgeIsNight ? `${SHELL_ACCENT_GOLD}29` : 'rgba(122,92,16,0.10)',
           border: badgeIsNight ? 'rgba(246,218,135,0.58)' : 'rgba(122,92,16,0.32)',
-          text: badgeIsNight ? '#F6DA87' : '#5C4509',
+          text: badgeIsNight ? '#4D8FFF' : '#5C4509',
           label: tcx('dashboard_unlimited_access'),
         }
       : (() => {
@@ -856,7 +856,7 @@ function MetricPanel({
                 styles.metricsEmptyIcon,
                 {
                   backgroundColor: chrome.metricsEmptyIconBg,
-                  borderColor: chrome.isNight ? 'rgba(233,195,73,0.34)' : 'rgba(122,92,16,0.22)',
+                  borderColor: chrome.isNight ? 'rgba(47,123,255,0.34)' : 'rgba(122,92,16,0.22)',
                 },
               ]}
             >
@@ -1410,7 +1410,7 @@ export default function DashboardScreen() {
   const displayFirstName = headerInfo.firstName.trim() || tcx('dashboard_user_fallback');
 
   return (
-    <View style={[styles.root, { backgroundColor: shell.backgroundSolid }]}>
+    <View style={[styles.root, { backgroundColor: 'transparent' }]}>
       <ScrollView
         contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 28 }]}
         showsVerticalScrollIndicator={false}
@@ -1654,7 +1654,7 @@ export default function DashboardScreen() {
                   </Text>
                   <View style={[styles.rankTrack, { backgroundColor: chrome.rankTrackBg }]}>
                     <LinearGradient
-                      colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
+                      colors={['rgba(47,123,255,0.95)', 'rgba(47,123,255,0.28)']}
                       style={[styles.rankFill, { width: `${row.percent}%` }]}
                     />
                   </View>
@@ -1763,7 +1763,7 @@ export default function DashboardScreen() {
                     </View>
                     <View style={[styles.rankTrack, { backgroundColor: chrome.rankTrackBg }]}>
                       <LinearGradient
-                        colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
+                        colors={['rgba(47,123,255,0.95)', 'rgba(47,123,255,0.28)']}
                         style={[styles.rankFill, { width: `${row.percent}%` }]}
                       />
                     </View>
@@ -1817,7 +1817,7 @@ export default function DashboardScreen() {
 
           <View style={[styles.executiveRadarCard, { borderColor: chrome.seoCardBorder, backgroundColor: chrome.heatmapCardBg }]}>
             <LinearGradient
-              colors={['rgba(233,195,73,0.18)', 'rgba(8,8,8,0)']}
+              colors={['rgba(47,123,255,0.18)', 'rgba(8,8,8,0)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
@@ -1838,7 +1838,7 @@ export default function DashboardScreen() {
                 style={[
                   styles.marketRadarWebShell,
                   {
-                    borderColor: isNight ? 'rgba(246,218,135,0.55)' : 'rgba(233,195,73,0.42)',
+                    borderColor: isNight ? 'rgba(246,218,135,0.55)' : 'rgba(47,123,255,0.42)',
                     overflow: 'hidden',
                   },
                 ]}
@@ -1885,7 +1885,7 @@ export default function DashboardScreen() {
                     style={[
                       styles.marketRadarPlaceholderIconRing,
                       {
-                        borderColor: isNight ? 'rgba(246,218,135,0.5)' : 'rgba(233,195,73,0.45)',
+                        borderColor: isNight ? 'rgba(246,218,135,0.5)' : 'rgba(47,123,255,0.45)',
                         backgroundColor: isNight ? 'rgba(8,8,8,0.42)' : 'rgba(255,252,248,0.72)',
                       },
                     ]}
@@ -1932,7 +1932,7 @@ export default function DashboardScreen() {
             >
               <LinearGradient
                 colors={
-                  studioWebBase ? ['#F6DA87', chrome.gold, '#A87B1F'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']
+                  studioWebBase ? ['#4D8FFF', chrome.gold, '#6235E0'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -2113,7 +2113,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   cardTitle: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 18,
     fontWeight: '800',
     lineHeight: 20,
@@ -2225,7 +2225,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.25)',
+    borderColor: 'rgba(47,123,255,0.25)',
     backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2240,7 +2240,7 @@ const styles = StyleSheet.create({
     minHeight: 132,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.25)',
+    borderColor: 'rgba(47,123,255,0.25)',
     backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2341,8 +2341,8 @@ const styles = StyleSheet.create({
     padding: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.28)',
-    backgroundColor: 'rgba(233,195,73,0.06)',
+    borderColor: 'rgba(47,123,255,0.28)',
+    backgroundColor: 'rgba(47,123,255,0.06)',
     marginBottom: 10,
   },
   marketGapTitle: {
@@ -2366,7 +2366,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.25)',
+    borderColor: 'rgba(47,123,255,0.25)',
     padding: 10,
   },
   analyticsCardFull: {
@@ -2523,7 +2523,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.16)',
+    borderColor: 'rgba(47,123,255,0.16)',
     backgroundColor: 'rgba(255,255,255,0.025)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2574,7 +2574,7 @@ const styles = StyleSheet.create({
   collapsibleFrame: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.24)',
+    borderColor: 'rgba(47,123,255,0.24)',
     borderRadius: 14,
     marginTop: 10,
     overflow: 'hidden',
@@ -2601,7 +2601,7 @@ const styles = StyleSheet.create({
   collapsibleBody: {
     padding: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(233,195,73,0.18)',
+    borderTopColor: 'rgba(47,123,255,0.18)',
   },
   rankRow: {
     flexDirection: 'row',
@@ -2627,7 +2627,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(233,195,73,0.14)',
+    backgroundColor: 'rgba(47,123,255,0.14)',
     overflow: 'hidden',
   },
   rankIconImage: {
@@ -2676,9 +2676,9 @@ const styles = StyleSheet.create({
   seoConversionCard: {
     borderRadius: 12,
     padding: 12,
-    backgroundColor: 'rgba(233,195,73,0.12)',
+    backgroundColor: 'rgba(47,123,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.3)',
+    borderColor: 'rgba(47,123,255,0.3)',
   },
   executiveRadarCard: {
     marginTop: 14,
@@ -2687,7 +2687,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     backgroundColor: 'rgba(5,5,5,0.86)',
     borderWidth: 1.5,
-    borderColor: 'rgba(233,195,73,0.5)',
+    borderColor: 'rgba(47,123,255,0.5)',
     overflow: 'hidden',
     shadowColor: SHELL_ACCENT_GOLD,
     shadowOpacity: 0.32,
@@ -2917,7 +2917,7 @@ const styles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.28)',
+    borderColor: 'rgba(47,123,255,0.28)',
     backgroundColor: 'rgba(0,0,0,0.24)',
     color: '#FFFFFF',
     fontSize: 12,
@@ -2984,7 +2984,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.24)',
+    borderColor: 'rgba(47,123,255,0.24)',
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   showMoreText: {

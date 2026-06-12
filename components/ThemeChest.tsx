@@ -137,7 +137,7 @@ export default function ThemeChest({ onNavigateToForge, hideChromeHeader = false
         <View style={styles.tierHeader}>
           <Text style={styles.tierEmoji}>{meta.emoji}</Text>
           <Text style={styles.tierLabel}>{tr(meta.label[0], meta.label[1])}</Text>
-          <View style={[styles.tierLine, { backgroundColor: tier === 'luxury' ? '#E9C349' : '#E0E0E0' }]} />
+          <View style={[styles.tierLine, { backgroundColor: tier === 'luxury' ? '#2F7BFF' : '#E0E0E0' }]} />
         </View>
         <View style={styles.tierGrid}>
           {themes.map(renderThemeCard)}
@@ -154,7 +154,7 @@ export default function ThemeChest({ onNavigateToForge, hideChromeHeader = false
     <View style={styles.container}>
       {hideChromeHeader ? null : (
         <View style={styles.header}>
-          <MaterialCommunityIcons name="treasure-chest" size={24} color="#C5A065" />
+          <MaterialCommunityIcons name="treasure-chest" size={24} color="#7A42FF" />
           <Text style={styles.headerTitle}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
         </View>
       )}
@@ -211,14 +211,14 @@ export default function ThemeChest({ onNavigateToForge, hideChromeHeader = false
             end={{ x: 1, y: 1 }}
             style={styles.forgeGradient}
           >
-            <MaterialCommunityIcons name="anvil" size={28} color="#E9C349" />
+            <MaterialCommunityIcons name="anvil" size={28} color="#2F7BFF" />
             <View style={styles.forgeTextWrap}>
               <Text style={styles.forgeTitle}>{tr('La Fragua', 'The Forge')}</Text>
               <Text style={styles.forgeSubtitle}>
                 {tr('Crea tu propio theme exclusivo', 'Create your own exclusive theme')}
               </Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color="#E9C349" />
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#2F7BFF" />
           </LinearGradient>
         </TouchableOpacity>
 
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   forgeTitle: {
-    color: '#E9C349',
+    color: '#2F7BFF',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.5,

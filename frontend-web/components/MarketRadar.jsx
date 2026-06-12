@@ -513,7 +513,7 @@ export default function MarketRadar({ t, seedLocation = null }) {
         source: 'user-location',
         paint: {
           'circle-radius': 16,
-          'circle-color': '#E9C349',
+          'circle-color': '#2F7BFF',
           'circle-opacity': 0.28,
           'circle-blur': 0.2,
         },
@@ -902,7 +902,7 @@ export default function MarketRadar({ t, seedLocation = null }) {
             textOverflow: 'ellipsis',
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: 3, background: studioTheme.gold, boxShadow: '0 0 8px rgba(233,195,73,0.85)' }} />
+          <span style={{ width: 6, height: 6, borderRadius: 3, background: studioTheme.gold, boxShadow: '0 0 8px rgba(47,123,255,0.85)' }} />
           {t(
             dataSource === DATA_SOURCES.GLOBAL_DEMAND
               ? 'marketRadar.dataSource.compactGoogle'
@@ -1036,7 +1036,7 @@ function CompactSourceSegment({ t, dataSource, onChange }) {
               padding: '9px 10px',
               border: 'none',
               cursor: 'pointer',
-              background: active ? 'rgba(233,195,73,0.28)' : studioTheme.surface,
+              background: active ? 'rgba(47,123,255,0.28)' : studioTheme.surface,
               color: active ? studioTheme.gold : studioTheme.textMuted,
               fontWeight: 900,
               fontSize: 11,

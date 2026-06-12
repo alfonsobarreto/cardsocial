@@ -197,9 +197,9 @@ function isToday(iso: string | null | undefined): boolean {
 /* ─── Colors ──────────────────────────────────────────────────────── */
 
 function getColors(isDark: boolean) {
-  const gold = '#E9C349';
-  const goldSoft = isDark ? 'rgba(233,195,73,0.22)' : 'rgba(233,195,73,0.14)';
-  const goldBorder = isDark ? 'rgba(233,195,73,0.45)' : 'rgba(233,195,73,0.55)';
+  const gold = '#2F7BFF';
+  const goldSoft = isDark ? 'rgba(47,123,255,0.22)' : 'rgba(47,123,255,0.14)';
+  const goldBorder = isDark ? 'rgba(47,123,255,0.45)' : 'rgba(47,123,255,0.55)';
   return {
     bg: isDark ? '#000000' : '#FFFFFF',
     surface: isDark ? '#1C1C1E' : '#F2F2F7',
@@ -217,9 +217,9 @@ function getColors(isDark: boolean) {
     statCardBorder: goldBorder,
     rowBg: isDark ? '#1C1C1E' : '#FFFFFF',
     rowBorder: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(28,28,30,0.06)',
-    timePillBg: isDark ? 'rgba(233,195,73,0.18)' : 'rgba(233,195,73,0.12)',
-    timePillText: isDark ? '#E9C349' : '#8B7340',
-    filterBg: isDark ? 'rgba(233,195,73,0.15)' : 'rgba(233,195,73,0.10)',
+    timePillBg: isDark ? 'rgba(47,123,255,0.18)' : 'rgba(47,123,255,0.12)',
+    timePillText: isDark ? '#2F7BFF' : '#8B7340',
+    filterBg: isDark ? 'rgba(47,123,255,0.15)' : 'rgba(47,123,255,0.10)',
     filterBorder: goldBorder,
     filterText: isDark ? gold : '#8B7340',
     avatarRing: goldBorder,

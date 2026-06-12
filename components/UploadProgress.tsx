@@ -21,7 +21,7 @@ export function UploadProgress({
   progress,
   variant = 'circular',
   size = 64,
-  color = '#C5A065',
+  color = '#7A42FF',
   trackColor = '#E0E0E0',
   label,
   style,

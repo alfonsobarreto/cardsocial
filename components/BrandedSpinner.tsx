@@ -20,7 +20,7 @@ function resolveSize(size: SpinnerSize) {
   return 28;
 }
 
-export default function BrandedSpinner({ size = 'small', color = '#0A2540', style }: BrandedSpinnerProps) {
+export default function BrandedSpinner({ size = 'small', color = '#071226', style }: BrandedSpinnerProps) {
   const [sourceIndex, setSourceIndex] = useState(0);
   const pixelSize = useMemo(() => resolveSize(size), [size]);
   const spinnerSources = useMemo(

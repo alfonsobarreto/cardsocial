@@ -4,7 +4,7 @@ import { Animated, Easing, StyleSheet, View } from 'react-native';
 type Props = {
   /** Pulso de oro + entrada (solo ítems nuevos premium). */
   active: boolean;
-  /** `vaultTheme.ctaAccent` / shell (#E9C349 en tema claro). */
+  /** `vaultTheme.ctaAccent` / shell (#2F7BFF en tema claro). */
   accentColor: string;
   children: React.ReactNode;
 };

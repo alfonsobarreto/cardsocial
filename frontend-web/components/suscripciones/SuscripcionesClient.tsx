@@ -78,17 +78,14 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
 
   return (
     <div
-      className={`${inter.variable} min-h-screen bg-[#050505] text-white antialiased selection:bg-[#E9C349] selection:text-black`}
+      className={`${inter.variable} min-h-screen bg-transparent text-white antialiased selection:bg-[#2F7BFF] selection:text-black`}
       style={{ fontFamily: 'var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
     >
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_18%_0%,rgba(233,195,73,0.14),transparent_30%),radial-gradient(circle_at_84%_10%,rgba(246,218,135,0.08),transparent_28%),linear-gradient(180deg,#050505_0%,#0A0A0A_46%,#050505_100%)]" />
-      <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:72px_72px]" />
-
-      <nav className="sticky top-0 z-40 border-b border-white/10 bg-[#050505]/80 backdrop-blur-2xl">
+      <nav className="sticky top-0 z-40 border-b border-white/10 bg-[#071226]/80 backdrop-blur-2xl">
         <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-3 sm:px-8 lg:px-10">
           <Link
             href={landingHome}
-            className="text-xs font-black uppercase tracking-[0.28em] text-white transition hover:text-[#F6DA87]"
+            className="text-xs font-black uppercase tracking-[0.28em] text-white transition hover:text-[#4D8FFF]"
           >
             {tr(locale, 'nav.brand')}
           </Link>
@@ -106,8 +103,8 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
                   className={[
                     'rounded-full px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition sm:px-3',
                     active
-                      ? 'border border-[#E9C349]/50 bg-[#E9C349]/15 text-[#F6DA87]'
-                      : 'border border-white/10 bg-white/[0.03] text-white/60 hover:border-[#E9C349]/40 hover:text-[#F6DA87]',
+                      ? 'border border-[#2F7BFF]/50 bg-[#2F7BFF]/15 text-[#4D8FFF]'
+                      : 'border border-white/10 bg-white/[0.03] text-white/60 hover:border-[#2F7BFF]/40 hover:text-[#4D8FFF]',
                   ].join(' ')}
                   hrefLang={code}
                 >
@@ -124,12 +121,12 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
 
       <header className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-8 lg:px-10 lg:pb-24 lg:pt-20">
         <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
-          <motion.p variants={reveal} className="text-xs font-black uppercase tracking-[0.32em] text-[#F6DA87]">
+          <motion.p variants={reveal} className="text-xs font-black uppercase tracking-[0.32em] text-[#4D8FFF]">
             {tr(locale, 'hero.kicker')}
           </motion.p>
           <motion.h1
             variants={reveal}
-            className="mt-6 max-w-5xl bg-gradient-to-b from-white via-[#FFF3C8] to-[#E9C349] bg-clip-text text-4xl font-black leading-[1.05] tracking-[-0.05em] text-transparent sm:text-5xl md:text-6xl lg:text-7xl"
+            className="mt-6 max-w-5xl bg-gradient-to-b from-white via-[#FFF3C8] to-[#2F7BFF] bg-clip-text text-4xl font-black leading-[1.05] tracking-[-0.05em] text-transparent sm:text-5xl md:text-6xl lg:text-7xl"
           >
             {tr(locale, 'hero.title')}
           </motion.h1>
@@ -164,16 +161,16 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
                         className={[
                           'relative overflow-hidden rounded-[2rem] border p-8 backdrop-blur-2xl transition duration-300 hover:-translate-y-1 lg:p-10',
                           featured
-                            ? 'border-[#E9C349]/40 bg-[linear-gradient(135deg,rgba(233,195,73,0.12),rgba(17,17,17,0.72)_40%,rgba(5,5,5,0.86))] shadow-[0_0_90px_rgba(233,195,73,0.12)]'
-                            : 'border-white/10 bg-[#111111]/68 shadow-[0_30px_90px_rgba(0,0,0,0.42)] hover:border-[#E9C349]/35',
+                            ? 'border-[#2F7BFF]/40 bg-[linear-gradient(135deg,rgba(47,123,255,0.12),rgba(17,17,17,0.72)_40%,rgba(5,5,5,0.86))] shadow-[0_0_90px_rgba(47,123,255,0.12)]'
+                            : 'border-white/10 bg-[#111111]/68 shadow-[0_30px_90px_rgba(0,0,0,0.42)] hover:border-[#2F7BFF]/35',
                         ].join(' ')}
                       >
                         {featured ? (
-                          <span className="absolute right-6 top-6 rounded-full border border-[#E9C349]/45 bg-[#E9C349]/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#F6DA87]">
+                          <span className="absolute right-6 top-6 rounded-full border border-[#2F7BFF]/45 bg-[#2F7BFF]/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#4D8FFF]">
                             Pro
                           </span>
                         ) : null}
-                        <p className="text-xs font-black uppercase tracking-[0.26em] text-[#E9C349]/90">{k}</p>
+                        <p className="text-xs font-black uppercase tracking-[0.26em] text-[#2F7BFF]/90">{k}</p>
                         <h3 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">
                           {tr(locale, tierTitleKey(k))}
                         </h3>
@@ -232,7 +229,7 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
                             {row.freeTrialDays > 0 ? (
                               <p className="text-xs text-white/48">
                                 {tr(locale, 'labels.trial')}:{' '}
-                                <span className="font-semibold text-[#F6DA87]">{row.freeTrialDays}</span>
+                                <span className="font-semibold text-[#4D8FFF]">{row.freeTrialDays}</span>
                               </p>
                             ) : null}
                           </div>
@@ -247,7 +244,7 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
             {tiers &&
             (tiers.business.annualPriceUsd > 0 || tiers.business.annualEquivalentCs > 0 || tiers.business.annualWelcomeGiftCs > 0) ? (
               <Section title={tr(locale, 'section.business')} lead={tr(locale, 'section.businessLead')}>
-                <div className="rounded-[2rem] border border-[#E9C349]/35 bg-[#0A0A0A]/85 p-8 shadow-[0_0_80px_rgba(233,195,73,0.12)] lg:p-10">
+                <div className="rounded-[2rem] border border-[#2F7BFF]/35 bg-[#101E34]/85 p-8 shadow-[0_0_80px_rgba(47,123,255,0.12)] lg:p-10">
                   <PriceLine
                     label={tr(locale, 'labels.annual')}
                     usd={tiers.business.annualPriceUsd}
@@ -258,7 +255,7 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
                   {tiers.business.annualWelcomeGiftCs > 0 ? (
                     <p className="mt-4 text-sm text-white/58">
                       {tr(locale, 'limits.giftAnnual')}:{' '}
-                      <span className="font-semibold text-[#F6DA87]">
+                      <span className="font-semibold text-[#4D8FFF]">
                         {tiers.business.annualWelcomeGiftCs.toLocaleString(intlLocaleTagForSuscripcion(locale))}
                       </span>{' '}
                       {tr(locale, 'labels.cs')}
@@ -279,10 +276,10 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
                       className="flex flex-col justify-between gap-4 rounded-[1.6rem] border border-white/10 bg-[#111111]/72 p-6 backdrop-blur-xl sm:flex-row sm:items-center"
                     >
                       <div>
-                        <p className="font-mono text-xs text-[#F6DA87]/70">{tr(locale, 'labels.productId')}</p>
+                        <p className="font-mono text-xs text-[#4D8FFF]/70">{tr(locale, 'labels.productId')}</p>
                         <p className="mt-1 font-mono text-sm text-white/88">{p.productId}</p>
                         {p.popular ? (
-                          <span className="mt-2 inline-block rounded-full border border-[#E9C349]/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#F6DA87]">
+                          <span className="mt-2 inline-block rounded-full border border-[#2F7BFF]/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#4D8FFF]">
                             {tr(locale, 'labels.popular')}
                           </span>
                         ) : null}
@@ -356,7 +353,7 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
 function Section({ title, lead, children }: { title: string; lead: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="text-xs font-black uppercase tracking-[0.28em] text-[#E9C349]">{title}</h2>
+      <h2 className="text-xs font-black uppercase tracking-[0.28em] text-[#2F7BFF]">{title}</h2>
       <p className="mt-4 max-w-3xl text-sm leading-7 text-white/55">{lead}</p>
       <div className="mt-10">{children}</div>
     </section>
@@ -410,7 +407,7 @@ function PriceLine({
 function NfcCell({ title, usd, cs, locale }: { title: string; usd: number; cs: number; locale: SuscripcionLocale }) {
   return (
     <div className="rounded-[1.6rem] border border-white/10 bg-[#111111]/72 p-6">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F6DA87]/80">{title}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4D8FFF]/80">{title}</p>
       <p className="mt-3 text-lg font-black text-white">{fmtUsd(locale, usd)}</p>
       <p className="mt-1 text-sm text-white/55">
         {cs.toLocaleString(intlLocaleTagForSuscripcion(locale))} {tr(locale, 'labels.cs')}

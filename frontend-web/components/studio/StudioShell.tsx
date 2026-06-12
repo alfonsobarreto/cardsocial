@@ -32,6 +32,7 @@ import IconSelectorColumn from '@/components/studio/IconSelectorColumn';
 import ProfileColumn, { type StudioProfile } from '@/components/studio/ProfileColumn';
 import VaultColumn from '@/components/studio/VaultColumn';
 import { StudioLocaleDropdown } from '@/components/studio/StudioLocaleDropdown';
+import BrandGradientText from '@/components/brand/BrandGradientText';
 
 function iconMciFromLink(l: StudioVaultLink | undefined, fallback: string): string {
   if (!l) return fallback;
@@ -440,10 +441,11 @@ export default function StudioShell() {
     <div
       style={{
         minHeight: '100vh',
-        background: studioTheme.bg,
         color: studioTheme.text,
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
+        zIndex: 1,
       }}
     >
       <header
@@ -455,7 +457,7 @@ export default function StudioShell() {
           position: 'relative',
           padding: '12px 16px',
           borderBottom: `1px solid ${studioTheme.border}`,
-          background: '#000000',
+          background: 'transparent',
         }}
       >
         <button
@@ -502,7 +504,7 @@ export default function StudioShell() {
             </span>
           )}
           <span style={{ minWidth: 0, textAlign: 'left' }}>
-            <span style={{ display: 'block', color: studioTheme.goldLight, fontSize: 11, fontWeight: 700 }}>{t('header.welcome')}</span>
+            <span style={{ display: 'block', color: studioTheme.headerWelcome, fontSize: 11, fontWeight: 700 }}>{t('header.welcome')}</span>
             <span style={{ display: 'block', color: studioTheme.text, fontSize: 12, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 170 }}>
               {profile?.userFullName || user.email || ''}
             </span>
@@ -523,7 +525,9 @@ export default function StudioShell() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} />
-          <span style={{ fontWeight: 900, color: studioTheme.gold, fontSize: 14, letterSpacing: 1 }}>{t('studio.brand')}</span>
+          <BrandGradientText as="span" style={{ fontWeight: 900, fontSize: 14, letterSpacing: 1 }}>
+            {t('studio.brand')}
+          </BrandGradientText>
           <span style={{ color: studioTheme.textMuted, fontSize: 12 }}>{t('studio.subtitle')}</span>
         </div>
 

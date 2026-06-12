@@ -97,8 +97,8 @@ const AdminFontUploader: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} {...verticalScrollInteractionProps} contentContainerStyle={[SCROLL_CONTENT_MIN_FILL, styles.content]} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.header}>
-        <MaterialCommunityIcons name="format-font" size={28} color="#C5A065" />
+      <LinearGradient colors={['#070226', '#1A3D5C']} style={styles.header}>
+        <MaterialCommunityIcons name="format-font" size={28} color="#7A42FF" />
         <Text style={styles.headerTitle}>{tr('Font Uploader', 'Font Uploader')}</Text>
         <Text style={styles.headerSub}>
           {tr('Sube .ttf o .otf y clasifica Gratis/Premium', 'Upload .ttf or .otf and set Free/Premium')}
@@ -108,7 +108,7 @@ const AdminFontUploader: React.FC = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{tr('1) Archivo de fuente', '1) Font file')}</Text>
         <TouchableOpacity style={styles.pickBtn} onPress={pickFont}>
-          <MaterialCommunityIcons name="file-upload-outline" size={24} color="#0A2540" />
+          <MaterialCommunityIcons name="file-upload-outline" size={24} color="#070226" />
           <Text style={styles.pickText}>
             {fileName || tr('Seleccionar .ttf o .otf', 'Select .ttf or .otf')}
           </Text>
@@ -167,19 +167,19 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   headerSub: { color: '#D4EAF7', fontSize: 12 },
   section: { marginHorizontal: 16, marginTop: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#0A2540', marginBottom: 8 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#070226', marginBottom: 8 },
   pickBtn: { borderWidth: 1, borderColor: '#B6CCE0', borderRadius: 10, backgroundColor: '#FFFFFF', padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' },
-  pickText: { color: '#0A2540', fontWeight: '600', flex: 1 },
-  input: { borderWidth: 1, borderColor: '#B6CCE0', borderRadius: 10, backgroundColor: '#FFFFFF', color: '#0A2540', paddingHorizontal: 12, paddingVertical: 10, fontWeight: '600' },
+  pickText: { color: '#070226', fontWeight: '600', flex: 1 },
+  input: { borderWidth: 1, borderColor: '#B6CCE0', borderRadius: 10, backgroundColor: '#FFFFFF', color: '#070226', paddingHorizontal: 12, paddingVertical: 10, fontWeight: '600' },
   row: { flexDirection: 'row', gap: 10 },
   chip: { flex: 1, borderWidth: 1, borderColor: '#B6CCE0', borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: '#FFFFFF' },
-  chipActive: { borderColor: '#C5A065', backgroundColor: 'rgba(197, 160, 101, 0.15)' },
+  chipActive: { borderColor: '#7A42FF', backgroundColor: 'rgba(197, 160, 101, 0.15)' },
   chipText: { color: '#4A4A4A', fontWeight: '600' },
-  chipTextActive: { color: '#0A2540' },
+  chipTextActive: { color: '#070226' },
   pathsBox: { marginHorizontal: 16, marginTop: 16, borderRadius: 10, padding: 12, backgroundColor: '#EAF3FA' },
-  pathsTitle: { color: '#0A2540', fontWeight: '700', marginBottom: 8 },
+  pathsTitle: { color: '#070226', fontWeight: '700', marginBottom: 8 },
   pathLine: { color: '#35566F', fontSize: 12, marginBottom: 2 },
-  submitBtn: { marginHorizontal: 16, marginTop: 16, borderRadius: 12, backgroundColor: '#0A2540', paddingVertical: 12, alignItems: 'center' },
+  submitBtn: { marginHorizontal: 16, marginTop: 16, borderRadius: 12, backgroundColor: '#070226', paddingVertical: 12, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontWeight: '700' },
 });
 

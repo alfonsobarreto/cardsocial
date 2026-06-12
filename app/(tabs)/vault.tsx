@@ -77,6 +77,9 @@ import {
     View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { BrandGradientText } from '@/components/BrandGradientText';
+import { LinearGradient } from 'expo-linear-gradient';
+import { brandColors } from '@/styles/brandTokens';
 import NewInfoForm from '../components/NewInfoForm';
 import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import appPalette from '../theme';
@@ -1414,7 +1417,7 @@ const VaultScreen = () => {
           borderRadius: 31,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: vaultTheme.ctaAccent,
+          overflow: 'hidden',
           shadowColor: vaultTheme.subtleShadow,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.24,
@@ -1541,7 +1544,11 @@ const VaultScreen = () => {
           >
             <View style={[
               styles.iconBox,
-              { backgroundColor: vaultTheme.iconCircleBg },
+              {
+                backgroundColor: vaultTheme.iconCircleBg,
+                borderWidth: 1,
+                borderColor: vaultTheme.iconCircleBorder,
+              },
               isDullMode && { backgroundColor: 'rgba(140,140,140,0.18)' },
             ]}>
               {renderIcon(item)}
@@ -1674,28 +1681,25 @@ const VaultScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: vaultTheme.backgroundSolid }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: vaultTheme.headerDivider }]}>
         <View style={styles.headerCenterBlock}>
           <View style={styles.headerUserRowCentered}>
-            <Text style={[styles.headerSubtitle, { color: vaultTheme.primaryText }]}>{headerProfileLabel}</Text>
+            <BrandGradientText style={styles.headerSubtitle}>{headerProfileLabel}</BrandGradientText>
           </View>
-          <Text
-            style={[styles.vaultCounterLabel, { color: vaultTheme.counterAccent }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.62}
+          <BrandGradientText
+            style={styles.vaultCounterLabel}
           >
             {t('vault_counter_fmt', { current: links.length, max: limitMaxItems })}
-          </Text>
+          </BrandGradientText>
           {/* Barra de progreso: oculta para usuarios 50 */}
           {/* No mostrar barra de progreso para admin pochobs */}
         </View>
       </View>
 
       {links.length > 0 ? (
-        <View style={[styles.searchRow, { backgroundColor: vaultTheme.backgroundSolid }]}>
+        <View style={[styles.searchRow, { backgroundColor: 'transparent' }]}>
           <View style={[styles.searchInputWrap, { backgroundColor: vaultTheme.searchBg, borderColor: vaultTheme.searchBorder }]}>
             <MaterialCommunityIcons name="magnify" size={18} color={vaultTheme.searchPlaceholder} />
             <TextInput
@@ -1764,6 +1768,12 @@ const VaultScreen = () => {
         onPress={openCreateVaultItemForm}
         activeOpacity={0.85}
       >
+        <LinearGradient
+          colors={[brandColors.electricBlue, brandColors.digitalViolet]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFillObject}
+        />
         <MaterialCommunityIcons name="plus" color={vaultTheme.emptyCtaText} size={30} />
       </TouchableOpacity>
 

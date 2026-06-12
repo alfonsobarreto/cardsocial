@@ -93,6 +93,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     backgroundColor: '#000',
   },
-  closeText: { color: '#E9C349', fontSize: 22, fontWeight: '800' },
+  closeText: { color: '#2F7BFF', fontSize: 22, fontWeight: '800' },
   web: { flex: 1 },
 });

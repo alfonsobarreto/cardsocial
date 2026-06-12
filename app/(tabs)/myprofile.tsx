@@ -832,7 +832,7 @@ export default function MyProfileScreen() {
 
   // ─────────────────────────────────────────────────────────────────────────────
 
-  const bg = shell.backgroundSolid;
+  const bg = 'transparent';
   const card = shell.surface;
   const textPrimary = shell.textPrimary;
   const textSecondary = shell.textSecondary;
@@ -875,7 +875,7 @@ export default function MyProfileScreen() {
         bounces={false}
         overScrollMode="never"
       >
-        <LinearGradient colors={[...shell.tabShellGradient]} style={{ flexGrow: 1, backgroundColor: bg }}>
+        <View style={{ flexGrow: 1, backgroundColor: bg }}>
           <View style={[styles.header, { borderBottomColor: border }]}>
             <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tcx('scan_back')}>
               <MaterialCommunityIcons name="arrow-left" size={24} color={accent} />
@@ -1327,7 +1327,7 @@ export default function MyProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-        </LinearGradient>
+        </View>
       </KeyboardAwareScrollView>
 
     {Platform.OS === 'android' && (

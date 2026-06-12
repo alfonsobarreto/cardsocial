@@ -228,9 +228,9 @@ const initialState: ForgeState = {
     count: 4,
     style: '3d',
     shape: 'rounded',
-    colorPrimary: '#6366F1',
-    colorSecondary: '#22D3EE',
-    colorBackground: '#0B1220',
+    colorPrimary: '#2F7BFF',
+    colorSecondary: '#7A4DFF',
+    colorBackground: '#071226',
     referencePreview: '',
     referenceBase64: '',
     referenceMime: 'image/png',
@@ -554,7 +554,7 @@ function MagicButton({ label, onClick }: { label: string; onClick: () => void })
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-300/30 bg-amber-400/10 text-amber-200 shadow-lg shadow-amber-500/10 transition hover:-translate-y-0.5 hover:bg-amber-400/20"
+      className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#2F7BFF]/30 bg-[#2F7BFF]/10 text-[#4D8FFF] shadow-lg shadow-[#2F7BFF]/10 transition hover:-translate-y-0.5 hover:bg-[#2F7BFF]/20"
     >
       <Wand className="h-5 w-5" />
     </button>
@@ -1592,7 +1592,7 @@ function AiSkinPanel({
             type="button"
             onClick={onGenerateSkinAi}
             disabled={sk.generating}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 via-orange-500 to-rose-600 px-5 py-3 text-sm font-black text-slate-950 shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#4D8FFF] via-[#2F7BFF] to-[#7A4DFF] px-5 py-3 text-sm font-black text-white shadow-xl shadow-[#2F7BFF]/25 transition hover:-translate-y-0.5"
           >
             {sk.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
             Sugerir Skin con IA
@@ -2397,11 +2397,11 @@ export default function Studio() {
       <header className="border-b border-white/10 bg-slate-950/90 px-5 py-5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1720px] flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 via-orange-500 to-rose-600 shadow-xl shadow-orange-500/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4D8FFF] via-[#2F7BFF] to-[#7A4DFF] shadow-xl shadow-[#2F7BFF]/20">
               <Wand className="h-6 w-6 text-slate-950" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-300">Card-Social Studio</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4D8FFF]">Card-Social Studio</p>
               <h1 className="text-2xl font-black tracking-tight text-white">La Forja AI Visual Engine</h1>
             </div>
           </div>

@@ -291,12 +291,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   medalOrbLocked: {
-    borderColor: 'rgba(233,195,73,0.45)',
+    borderColor: 'rgba(47,123,255,0.45)',
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   medalOrbUnlocked: {
     borderColor: LEGACY_VIBRANT_GOLD,
-    backgroundColor: 'rgba(233,195,73,0.28)',
+    backgroundColor: 'rgba(47,123,255,0.28)',
     shadowColor: LEGACY_VIBRANT_GOLD,
     shadowOpacity: 0.55,
     shadowRadius: 11,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   unlockedGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(233,195,73,0.12)',
+    backgroundColor: 'rgba(47,123,255,0.12)',
     borderRadius: 22,
   },
   medalLabel: {
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(233,195,73,0.35)',
+    borderColor: 'rgba(47,123,255,0.35)',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.45,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   },
   modalIconRingActive: {
     borderColor: LEGACY_VIBRANT_GOLD,
-    backgroundColor: 'rgba(233,195,73,0.12)',
+    backgroundColor: 'rgba(47,123,255,0.12)',
     shadowColor: LEGACY_VIBRANT_GOLD,
     shadowOpacity: 0.4,
     shadowRadius: 16,

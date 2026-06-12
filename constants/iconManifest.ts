@@ -10,7 +10,7 @@ export interface IconEntry {
   iconType: 'fontAwesome' | 'materialCommunity' | 'local'; // Fuente del icono
   iconName?: string; // Para iconos de librerías (ej: 'whatsapp')
   localPath?: string; // Para iconos locales (ej: 'assets/icons/vault/mism-logo.png')
-  color?: string; // Color en Azul/Dorado (ej: '#0A2540')
+  color?: string; // Color en Azul/Dorado (ej: '#070226')
   backgroundColor?: string; // Fondo opcional
   category: 'messaging' | 'social' | 'business' | 'productivity' | 'custom'; // Categoría
   isPremium: boolean; // Premium solo si isPremium=true
@@ -44,7 +44,7 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'SMS',
     iconType: 'materialCommunity',
     iconName: 'message-text',
-    color: '#0A2540',
+    color: '#070226',
     category: 'messaging',
     isPremium: false,
     description: 'Mensaje de texto',
@@ -108,7 +108,7 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'Email',
     iconType: 'materialCommunity',
     iconName: 'email',
-    color: '#0A2540',
+    color: '#070226',
     category: 'business',
     isPremium: false,
     description: 'Correo electrónico',
@@ -118,7 +118,7 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'Teléfono',
     iconType: 'materialCommunity',
     iconName: 'phone',
-    color: '#0A2540',
+    color: '#070226',
     category: 'business',
     isPremium: false,
     description: 'Llamada',
@@ -128,7 +128,7 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'Sitio Web',
     iconType: 'materialCommunity',
     iconName: 'globe',
-    color: '#C5A065', // Dorado
+    color: '#7A42FF', // Dorado
     category: 'business',
     isPremium: true,
     description: 'Página web personal',
@@ -148,7 +148,7 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'Calendario',
     iconType: 'materialCommunity',
     iconName: 'calendar',
-    color: '#0A2540',
+    color: '#070226',
     category: 'business',
     isPremium: true,
     description: 'Agendar cita',
@@ -192,8 +192,8 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'Mi Sueño Mexicano',
     iconType: 'local',
     localPath: 'assets/icons/vault/mism-logo.png', // Espacio para logo MISM
-    color: '#C5A065', // Dorado
-    backgroundColor: '#0A2540', // Azul
+    color: '#7A42FF', // Dorado
+    backgroundColor: '#070226', // Azul
     category: 'custom',
     isPremium: true,
     description: 'Portal de propiedades',
@@ -203,7 +203,7 @@ export const ICON_MANIFEST: IconEntry[] = [
     label: 'Personalizado',
     iconType: 'materialCommunity',
     iconName: 'plus-circle',
-    color: '#C5A065', // Dorado
+    color: '#7A42FF', // Dorado
     category: 'custom',
     isPremium: true,
     description: 'Agregar icono personalizado',

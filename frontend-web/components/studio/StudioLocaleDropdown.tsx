@@ -68,7 +68,7 @@ export function StudioLocaleDropdown({ locale, onChange, label, variant = 'defau
             cursor: 'pointer',
             minWidth: isHeader ? 128 : 120,
             maxWidth: 200,
-            boxShadow: '0 4px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(233,195,73,0.12)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(47,123,255,0.12)',
             appearance: 'none',
             WebkitAppearance: 'none',
             MozAppearance: 'none',

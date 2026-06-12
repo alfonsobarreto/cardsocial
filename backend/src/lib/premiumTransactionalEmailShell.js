@@ -3,8 +3,9 @@
  * Incluye bloque de confianza (spam / empresa nueva) en todos los usos.
  */
 
-const GOLD = '#E9C349';
-const LOGO_URL = 'https://cardsocial.me/assets/logo-cardsocial.png';
+const { brandColors, brandGradients } = require('./brandTokens');
+
+const ACCENT = brandColors.electricBlue;
 
 function escHtml(s) {
   return String(s || '')
@@ -31,8 +32,8 @@ function wrapPremiumTransactionalEmail({ headline, innerHtml, locale }) {
     ? 'Este es un correo automático de Card-Social (cardsocial.me). Si no solicitaste esta acción, ignóralo con tranquilidad.'
     : 'This is an automated message from Card-Social (cardsocial.me). If you did not request this action, you can safely ignore it.';
   return `
-  <div style="background:#0a0a0b;padding:28px 12px;font-family:'Segoe UI',system-ui,Arial,sans-serif;">
-    <div style="max-width:520px;margin:0 auto;background:#121214;border-radius:20px;border:1px solid #2a2a2e;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.35);">
+  <div style="background:${brandColors.midnightNavy};padding:28px 12px;font-family:'Segoe UI',system-ui,Arial,sans-serif;">
+    <div style="max-width:520px;margin:0 auto;background:#101E34;border-radius:20px;border:1px solid rgba(47,123,255,0.28);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.35);">
       <div style="padding:26px 24px 10px;text-align:center;border-bottom:1px solid #2a2a2e;">
         <img src="${LOGO_URL}" alt="Card-Social" width="112" height="auto" style="display:inline-block;margin-bottom:14px;" />
         <div style="font-size:19px;font-weight:800;color:#fafafa;letter-spacing:-0.02em;line-height:1.25;">${escHtml(headline)}</div>
@@ -41,7 +42,7 @@ function wrapPremiumTransactionalEmail({ headline, innerHtml, locale }) {
         ${innerHtml}
         ${spamAndDeliverabilityBlock(locale)}
         <p style="margin:22px 0 0;font-size:13px;color:#9a9a9a;">${closing}</p>
-        <p style="margin:16px 0 0;font-size:12px;color:#666;text-align:center;">© Card-Social · <a href="https://cardsocial.me" style="color:${GOLD};text-decoration:none;">cardsocial.me</a></p>
+        <p style="margin:16px 0 0;font-size:12px;color:#666;text-align:center;">© Card-Social · <a href="https://cardsocial.me" style="color:${ACCENT};text-decoration:none;">cardsocial.me</a></p>
       </div>
     </div>
   </div>`;

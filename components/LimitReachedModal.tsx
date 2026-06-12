@@ -147,7 +147,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 <MaterialCommunityIcons
                   name={getIconName()}
                   size={60}
-                  color="#C5A065"
+                  color="#7A42FF"
                 />
                 <Text style={styles.shieldEmoji}>🛡️</Text>
               </View>
@@ -182,7 +182,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 <MaterialCommunityIcons
                   name="information"
                   size={20}
-                  color="#C5A065"
+                  color="#7A42FF"
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.messageText}>
@@ -246,7 +246,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 style={[styles.button, styles.upgradeButton]}
                 onPress={onUpgradePress}
               >
-                <MaterialCommunityIcons name="crown" size={18} color="#0A2540" />
+                <MaterialCommunityIcons name="crown" size={18} color="#071226" />
                 <Text style={styles.upgradeButtonText}>{tr('Activar Premium', 'Activate Premium')}</Text>
               </TouchableOpacity>
             </View>
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#C5A065',
+    color: '#7A42FF',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   progressBarInner: {
     height: '100%',
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
     borderRadius: 3,
   },
   description: {
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: 'rgba(197, 160, 101, 0.1)',
     borderLeftWidth: 3,
-    borderLeftColor: '#C5A065',
+    borderLeftColor: '#7A42FF',
     padding: 12,
     borderRadius: 8,
     marginBottom: 20,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   messageText: {
     flex: 1,
     fontSize: 13,
-    color: '#C5A065',
+    color: '#7A42FF',
     fontWeight: '500',
     lineHeight: 18,
   },
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#C5A065',
+    color: '#7A42FF',
     marginBottom: 4,
   },
   subtext: {
@@ -404,12 +404,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.6)',
   },
   upgradeButton: {
-    backgroundColor: '#C5A065',
+    backgroundColor: '#7A42FF',
   },
   upgradeButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#071226',
   },
 });
 

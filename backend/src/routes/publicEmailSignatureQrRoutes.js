@@ -6,6 +6,7 @@
 const QRCode = require('qrcode');
 const sharp = require('sharp');
 const { buildUserFacingJson } = require('../lib/userFacingErrors');
+const { brandColors } = require('../lib/brandTokens');
 
 const MAX_PAYLOAD_LEN = 4096;
 const WIDTH_DEFAULT = 256;
@@ -151,7 +152,7 @@ async function handlePublicEmailSignatureQr(req, res) {
       margin: 2,
       errorCorrectionLevel: 'H',
       color: {
-        dark: '#0A2540',
+        dark: brandColors.midnightNavy,
         light: '#FFFFFF',
       },
     };

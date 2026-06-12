@@ -26,7 +26,7 @@ export type CardRowThemeResolved = {
 
 const FALLBACK_CARD_ROW: CardRowThemeResolved = {
   gradient: ['#F2F2F7', '#F2F2F7', '#F2F2F7'],
-  borderColor: 'rgba(233,195,73,0.35)',
+  borderColor: 'rgba(47,123,255,0.35)',
   borderWidth: 1,
   titleColor: '#1C1C1E',
   titleFontWeight: '800',
@@ -38,7 +38,7 @@ const FALLBACK_CARD_ROW: CardRowThemeResolved = {
   extraFontSize: 11,
   extraFontWeight: '500',
   extraFontStyle: 'italic',
-  iconColor: '#E9C349',
+  iconColor: '#2F7BFF',
   bubbleBackgroundColor: 'rgba(255,255,255,0.82)',
   bubbleBorderRadius: 14,
 };

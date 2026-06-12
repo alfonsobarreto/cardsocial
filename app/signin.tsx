@@ -19,7 +19,6 @@ import {
 } from '@/services/sessionInactivity';
 import { resolveEmailCandidatesForSignIn, SIGN_IN_EMAIL_LIKE } from '@/services/studioAuthPublicApi';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword, signOut, type UserCredential } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -467,7 +466,7 @@ export default function SignInScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <LinearGradient colors={[...look.gradient]} style={styles.gradient}>
+      <View style={styles.gradient}>
           <KeyboardAwareScrollView
             style={{ flex: 1 }}
             contentContainerStyle={[styles.content, SCROLL_CONTENT_MIN_FILL]}
@@ -481,7 +480,7 @@ export default function SignInScreen() {
                 {
                   backgroundColor: '#FFFFFF',
                   borderColor: 'rgba(10, 37, 64, 0.14)',
-                  shadowColor: isNight ? AUTH_GOLD : '#0A2540',
+                  shadowColor: isNight ? AUTH_GOLD : '#070226',
                 },
               ]}
             >
@@ -600,7 +599,7 @@ export default function SignInScreen() {
               <Text style={[styles.footerLink, { color: look.footerLink }]}>{t('signin_footer_signup')}</Text>
             </TouchableOpacity>
           </KeyboardAwareScrollView>
-        </LinearGradient>
+        </View>
 
         <Modal
           visible={isSubmitting}
@@ -701,7 +700,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 16,
-    shadowColor: '#0A2540',
+    shadowColor: '#070226',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 14,
@@ -712,7 +711,7 @@ const styles = StyleSheet.create({
     height: 62,
   },
   title: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 24,
     lineHeight: 32,
     fontWeight: '800',
@@ -770,7 +769,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 15,
   },
   eyeButton: {
@@ -784,7 +783,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     minHeight: 46,
     borderRadius: 14,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#070226',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -805,7 +804,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerLink: {
-    color: '#0A2540',
+    color: '#070226',
     textDecorationLine: 'underline',
     opacity: 0.8,
   },
@@ -814,7 +813,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryLink: {
-    color: '#0A2540',
+    color: '#070226',
     textDecorationLine: 'underline',
     opacity: 0.85,
     fontWeight: '600',
@@ -840,7 +839,7 @@ const styles = StyleSheet.create({
   },
   submitOverlayText: {
     marginTop: 14,
-    color: '#0A2540',
+    color: '#070226',
     fontWeight: '700',
     fontSize: 14,
     textAlign: 'center',
@@ -855,7 +854,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   recoveryTitle: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
@@ -878,7 +877,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   recoveryInput: {
-    color: '#0A2540',
+    color: '#070226',
     fontSize: 15,
   },
 });

@@ -13,7 +13,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 /** Alineado con `PremiumDataPanelHost` (app). */
 const ACCENT = '#C9A227';
 const TEXT_MUTED = '#A1A1AA';
-const SHEET_BG = '#000000';
+const SHEET_BG = '#071226';
 
 /** Primera línea del bloque “cuerpo” en negrita; resto tipografía normal. */
 function splitBodyFirstLine(body: string): { lead: string; rest: string } {
