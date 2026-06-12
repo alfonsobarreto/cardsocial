@@ -5488,12 +5488,12 @@
     "de": "Pläne & Mitgliedschaft"
   },
   "sub_plans_header_subtitle": {
-    "es": "Pagos seguros con tu cuenta de App Store o Google Play.",
-    "en": "Secure billing with your App Store or Google Play account.",
-    "it": "Pagamenti sicuri con il tuo account App Store o Google Play.",
-    "pt": "Pagamentos seguros com sua conta App Store ou Google Play.",
-    "fr": "Paiement sécurisé via App Store ou Google Play.",
-    "de": "Sichere Abrechnung über App Store oder Google Play."
+    "es": "Pagos seguros con App Store, Google Play o Mercado Pago (Perú).",
+    "en": "Secure billing with App Store, Google Play, or Mercado Pago (Peru).",
+    "it": "Pagamenti sicuri con App Store, Google Play o Mercado Pago (Perù).",
+    "pt": "Pagamentos seguros com App Store, Google Play ou Mercado Pago (Peru).",
+    "fr": "Paiement sécurisé via App Store, Google Play ou Mercado Pago (Pérou).",
+    "de": "Sichere Abrechnung über App Store, Google Play oder Mercado Pago (Peru)."
   },
   "sub_pro_section_hint": {
     "es": "Membresía integral. Elige tu plan dentro de la app.",
@@ -5656,12 +5656,12 @@
     "de": "Inklusive"
   },
   "sub_how_to_get": {
-    "es": "Cómo obtenerlo",
-    "en": "How to get it",
-    "it": "Come ottenerlo",
-    "pt": "Como obter",
-    "fr": "Comment l’obtenir",
-    "de": "So erhalten Sie es"
+    "es": "Adquirir",
+    "en": "Acquire",
+    "it": "Acquista",
+    "pt": "Adquirir",
+    "fr": "Acquérir",
+    "de": "Erwerben"
   },
   "sub_continue": {
     "es": "Continuar",
@@ -5670,6 +5670,14 @@
     "pt": "Continuar",
     "fr": "Continuer",
     "de": "Weiter"
+  },
+  "sub_acquire": {
+    "es": "Adquirir",
+    "en": "Acquire",
+    "it": "Acquista",
+    "pt": "Adquirir",
+    "fr": "Acquérir",
+    "de": "Erwerben"
   },
   "sub_pay_mercadopago": {
     "es": "Pagar con Mercado Pago",
@@ -5680,8 +5688,8 @@
     "de": "Mit Mercado Pago bezahlen"
   },
   "sub_mp_checkout_title": {
-    "es": "Checkout Mercado Pago",
-    "en": "Mercado Pago checkout",
+    "es": "Adquirir plan",
+    "en": "Acquire plan",
     "it": "Checkout Mercado Pago",
     "pt": "Checkout Mercado Pago",
     "fr": "Paiement Mercado Pago",

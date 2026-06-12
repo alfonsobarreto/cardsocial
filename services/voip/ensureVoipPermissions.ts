@@ -1,14 +1,14 @@
 import { Audio } from 'expo-av';
+import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
-import { PERMISSIONS, RESULTS, request } from 'react-native-permissions';
 
 import type { GhostLinkCallType } from '@/services/ghostLinkVoip';
 
 /**
- * Permisos VoIP sin `expo-camera` (evita el stack de vista/hardware de Expo Camera; Agora sigue siendo quien captura).
+ * Permisos VoIP con APIs de Expo (compatibles con Expo Go y dev client).
  *
- * - Micrófono: `expo-av` `Audio.requestPermissionsAsync()` — solo diálogo de grabación, sin componente Camera.
- * - Cámara (solo video): `react-native-permissions` `request(CAMERA)` — API nativa de permisos, sin montar vista de cámara.
+ * - Micrófono: `expo-av` `Audio.requestPermissionsAsync()`.
+ * - Cámara (solo video): `expo-image-picker` — solo diálogo de permiso, sin montar vista de cámara.
  */
 export async function ensureVoipPermissions(callType: GhostLinkCallType): Promise<boolean> {
   try {
@@ -21,9 +21,8 @@ export async function ensureVoipPermissions(callType: GhostLinkCallType): Promis
       if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
         return false;
       }
-      const cameraPerm = Platform.OS === 'ios' ? PERMISSIONS.IOS.CAMERA : PERMISSIONS.ANDROID.CAMERA;
-      const camResult = await request(cameraPerm);
-      if (camResult !== RESULTS.GRANTED) {
+      const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+      if (camPerm.status !== 'granted') {
         return false;
       }
     }

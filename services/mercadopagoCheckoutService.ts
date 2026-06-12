@@ -2,6 +2,8 @@
  * Mercado Pago Checkout Pro (Perú): crea preferencia en backend y abre checkout.
  */
 
+import * as WebBrowser from 'expo-web-browser';
+import { Linking } from 'react-native';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import { auth } from '@/services/firebaseConfig';
 import { getCurrentI18nAppLanguage, toAcceptLanguageHeader } from '@/services/language';
@@ -120,4 +122,21 @@ export async function createMercadoPagoCheckoutSession(params: {
 export function isMercadoPagoMarketRegion(regionCode: string | null | undefined): boolean {
   const r = String(regionCode || '').trim().toUpperCase();
   return r === 'PE';
+}
+
+export async function openMercadoPagoCheckoutUrl(initPoint: string): Promise<void> {
+  const url = String(initPoint || '').trim();
+  if (!url) throw new Error('mp_invalid_init_point');
+
+  try {
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+      enableBarCollapsing: true,
+      showInRecents: true,
+    });
+  } catch {
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) throw new Error('mp_browser_open_failed');
+    await Linking.openURL(url);
+  }
 }

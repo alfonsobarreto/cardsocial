@@ -81,6 +81,7 @@ function resolveSiteBase(env) {
 
 function resolveApiPublicBase(env) {
   const candidates = [
+    process.env.MERCADOPAGO_WEBHOOK_BASE_URL,
     process.env.PUBLIC_VAULT_FILE_BASE_URL,
     process.env.EXPO_PUBLIC_BACKEND_BASE_URL,
     process.env.EXPO_PUBLIC_MODERATION_API_URL,
@@ -91,6 +92,12 @@ function resolveApiPublicBase(env) {
     if (s && !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(s)) return s;
   }
   return `http://127.0.0.1:${env.port || 4000}`;
+}
+
+function resolveWebhookUrl(env) {
+  const forced = String(process.env.MERCADOPAGO_NOTIFICATION_URL || '').trim().replace(/\/+$/, '');
+  if (forced) return forced;
+  return `${resolveApiPublicBase(env)}/api/payments/mercadopago/webhook`;
 }
 
 function parseExternalReference(ref) {
@@ -130,6 +137,7 @@ function createMercadoPagoCheckoutRoutes({ storage, env }) {
       enabled: isMercadoPagoConfigured(),
       publicKey: getPublicKey() || null,
       sandbox: useSandboxCheckout(),
+      checkoutType: 'checkout_api_preference',
       supportedCurrencies: ['PEN', 'USD'],
       country: 'PE',
       usdToPenRate: usdToPenRate(),
@@ -198,7 +206,6 @@ function createMercadoPagoCheckoutRoutes({ storage, env }) {
 
       const sessionId = randomUUID();
       const siteBase = resolveSiteBase(env);
-      const apiBase = resolveApiPublicBase(env);
       const externalReference = JSON.stringify({
         sessionId,
         uid,
@@ -229,7 +236,7 @@ function createMercadoPagoCheckoutRoutes({ storage, env }) {
           pending: `${siteBase}/es/suscripciones?mp=pending`,
         },
         auto_return: 'approved',
-        notification_url: `${apiBase}/api/payments/mercadopago/webhook`,
+        notification_url: resolveWebhookUrl(env),
         statement_descriptor: 'CARD-SOCIAL',
         metadata: {
           uid,

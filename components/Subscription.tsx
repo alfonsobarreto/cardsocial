@@ -21,7 +21,7 @@ import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiers
 import {
   createMercadoPagoCheckoutSession,
   fetchMercadoPagoPublicConfig,
-  isMercadoPagoMarketRegion,
+  openMercadoPagoCheckoutUrl,
   type MercadoPagoBillingPeriod,
   type MercadoPagoCurrencyId,
   type MercadoPagoPublicConfig,
@@ -29,7 +29,6 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Localization from 'expo-localization';
-import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -123,9 +122,9 @@ const Subscription: React.FC<SubscriptionProps> = ({
   const [radarTrialBenefitListed, setRadarTrialBenefitListed] = useState(() => getRadarTrialEnabledSync());
   const [mpConfig, setMpConfig] = useState<MercadoPagoPublicConfig | null>(null);
   const [mpCheckoutLoading, setMpCheckoutLoading] = useState(false);
-  const regionCode = Localization.getLocales?.()?.[0]?.regionCode?.toUpperCase?.() ?? '';
-  const isPeruMarket = isMercadoPagoMarketRegion(regionCode);
   const mpCheckoutAvailable = Boolean(mpConfig?.enabled);
+
+  const paidTierCtaLabel = language === 'es' ? 'Adquirir' : 'Acquire';
 
   useEffect(() => {
     let mounted = true;
@@ -488,10 +487,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
       try {
         setMpCheckoutLoading(true);
         const session = await createMercadoPagoCheckoutSession({ tierKey, billingPeriod, currencyId });
-        await WebBrowser.openBrowserAsync(session.initPoint, {
-          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-          enableBarCollapsing: true,
-        });
+        await openMercadoPagoCheckoutUrl(session.initPoint);
         Alert.alert(t('sub_mp_return_title'), t('sub_mp_return_body'));
       } catch (error) {
         const code = String((error as Error)?.message || '');
@@ -512,18 +508,70 @@ const Subscription: React.FC<SubscriptionProps> = ({
     [userId, t, language],
   );
 
-  const onTierCta = (key: TierKey) => {
-    if (key === 'free') {
-      Alert.alert(t('sub_free_plan_title'), t('sub_free_plan_body'));
-      return;
-    }
-    if (!mpCheckoutAvailable) {
-      Alert.alert(t('common_error'), t('sub_mp_not_configured'));
-      return;
-    }
-    const currencyId: MercadoPagoCurrencyId = isPeruMarket ? 'PEN' : 'USD';
-    void startMercadoPagoCheckout(key, 'monthly', currencyId);
-  };
+  const mpCheckoutAmountLabel = useCallback(
+    (
+      tierKey: Exclude<TierKey, 'free'>,
+      billingPeriod: MercadoPagoBillingPeriod,
+      currencyId: MercadoPagoCurrencyId,
+    ) => {
+      if (!tiers) return '';
+      const usd =
+        billingPeriod === 'annual' ? tiers[tierKey].annualPriceUsd : tiers[tierKey].monthlyPriceUsd;
+      if (currencyId === 'USD') return fmtUsd(usd);
+      const rate = mpConfig?.usdToPenRate && mpConfig.usdToPenRate > 0 ? mpConfig.usdToPenRate : 3.75;
+      return `S/ ${(usd * rate).toFixed(2)}`;
+    },
+    [tiers, mpConfig?.usdToPenRate],
+  );
+
+  const promptMercadoPagoAcquire = useCallback(
+    (tierKey: Exclude<TierKey, 'free'>) => {
+      Alert.alert(t('sub_mp_checkout_title'), t('sub_mp_checkout_body'), [
+        {
+          text: `${t('sub_mp_billing_monthly_pen')} · ${mpCheckoutAmountLabel(tierKey, 'monthly', 'PEN')}`,
+          onPress: () => void startMercadoPagoCheckout(tierKey, 'monthly', 'PEN'),
+        },
+        {
+          text: `${t('sub_mp_billing_annual_pen')} · ${mpCheckoutAmountLabel(tierKey, 'annual', 'PEN')}`,
+          onPress: () => void startMercadoPagoCheckout(tierKey, 'annual', 'PEN'),
+        },
+        {
+          text: `${t('sub_mp_billing_monthly_usd')} · ${mpCheckoutAmountLabel(tierKey, 'monthly', 'USD')}`,
+          onPress: () => void startMercadoPagoCheckout(tierKey, 'monthly', 'USD'),
+        },
+        {
+          text: `${t('sub_mp_billing_annual_usd')} · ${mpCheckoutAmountLabel(tierKey, 'annual', 'USD')}`,
+          onPress: () => void startMercadoPagoCheckout(tierKey, 'annual', 'USD'),
+        },
+        { text: t('common_cancel'), style: 'cancel' },
+      ]);
+    },
+    [mpCheckoutAmountLabel, startMercadoPagoCheckout, t],
+  );
+
+  const onTierCta = useCallback(
+    (key: TierKey) => {
+      if (key === 'free') {
+        Alert.alert(t('sub_free_plan_title'), t('sub_free_plan_body'));
+        return;
+      }
+      if (mpCheckoutAvailable) {
+        promptMercadoPagoAcquire(key);
+        return;
+      }
+      Alert.alert(
+        t('sub_upgrade_plan_title'),
+        t('sub_tier_pricing_detail', {
+          monthlyUsd: fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0),
+          monthlyCs: (tiers?.[key].monthlyEquivalentCs ?? 0).toLocaleString(),
+          annualUsd: fmtUsd(tiers?.[key].annualPriceUsd ?? 0),
+          annualCs: (tiers?.[key].annualEquivalentCs ?? 0).toLocaleString(),
+          trialDays: tiers?.[key].freeTrialDays ?? 0,
+        }),
+      );
+    },
+    [fmtUsd, mpCheckoutAvailable, promptMercadoPagoAcquire, t, tiers],
+  );
 
   const handleBuyCreditPack = async (pack: { id: string; productId: string; credits: number }) => {
     try {
@@ -845,7 +893,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
                   <ActivityIndicator size="small" color={shell.emptyCtaText} />
                 ) : (
                   <Text style={styles.tierCtaText}>
-                    {key === 'free' ? t('sub_included') : t('sub_continue')}
+                    {key === 'free' ? t('sub_included') : paidTierCtaLabel}
                   </Text>
                 )}
               </TouchableOpacity>
