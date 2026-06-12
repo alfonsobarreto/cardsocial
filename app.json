@@ -2,7 +2,7 @@
   "expo": {
     "name": "card-social",
     "slug": "card-social",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "cardsocial",
@@ -18,7 +18,7 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "buildNumber": "15",
+      "buildNumber": "16",
       "supportsTablet": true,
       "bundleIdentifier": "com.cardsocial.app",
       "associatedDomains": [
@@ -74,7 +74,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",
-      "versionCode": 20
+      "versionCode": 21
       ,
       "intentFilters": [
         {
