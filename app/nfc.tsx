@@ -30,7 +30,7 @@ import {
   updateNfcCardStatus,
 } from '@/services/nfcCardsRepo';
 import type { NfcCardDoc, NfcCardStatus, NfcMountOption } from '@/services/types/nfc';
-import { requestSubscriptionPhysicalCardsSection } from '@/services/subscriptionNavigationIntent';
+import { requestNfcPhysicalCheckout } from '@/services/subscriptionNavigationIntent';
 import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import palette from './theme';
 
@@ -645,8 +645,7 @@ export default function NfcScreen() {
           <TouchableOpacity
             style={styles.physicalUpsellBtn}
             onPress={() => {
-              router.back();
-              requestSubscriptionPhysicalCardsSection({ delayMs: 380 });
+              requestNfcPhysicalCheckout();
             }}
             accessibilityRole="button"
             accessibilityLabel={t('nfc_shop_cards_cta')}

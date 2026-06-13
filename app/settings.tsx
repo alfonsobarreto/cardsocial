@@ -8,13 +8,23 @@ import { Image as ExpoImage } from 'expo-image';
 import { shareExportedUserProfileJson } from '@/services/exportUserProfileJson';
 import { SecondaryStackHeader } from '@/components/SecondaryStackHeader';
 import { useCoreT } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import React, { useMemo } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import Purchases from 'react-native-purchases';
+import {
+  formatRevenueCatPurchaseError,
+  presentRevenueCatCustomerCenter,
+  refreshCardSocialProActive,
+  syncRevenueCatWithFirebaseUid,
+} from '@/services/revenueCatProSubscription';
+import { getActiveUserId } from '@/services/authSession';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { useScreenContentBottomInset } from '@/hooks/useScreenContentBottomInset';
 import { auth } from '../services/firebaseConfig';
@@ -25,6 +35,7 @@ export default function SettingsScreen() {
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
   const t = useCoreT();
+  const { language } = useLanguage();
   const contentBottomPad = useScreenContentBottomInset(20);
   const router = useRouter();
 
@@ -90,6 +101,59 @@ export default function SettingsScreen() {
   const [isNotificationsEnabled, setIsNotificationsEnabled] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
   const [isClearingCache, setIsClearingCache] = React.useState(false);
+  const [membershipLoading, setMembershipLoading] = React.useState(false);
+
+  const handleRestorePurchases = useCallback(async () => {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      Alert.alert(t('common_not_available'), t('sub_iap_native_only_body'));
+      return;
+    }
+    try {
+      setMembershipLoading(true);
+      const uid = await getActiveUserId();
+      await syncRevenueCatWithFirebaseUid(uid?.trim() ? uid : null);
+      const info = await Purchases.restorePurchases();
+      await refreshCardSocialProActive();
+      const active = Object.keys(info.entitlements.active || {}).length;
+      Alert.alert(
+        t('sub_restore_success_title'),
+        active > 0 ? t('sub_restore_success_body') : t('sub_restore_failed'),
+      );
+    } catch (error) {
+      const { cancelled } = formatRevenueCatPurchaseError(error);
+      if (!cancelled) {
+        Alert.alert(
+          t('common_error'),
+          userFacingAlertMessage(error, language, t('sub_operation_failed')),
+        );
+      }
+    } finally {
+      setMembershipLoading(false);
+    }
+  }, [t, language]);
+
+  const handleSubscriptionCenter = useCallback(async () => {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      Alert.alert(t('common_not_available'), t('sub_iap_native_only_body'));
+      return;
+    }
+    try {
+      setMembershipLoading(true);
+      const uid = await getActiveUserId();
+      await syncRevenueCatWithFirebaseUid(uid?.trim() ? uid : null);
+      await presentRevenueCatCustomerCenter();
+    } catch (error) {
+      const { cancelled } = formatRevenueCatPurchaseError(error);
+      if (!cancelled) {
+        Alert.alert(
+          t('common_error'),
+          userFacingAlertMessage(error, language, t('sub_operation_failed')),
+        );
+      }
+    } finally {
+      setMembershipLoading(false);
+    }
+  }, [t, language]);
 
   React.useEffect(() => {
     const checkNotifications = async () => {
@@ -260,6 +324,31 @@ export default function SettingsScreen() {
           <Text style={styles.itemText}>{t('settings_active_sessions')}</Text>
         </TouchableOpacity>
       </Section>
+
+      {(Platform.OS === 'ios' || Platform.OS === 'android') ? (
+        <Section title={t('settings_section_membership')}>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => void handleRestorePurchases()}
+            disabled={membershipLoading}
+          >
+            <MaterialCommunityIcons name="history" size={20} color={iconTint} />
+            {membershipLoading ? (
+              <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12 }} />
+            ) : (
+              <Text style={styles.itemText}>{t('sub_restore_purchases')}</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => void handleSubscriptionCenter()}
+            disabled={membershipLoading}
+          >
+            <MaterialCommunityIcons name="credit-card-settings-outline" size={20} color={iconTint} />
+            <Text style={styles.itemText}>{t('sub_subscription_center_btn')}</Text>
+          </TouchableOpacity>
+        </Section>
+      ) : null}
 
       <Section title={t('settings_section_prefs')}>
         <View style={styles.item}>

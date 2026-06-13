@@ -39,7 +39,7 @@ const tiers: Tier[] = [
   {
     name: 'Negocio',
     amount: 'Ver membresía',
-    sub: 'Complementos NFC y hardware con montos alineados a tu nivel.',
+    sub: 'USD, CS, periodo de prueba y límites: todo en la página de planes.',
     features: [
       { label: 'IconData (máx.)', value: 'En app' },
       { label: 'SmartCards', value: 'En app' },

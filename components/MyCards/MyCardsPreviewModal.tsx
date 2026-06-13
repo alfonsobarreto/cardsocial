@@ -183,7 +183,8 @@ export function MyCardsPreviewModal({
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
   const t = useCoreT();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const mirrorContainerWidth = Math.round(Math.min(420, Math.max(280, screenWidth - 32)));
 
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;
@@ -653,15 +654,11 @@ export function MyCardsPreviewModal({
 
   const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
-    if (Platform.OS === 'ios') {
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setViewerVisible(true);
-        });
+        setViewerVisible(true);
       });
-    } else {
-      setViewerVisible(true);
-    }
+    });
   }, []);
 
   const handleSlotPress = useCallback(
@@ -1113,6 +1110,7 @@ export function MyCardsPreviewModal({
               mirrorStatsCapsuleScale={mirrorScale}
               medalPills={medalPills}
               onRate={canRate ? () => setMedalModalVisible(true) : undefined}
+              containerWidth={mirrorContainerWidth}
             />
           </>
         ) : null}

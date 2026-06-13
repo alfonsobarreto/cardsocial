@@ -14,6 +14,16 @@ import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
 import { installGhostLinkNotificationOpenHandlers, registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
 import { loadBrandFonts } from '@/services/brandFontService';
+import { BusinessAnnualLicenseModal } from '@/components/BusinessAnnualLicenseModal';
+import { NfcPhysicalCheckoutModal } from '@/components/NfcPhysicalCheckoutModal';
+import { MarketRadarProUpsellModal } from '@/components/MarketRadarProUpsellModal';
+import {
+  subscribeBusinessAnnualLicenseOpen,
+  subscribeCsCreditPacksOpen,
+  subscribeMarketRadarProUpsellOpen,
+  subscribeNfcPhysicalCheckoutOpen,
+  type BusinessAnnualLicensePayload,
+} from '@/services/subscriptionNavigationIntent';
 import { applyAndroidNavigationBarChrome, installAndroidNavigationBarImmersiveGuard } from '@/services/androidNavigationChrome';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -166,6 +176,32 @@ function RootNavigator() {
     return () => clearInterval(id);
   }, [enqueueInactivitySignOutReplace]);
 
+  const [nfcCheckoutVisible, setNfcCheckoutVisible] = useState(false);
+  const [radarUpsellVisible, setRadarUpsellVisible] = useState(false);
+  const [businessLicenseVisible, setBusinessLicenseVisible] = useState(false);
+  const [businessLicenseBId, setBusinessLicenseBId] = useState('');
+
+  useEffect(() => {
+    return subscribeNfcPhysicalCheckoutOpen(() => setNfcCheckoutVisible(true));
+  }, []);
+
+  useEffect(() => {
+    return subscribeMarketRadarProUpsellOpen(() => setRadarUpsellVisible(true));
+  }, []);
+
+  useEffect(() => {
+    return subscribeCsCreditPacksOpen(() => router.push('/vault_store'));
+  }, [router]);
+
+  useEffect(() => {
+    return subscribeBusinessAnnualLicenseOpen((payload: BusinessAnnualLicensePayload) => {
+      const id = String(payload?.bId || '').trim();
+      if (!id) return;
+      setBusinessLicenseBId(id);
+      setBusinessLicenseVisible(true);
+    });
+  }, []);
+
   return (
     <View style={styles.rootShell}>
       <BrandNodesBackground mode={isDark ? 'night' : 'day'} />
@@ -208,6 +244,16 @@ function RootNavigator() {
         <GhostLinkCallOverlay />
         <PendingBunkerRedeemGate />
         <PremiumDataPanelHost />
+        <NfcPhysicalCheckoutModal visible={nfcCheckoutVisible} onClose={() => setNfcCheckoutVisible(false)} />
+        <MarketRadarProUpsellModal visible={radarUpsellVisible} onClose={() => setRadarUpsellVisible(false)} />
+        <BusinessAnnualLicenseModal
+          visible={businessLicenseVisible}
+          bId={businessLicenseBId}
+          onClose={() => {
+            setBusinessLicenseVisible(false);
+            setBusinessLicenseBId('');
+          }}
+        />
         <Toast />
       </GhostLinkCallProvider>
       <BiometricResumeOverlay />

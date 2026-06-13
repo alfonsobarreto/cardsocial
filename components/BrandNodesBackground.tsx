@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Circle, Defs, G, Line, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Line, Path, RadialGradient, Stop } from 'react-native-svg';
 import {
+  BRAND_MESH_OPACITY,
   BRAND_NODES_MESH_DAY,
   BRAND_NODES_MESH_NIGHT,
   brandNodesBaseColor,
@@ -11,17 +12,15 @@ import {
 type Props = {
   mode: BrandNodesMode;
   style?: StyleProp<ViewStyle>;
-  /** Opacidad de la malla (no del lienzo base). */
   meshOpacity?: number;
 };
 
 const VIEW = 100;
-const DEFAULT_MESH_OPACITY = { day: 0.28, night: 0.36 } as const;
 
 export default function BrandNodesBackground({ mode, style, meshOpacity }: Props) {
   const mesh = useMemo(() => (mode === 'night' ? BRAND_NODES_MESH_NIGHT : BRAND_NODES_MESH_DAY), [mode]);
   const base = brandNodesBaseColor(mode);
-  const svgOpacity = meshOpacity ?? DEFAULT_MESH_OPACITY[mode];
+  const svgOpacity = meshOpacity ?? BRAND_MESH_OPACITY[mode];
 
   return (
     <View
@@ -41,14 +40,21 @@ export default function BrandNodesBackground({ mode, style, meshOpacity }: Props
         </Defs>
 
         {mesh.orbs.map((orb, i) => (
-          <Circle
-            key={`orb-${i}`}
-            cx={orb.cx * VIEW}
-            cy={orb.cy * VIEW}
-            r={orb.r}
-            fill={`url(#orb-grad-${i})`}
-          />
+          <Circle key={`orb-${i}`} cx={orb.cx * VIEW} cy={orb.cy * VIEW} r={orb.r} fill={`url(#orb-grad-${i})`} />
         ))}
+
+        <G>
+          {mesh.paths.map((path, i) => (
+            <Path
+              key={`path-${i}`}
+              d={path.d}
+              fill="none"
+              stroke={path.stroke}
+              strokeWidth={path.strokeWidth}
+              strokeOpacity={path.opacity}
+            />
+          ))}
+        </G>
 
         <G>
           {mesh.edges.map((edge, i) => (
@@ -59,8 +65,21 @@ export default function BrandNodesBackground({ mode, style, meshOpacity }: Props
               x2={edge.x2 * VIEW}
               y2={edge.y2 * VIEW}
               stroke={edge.stroke}
-              strokeWidth={mode === 'night' ? 0.35 : 0.28}
+              strokeWidth={mode === 'night' ? 0.32 : 0.24}
               strokeOpacity={edge.opacity}
+            />
+          ))}
+        </G>
+
+        <G>
+          {mesh.dotGrid.map((dot, i) => (
+            <Circle
+              key={`grid-${i}`}
+              cx={dot.x * VIEW}
+              cy={dot.y * VIEW}
+              r={dot.r}
+              fill={dot.fill}
+              opacity={0.85}
             />
           ))}
         </G>
@@ -69,20 +88,14 @@ export default function BrandNodesBackground({ mode, style, meshOpacity }: Props
           {mesh.nodes.map((node, i) => (
             <G key={`node-${i}`}>
               {node.glow ? (
-                <Circle
-                  cx={node.x * VIEW}
-                  cy={node.y * VIEW}
-                  r={node.r * 2.2}
-                  fill={node.fill}
-                  opacity={0.1}
-                />
+                <Circle cx={node.x * VIEW} cy={node.y * VIEW} r={node.r * 2.4} fill={node.fill} opacity={0.12} />
               ) : null}
               <Circle
                 cx={node.x * VIEW}
                 cy={node.y * VIEW}
                 r={node.r}
                 fill={node.fill}
-                opacity={mode === 'night' ? 0.7 : 0.55}
+                opacity={mode === 'night' ? 0.82 : 0.9}
               />
             </G>
           ))}

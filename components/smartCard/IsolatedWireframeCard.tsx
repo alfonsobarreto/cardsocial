@@ -2,6 +2,7 @@ import { wireframeLayoutStyles as wf } from '@/components/smartCard/wireframeLay
 import {
     computeStitchWireframeBubbleSide,
     getWireframeIconRowPlan,
+    wireframeGridUsableWidthFallback,
     WIREFRAME_STITCH_GAP,
     WIREFRAME_STITCH_HORIZONTAL_INSET,
     WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW,
@@ -14,13 +15,14 @@ import { getWallpaperResizeMode } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Animated,
     Image,
     Platform,
     Text,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 
@@ -72,6 +74,8 @@ export type IsolatedWireframeCardProps = {
   medalPills?: { key: string; icon: string; count: number }[];
   /** Callback para abrir el modal de calificación (solo visible cuando !editable). */
   onRate?: () => void;
+  /** Ancho del contenedor padre (factory preview) para medir el grid antes de onLayout. */
+  containerWidth?: number;
 };
 
 export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
@@ -94,7 +98,10 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     mirrorStatsCapsuleScale,
     medalPills,
     onRate,
+    containerWidth,
   } = props;
+
+  const { width: windowWidth } = useWindowDimensions();
 
   const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
   const [vertIconGridLayout, setVertIconGridLayout] = useState({ w: 0, h: 0 });
@@ -109,6 +116,24 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   useEffect(() => {
     setStitchUsableW(0);
   }, [layout]);
+
+  const gridWidthFallback = useMemo(
+    () =>
+      wireframeGridUsableWidthFallback(
+        containerWidth && containerWidth > 0 ? containerWidth : windowWidth,
+        !editable,
+      ),
+    [containerWidth, windowWidth, editable],
+  );
+
+  /** Android: un frame extra para que onLayout del grid no quede en 0 tras montar el modal. */
+  useEffect(() => {
+    if (Platform.OS !== 'android' || editable) return;
+    const frame = requestAnimationFrame(() => {
+      setStitchUsableW((prev) => (prev > 0 ? prev : gridWidthFallback));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editable, gridWidthFallback, layout, slots.length]);
 
   const dataSlots = slots.filter((slot) => slot.item !== null);
   const feed = editable ? slots : dataSlots;
@@ -279,7 +304,9 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const hUsableW =
     stitchUsableW > 0
       ? stitchUsableW
-      : Math.max(0, horizIconGridLayout.w - hGridInset);
+      : gridWidthFallback > 0
+        ? gridWidthFallback
+        : Math.max(0, horizIconGridLayout.w - hGridInset);
   const hUsableH =
     horizIconGridLayout.h > 0
       ? horizIconGridLayout.h
@@ -299,7 +326,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         : 0;
 
     return (
-      <LinearGradient colors={bg3} style={[wf.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
+      <LinearGradient colors={bg3} style={[wf.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]} collapsable={false}>
         {wallpaperUrl ? (
           <Animated.Image
             source={{ uri: wallpaperUrl }}
@@ -381,6 +408,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         >
           <View
             style={[wf.wireIconGridRoot, !editable && { paddingHorizontal: hGridInset / 2 }]}
+            collapsable={false}
             onLayout={(e) => {
               const lw = e.nativeEvent.layout.width;
               setStitchUsableW(Math.max(0, lw - hGridInset));
@@ -439,7 +467,9 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const vUsableW =
     stitchUsableW > 0
       ? stitchUsableW
-      : Math.max(0, vertIconGridLayout.w - vGridInset);
+      : gridWidthFallback > 0
+        ? gridWidthFallback
+        : Math.max(0, vertIconGridLayout.w - vGridInset);
   const vUsableH =
     vertIconGridLayout.h > 0
       ? vertIconGridLayout.h
@@ -459,7 +489,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
       : 0;
 
   return (
-    <LinearGradient colors={bg3} style={[wf.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
+    <LinearGradient colors={bg3} style={[wf.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]} collapsable={false}>
       {wallpaperUrl ? (
         <Animated.Image
           source={{ uri: wallpaperUrl }}
@@ -632,6 +662,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             !editable && { paddingHorizontal: vGridInset / 2 },
             mirror && { flex: 0, flexGrow: 0, justifyContent: 'flex-start' },
           ]}
+          collapsable={false}
           onLayout={(e) => {
             const lw = e.nativeEvent.layout.width;
             setStitchUsableW(Math.max(0, lw - vGridInset));

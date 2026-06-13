@@ -132,3 +132,13 @@ export function getPreviewModalStackSize(screenH: number, iconSlotCount: number)
     maxHeight: screenH * 0.96,
   };
 }
+
+/** Ancho útil del grid cuando onLayout aún no midió (Android / contenedor sin transform). */
+export function wireframeGridUsableWidthFallback(
+  screenOrContainerWidth: number,
+  isPreview: boolean,
+): number {
+  const inset = isPreview ? WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW : WIREFRAME_STITCH_HORIZONTAL_INSET;
+  const cardW = Math.min(420, Math.max(240, screenOrContainerWidth - 32));
+  return Math.max(0, cardW - inset);
+}

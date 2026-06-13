@@ -21,6 +21,7 @@ import { creationT } from '@/services/creationI18n';
 import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
+import { requestSubscriptionPanel, requestCsCreditPacksStore } from '@/services/subscriptionNavigationIntent';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -1154,6 +1155,29 @@ const VaultScreen = () => {
           borderBottomWidth: 1,
           borderBottomColor: vaultTheme.headerDivider,
         },
+        headerTopRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          width: '100%',
+          marginBottom: 4,
+        },
+        csStoreBtn: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: 6,
+          paddingHorizontal: 10,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: vaultTheme.ctaAccent,
+          backgroundColor: vaultTheme.surfaceMuted,
+        },
+        csStoreBtnText: {
+          fontSize: 12,
+          fontWeight: '700',
+          color: vaultTheme.ctaAccent,
+        },
         headerCenterBlock: {
           alignItems: 'center',
           width: '100%',
@@ -1627,11 +1651,8 @@ const VaultScreen = () => {
 
   const handleUpgradePress = async () => {
     try {
-      Alert.alert(
-        'Lujo de Acceso Masivo',
-        'La app es Free-to-Use. Para capacidades de negocio, activa anualidad por cada Tarjeta de Negocio desde el flujo de creacion de negocio.',
-      );
       setLimitReachedVisible(false);
+      requestSubscriptionPanel({ delayMs: 200 });
     } catch (error) {
       console.error('Error triggering purchase flow:', error);
       Alert.alert(t('common_error'), t('cards_purchase_failed'));
@@ -1684,6 +1705,17 @@ const VaultScreen = () => {
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: vaultTheme.headerDivider }]}>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity
+            style={styles.csStoreBtn}
+            onPress={() => requestCsCreditPacksStore()}
+            accessibilityRole="button"
+            accessibilityLabel={t('sub_cs_coins_section_title')}
+          >
+            <MaterialCommunityIcons name="circle-multiple" size={16} color={vaultTheme.ctaAccent} />
+            <Text style={styles.csStoreBtnText}>{t('sub_credits_label')}</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerCenterBlock}>
           <View style={styles.headerUserRowCentered}>
             <BrandGradientText style={styles.headerSubtitle}>{headerProfileLabel}</BrandGradientText>

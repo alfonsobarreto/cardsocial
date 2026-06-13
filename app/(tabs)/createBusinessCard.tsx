@@ -24,6 +24,7 @@ import {
 import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
+import { requestSubscriptionPanel, requestBusinessAnnualLicense, subscribeBusinessLicenseActivated } from '@/services/subscriptionNavigationIntent';
 import { resolveBusinessMarketFacets } from '@/services/businessMarketFacets';
 import type { BusinessCardDoc } from '@/services/types/cards';
 
@@ -43,6 +44,7 @@ import { db } from '@/services/firebaseConfig';
 import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { useCreationT, vaultDataTypeCreationLabel } from '@/services/creationI18n';
+import { useCoreT } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
@@ -310,6 +312,7 @@ export default function CreateBusinessCardScreen() {
   const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
   const tcx = useCreationT();
+  const coreT = useCoreT();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -479,6 +482,14 @@ export default function CreateBusinessCardScreen() {
   useEffect(() => {
     void refreshCreatedCardMeta();
   }, [refreshCreatedCardMeta]);
+
+  useEffect(() => {
+    return subscribeBusinessLicenseActivated((payload) => {
+      const id = String(payload?.bId || '').trim();
+      if (!id || id !== String(createdBId || '').trim()) return;
+      void refreshCreatedCardMeta();
+    });
+  }, [createdBId, refreshCreatedCardMeta]);
 
   useEffect(() => {
     const bId = String(routeBId || '').trim();
@@ -850,7 +861,8 @@ export default function CreateBusinessCardScreen() {
         if (cancelled || slots.canCreate) {
           return;
         }
-        router.replace('/vault_store' as never);
+        router.replace('/(tabs)/cards' as any);
+        requestSubscriptionPanel({ delayMs: 350 });
       })();
       return () => {
         cancelled = true;
@@ -1383,7 +1395,7 @@ export default function CreateBusinessCardScreen() {
     if (!uid || !createdBId) return;
     const licensed = await hasActiveBusinessLicense(uid, createdBId);
     if (!licensed) {
-      Alert.alert(tcx('create_license_required_publishing_title'), tcx('create_license_required_publishing_body'));
+      requestBusinessAnnualLicense(createdBId);
       return;
     }
     try {
@@ -1814,15 +1826,28 @@ export default function CreateBusinessCardScreen() {
             </View>
 
             {!licenseActive ? (
-              <TouchableOpacity
-                style={[styles.secondaryBtn, { borderColor: border, opacity: activatingLicense ? 0.6 : 1 }]}
-                onPress={() => void handleDemoLicense()}
-                disabled={activatingLicense}
-              >
-                <Text style={[styles.secondaryBtnText, { color: text }]}>
-                  {tcx('create_simulate_license_dev')}
-                </Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[styles.secondaryBtn, { borderColor: shell.ctaAccent, opacity: activatingLicense ? 0.6 : 1 }]}
+                  onPress={() => requestBusinessAnnualLicense(editingBId)}
+                  disabled={activatingLicense}
+                >
+                  <Text style={[styles.secondaryBtnText, { color: shell.ctaAccent }]}>
+                    {coreT('sub_activate_annual_license')}
+                  </Text>
+                </TouchableOpacity>
+                {__DEV__ ? (
+                  <TouchableOpacity
+                    style={[styles.secondaryBtn, { borderColor: border, opacity: activatingLicense ? 0.6 : 1, marginTop: 10 }]}
+                    onPress={() => void handleDemoLicense()}
+                    disabled={activatingLicense}
+                  >
+                    <Text style={[styles.secondaryBtnText, { color: text }]}>
+                      {tcx('create_simulate_license_dev')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
             ) : null}
 
             <TouchableOpacity

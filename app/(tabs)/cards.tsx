@@ -19,7 +19,10 @@ import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal'
 import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 import { getPreviewModalStackSize, getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
-import { renderWireframeMiniIcon } from '@/components/smartCard/wireframeMirrorRendering';
+import {
+  renderWireframeMiniIcon,
+  renderWireframeMirrorMiniIcon,
+} from '@/components/smartCard/wireframeMirrorRendering';
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import {
@@ -49,6 +52,7 @@ import {
 } from '@/services/businessCardsRepo';
 import { notifyMyBusinessCardsInventoryChanged } from '@/services/businessCardInventoryEvents';
 import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
+import { requestSubscriptionPanel } from '@/services/subscriptionNavigationIntent';
 import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
 
 /**
@@ -2472,25 +2476,17 @@ export default function CardsFactoryScreen() {
     [],
   );
   const factoryPreviewMirrorScale = 0.8;
-  const factoryPreviewScaledCard = useMemo(() => {
-    const baseW = 420;
-    const modalCardH = Math.max(
+  /** Tamaño nativo del wireframe (sin transform: scale) para que onLayout en Android mida bien. */
+  const factoryPreviewCardLayout = useMemo(() => {
+    const designW = 420;
+    const designH = Math.max(
       560,
       getPreviewModalStackSize(height, factoryResolvedDataCount).height - 96,
     );
-    const availableW = Math.max(240, Math.min(width - 88, baseW));
-    const scale = Math.min(1, availableW / baseW);
-    const scaledW = Math.round(baseW * scale);
-    const scaledH = Math.round(modalCardH * scale);
-    return {
-      baseW,
-      baseH: modalCardH,
-      scale,
-      scaledW,
-      scaledH,
-      left: (scaledW - baseW) / 2,
-      top: (scaledH - modalCardH) / 2,
-    };
+    const cardW = Math.round(Math.max(240, Math.min(width - 88, designW)));
+    const scale = cardW / designW;
+    const cardH = Math.round(designH * scale);
+    return { cardW, cardH };
   }, [height, width, factoryResolvedDataCount]);
   const filteredVaultItemsForSelector = useMemo(() => {
     const query = dataSelectorQuery.trim().toLowerCase();
@@ -2530,10 +2526,7 @@ export default function CardsFactoryScreen() {
   const handleUpgradePress = async () => {
     try {
       setLimitReachedVisible(false);
-      Alert.alert(
-        t('cards_model_updated_title'),
-        t('cards_model_updated_body'),
-      );
+      requestSubscriptionPanel({ delayMs: 200 });
     } catch (error) {
       console.error('Error upgrading:', error);
       Alert.alert(t('common_error'), t('cards_purchase_failed'));
@@ -3046,8 +3039,8 @@ export default function CardsFactoryScreen() {
       setFactoryVisible(false);
     }
     setViewerItem(item);
-    // iOS: dejar que el modal del editor cierre (animación) antes de mostrar el visor; si no, a veces no se ve.
-    if (Platform.OS === 'ios' && wasFactory) {
+    // Dejar que el modal del editor cierre (animación) antes de mostrar el visor; si no, a veces no se ve.
+    if (wasFactory) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setViewerVisible(true);
@@ -3084,13 +3077,16 @@ export default function CardsFactoryScreen() {
     );
   };
 
+  const renderMirrorMiniIcon = (item: VaultItem | null | undefined, size = 20, glyphColor?: string) =>
+    renderWireframeMirrorMiniIcon(item, size, glyphColor, iconVaultById, cardsTheme.textMuted);
+
   const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean, chestTheme: ChestCardTheme) => (
     <WireframeSlotTile
       slot={slot}
       ui={ui}
       editable={editable}
       chestTheme={chestTheme}
-      renderMiniIcon={renderVaultMiniIcon}
+      renderMiniIcon={editable ? renderVaultMiniIcon : renderMirrorMiniIcon}
       onEditableOpenPicker={(index) => openSlotPicker(index)}
       onDataPress={(item) => void openDataPopover(item as VaultItem)}
       onMirrorLongPress={(s) => handlePreviewIconLongPress(s as EditSlot)}
@@ -3115,8 +3111,9 @@ export default function CardsFactoryScreen() {
     } | null;
     mirrorStatsCapsuleScale?: number;
     medalPills?: { key: string; icon: string; count: number }[];
+    containerWidth?: number;
   }) => {
-    const { layout, slots, editable, theme, wallpaperUrl, wireIdentity, mirrorStatsCapsuleScale, medalPills } = params;
+    const { layout, slots, editable, theme, wallpaperUrl, wireIdentity, mirrorStatsCapsuleScale, medalPills, containerWidth } = params;
     const wId = wireIdentity;
     const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || t('label_new_card')).trim();
     const dispSub = wId ? wId.subtitle : `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`;
@@ -3142,6 +3139,7 @@ export default function CardsFactoryScreen() {
         renderSlotContent={renderSlotContent}
         mirrorStatsCapsuleScale={mirrorStatsCapsuleScale}
         medalPills={medalPills}
+        containerWidth={containerWidth}
       />
     );
   };
@@ -3787,7 +3785,7 @@ export default function CardsFactoryScreen() {
                 }
                 const slots = await getBusinessCardSlotAvailability(uid);
                 if (!slots.canCreate) {
-                  router.push('/vault_store' as never);
+                  requestSubscriptionPanel({ delayMs: 200 });
                   return;
                 }
                 router.push({
@@ -4111,31 +4109,22 @@ export default function CardsFactoryScreen() {
                               style={[
                                 styles.factoryPreviewScaledOuter,
                                 {
-                                  width: factoryPreviewScaledCard.scaledW,
-                                  height: factoryPreviewScaledCard.scaledH,
+                                  width: factoryPreviewCardLayout.cardW,
+                                  height: factoryPreviewCardLayout.cardH,
                                 },
                               ]}
+                              collapsable={false}
                             >
-                              <View
-                                style={{
-                                  position: 'absolute',
-                                  left: factoryPreviewScaledCard.left,
-                                  top: factoryPreviewScaledCard.top,
-                                  width: factoryPreviewScaledCard.baseW,
-                                  height: factoryPreviewScaledCard.baseH,
-                                  transform: [{ scale: factoryPreviewScaledCard.scale }],
-                                }}
-                              >
-                                {renderWireframeCard({
-                                  layout: isLandscape ? 'horizontal' : 'vertical',
-                                  slots: editSlots.filter((s) => s.item !== null),
-                                  editable: false,
-                                  theme: resolveTheme(themeId),
-                                  wallpaperUrl: selectedWallpaper?.fullUrl,
-                                  mirrorStatsCapsuleScale: factoryPreviewMirrorScale,
-                                  medalPills: factorySmartMedalPills,
-                                })}
-                              </View>
+                              {renderWireframeCard({
+                                layout: isLandscape ? 'horizontal' : 'vertical',
+                                slots: editSlots.filter((s) => s.item !== null),
+                                editable: false,
+                                theme: resolveTheme(themeId),
+                                wallpaperUrl: selectedWallpaper?.fullUrl,
+                                mirrorStatsCapsuleScale: factoryPreviewMirrorScale,
+                                medalPills: factorySmartMedalPills,
+                                containerWidth: factoryPreviewCardLayout.cardW,
+                              })}
                             </View>
                           )}
                         </ScrollView>

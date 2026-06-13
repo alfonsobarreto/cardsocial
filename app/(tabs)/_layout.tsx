@@ -46,7 +46,6 @@ import { hasUnlimitedAdminUi, isSuperAdmin } from '@/services/roleService';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import {
   subscribeSubscriptionPanelOpen,
-  type SubscriptionScrollSection,
 } from '@/services/subscriptionNavigationIntent';
 import { subscribeMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
 import { setRadarTrialEnabledCache } from '@/services/radarTrialEnabledCache';
@@ -173,7 +172,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'blocked_users' | 'bunker'>('menu');
-  const [subscriptionScrollSection, setSubscriptionScrollSection] = useState<SubscriptionScrollSection | null>(null);
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [radarTrialRemote, setRadarTrialRemote] = useState(false);
@@ -316,8 +314,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   }, [navigation]);
 
   useEffect(() => {
-    return subscribeSubscriptionPanelOpen((payload) => {
-      setSubscriptionScrollSection(payload.scrollSection ?? null);
+    return subscribeSubscriptionPanelOpen(() => {
       setActivePanel('subscription');
       setDrawerVisible(true);
     });
@@ -1220,7 +1217,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Cuenta', 'Account')}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/vault_store'); }}>
+                    <TouchableOpacity
+                      style={styles.drawerItem}
+                      onPress={() => {
+                        setDrawerVisible(false);
+                        setActivePanel('subscription');
+                      }}
+                    >
                       <MaterialCommunityIcons name="store" size={20} color={shell.ctaAccent} />
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Suscripción', 'Subscription')}</Text>
                     </TouchableOpacity>
@@ -1548,11 +1551,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 ) : activePanel === 'subscription' ? (
                   <Subscription
                     onClose={() => {
-                      setSubscriptionScrollSection(null);
                       setActivePanel('menu');
                     }}
-                    initialScrollSection={subscriptionScrollSection}
-                    onScrollIntentConsumed={() => setSubscriptionScrollSection(null)}
                   />
                 ) : activePanel === 'blocked_users' ? (
                   <View style={styles.legalScroll}>

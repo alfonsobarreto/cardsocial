@@ -1,7 +1,7 @@
 import { getPreviewModalStackSize } from '@/components/smartCard/wireframeMath';
 import { BlurView } from 'expo-blur';
 import React from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const shellStyles = StyleSheet.create({
@@ -147,10 +147,27 @@ export function SmartCardMirrorModal({
           },
         ]}
       >
-        <BlurView intensity={65} tint={footer.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
-        <View style={[shellStyles.previewModalStack, { height: stack.height, maxHeight: stack.maxHeight }]}>
-          <View style={shellStyles.previewModalCard}>
-            <View style={{ flex: 1, minHeight: 0, paddingBottom: 8 }}>{children}</View>
+        <BlurView
+          intensity={Platform.OS === 'android' ? 28 : 65}
+          tint={footer.blurTint}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+        {Platform.OS === 'android' ? (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor:
+                  footer.blurTint === 'dark' ? 'rgba(7,18,38,0.42)' : 'rgba(255,255,255,0.38)',
+              },
+            ]}
+            pointerEvents="none"
+          />
+        ) : null}
+        <View style={[shellStyles.previewModalStack, { height: stack.height, maxHeight: stack.maxHeight }]} collapsable={false}>
+          <View style={shellStyles.previewModalCard} collapsable={false}>
+            <View style={{ flex: 1, minHeight: 0, paddingBottom: 8 }} collapsable={false}>{children}</View>
           </View>
 
           <View style={{ marginTop: 12 }}>

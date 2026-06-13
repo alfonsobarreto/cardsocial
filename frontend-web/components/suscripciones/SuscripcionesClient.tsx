@@ -1,8 +1,6 @@
 'use client';
 
 import { PremiumButton } from '@/components/suscripciones/PremiumButton';
-import { getCommerceConfigForWeb, type CommerceCreditPackWeb } from '@/lib/commerceConfigWeb';
-import { fetchPublicMarketRadarConfig } from '@/lib/publicSystemConfig';
 import {
   intlLocaleTagForSuscripcion,
   suscripcionPathForLocale,
@@ -45,8 +43,6 @@ function tierBlurbKey(k: TierKey): string {
 
 export default function SuscripcionesClient({ locale }: { locale: SuscripcionLocale }) {
   const [tiers, setTiers] = useState<TiersConfig | null>(null);
-  const [packs, setPacks] = useState<CommerceCreditPackWeb[]>([]);
-  const [radar, setRadar] = useState({ proPriceUsd: 0, proEquivalentCs: 0 });
   const [loading, setLoading] = useState(true);
 
   const landingHome = locale === 'es' ? '/es' : '/';
@@ -56,15 +52,9 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
     let alive = true;
     void (async () => {
       try {
-        const [ti, co, ra] = await Promise.all([
-          getTiersConfigForWeb(),
-          getCommerceConfigForWeb(),
-          fetchPublicMarketRadarConfig(),
-        ]);
+        const ti = await getTiersConfigForWeb();
         if (!alive) return;
         setTiers(ti);
-        setPacks(co.creditPacks);
-        setRadar(ra);
       } finally {
         if (alive) setLoading(false);
       }
@@ -146,200 +136,99 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
         {loading ? (
           <p className="text-center text-sm font-medium uppercase tracking-[0.2em] text-white/45">{tr(locale, 'loading')}</p>
         ) : (
-          <>
-            <Section title={tr(locale, 'section.plans')} lead={tr(locale, 'section.plansLead')}>
-              {!tiers ? (
-                <Empty>{tr(locale, 'labels.emptyTiers')}</Empty>
-              ) : (
-                <div className="grid gap-6 lg:gap-8">
-                  {tierKeys.map((k) => {
-                    const row = tiers[k];
-                    const featured = k === 'influencer';
-                    return (
-                      <article
-                        key={k}
-                        className={[
-                          'relative overflow-hidden rounded-[2rem] border p-8 backdrop-blur-2xl transition duration-300 hover:-translate-y-1 lg:p-10',
-                          featured
-                            ? 'border-[#2F7BFF]/40 bg-[linear-gradient(135deg,rgba(47,123,255,0.12),rgba(17,17,17,0.72)_40%,rgba(5,5,5,0.86))] shadow-[0_0_90px_rgba(47,123,255,0.12)]'
-                            : 'border-white/10 bg-[#111111]/68 shadow-[0_30px_90px_rgba(0,0,0,0.42)] hover:border-[#2F7BFF]/35',
-                        ].join(' ')}
-                      >
-                        {featured ? (
-                          <span className="absolute right-6 top-6 rounded-full border border-[#2F7BFF]/45 bg-[#2F7BFF]/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#4D8FFF]">
-                            Pro
-                          </span>
-                        ) : null}
-                        <p className="text-xs font-black uppercase tracking-[0.26em] text-[#2F7BFF]/90">{k}</p>
-                        <h3 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">
-                          {tr(locale, tierTitleKey(k))}
-                        </h3>
-                        <p className="mt-4 max-w-prose text-sm leading-7 text-white/58">{tr(locale, tierBlurbKey(k))}</p>
-
-                        <div className="mt-8 space-y-2 border-t border-white/10 pt-8">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                            {tr(locale, 'limits.title')}
-                          </p>
-                          <ul className="grid gap-2 text-sm text-white/72 sm:grid-cols-2">
-                            <li>
-                              <span className="text-white/45">{tr(locale, 'limits.iconData')}:</span>{' '}
-                              <span className="font-semibold text-white">{row.iconDataLimit}</span>
-                            </li>
-                            <li>
-                              <span className="text-white/45">{tr(locale, 'limits.smartCards')}:</span>{' '}
-                              <span className="font-semibold text-white">{row.smartCardsLimit}</span>
-                            </li>
-                            <li>
-                              <span className="text-white/45">{tr(locale, 'limits.businessCards')}:</span>{' '}
-                              <span className="font-semibold text-white">{row.businessCardsLimit}</span>
-                            </li>
-                            <li>
-                              <span className="text-white/45">{tr(locale, 'limits.voip')}:</span>{' '}
-                              <span className="font-semibold text-white">{row.voipMinutesIncluded}</span>
-                            </li>
-                            <li>
-                              <span className="text-white/45">{tr(locale, 'limits.themes')}:</span>{' '}
-                              <span className="font-semibold text-white">
-                                {row.premiumThemes ? tr(locale, 'labels.yes') : tr(locale, 'labels.no')}
-                              </span>
-                            </li>
-                            <li>
-                              <span className="text-white/45">{tr(locale, 'limits.giftAnnual')}:</span>{' '}
-                              <span className="font-semibold text-white">{row.annualWelcomeGiftCs}</span>
-                            </li>
-                          </ul>
-                        </div>
-
-                        {k !== 'free' ? (
-                          <div className="mt-8 space-y-3 rounded-2xl border border-white/10 bg-black/30 p-6">
-                            <PriceLine
-                              label={tr(locale, 'labels.monthly')}
-                              usd={row.monthlyPriceUsd}
-                              cs={row.monthlyEquivalentCs}
-                              locale={locale}
-                              suffix=""
-                            />
-                            <PriceLine
-                              label={tr(locale, 'labels.annual')}
-                              usd={row.annualPriceUsd}
-                              cs={row.annualEquivalentCs}
-                              locale={locale}
-                              suffix=""
-                            />
-                            {row.freeTrialDays > 0 ? (
-                              <p className="text-xs text-white/48">
-                                {tr(locale, 'labels.trial')}:{' '}
-                                <span className="font-semibold text-[#4D8FFF]">{row.freeTrialDays}</span>
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </Section>
-
-            {tiers &&
-            (tiers.business.annualPriceUsd > 0 || tiers.business.annualEquivalentCs > 0 || tiers.business.annualWelcomeGiftCs > 0) ? (
-              <Section title={tr(locale, 'section.business')} lead={tr(locale, 'section.businessLead')}>
-                <div className="rounded-[2rem] border border-[#2F7BFF]/35 bg-[#101E34]/85 p-8 shadow-[0_0_80px_rgba(47,123,255,0.12)] lg:p-10">
-                  <PriceLine
-                    label={tr(locale, 'labels.annual')}
-                    usd={tiers.business.annualPriceUsd}
-                    cs={tiers.business.annualEquivalentCs}
-                    locale={locale}
-                    suffix=""
-                  />
-                  {tiers.business.annualWelcomeGiftCs > 0 ? (
-                    <p className="mt-4 text-sm text-white/58">
-                      {tr(locale, 'limits.giftAnnual')}:{' '}
-                      <span className="font-semibold text-[#4D8FFF]">
-                        {tiers.business.annualWelcomeGiftCs.toLocaleString(intlLocaleTagForSuscripcion(locale))}
-                      </span>{' '}
-                      {tr(locale, 'labels.cs')}
-                    </p>
-                  ) : null}
-                </div>
-              </Section>
-            ) : null}
-
-            <Section title={tr(locale, 'section.packs')} lead={tr(locale, 'section.packsLead')}>
-              {packs.length === 0 ? (
-                <Empty>{tr(locale, 'section.packsEmpty')}</Empty>
-              ) : (
-                <div className="grid gap-4">
-                  {packs.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex flex-col justify-between gap-4 rounded-[1.6rem] border border-white/10 bg-[#111111]/72 p-6 backdrop-blur-xl sm:flex-row sm:items-center"
+          <Section title={tr(locale, 'section.plans')} lead={tr(locale, 'section.plansLead')}>
+            {!tiers ? (
+              <Empty>{tr(locale, 'labels.emptyTiers')}</Empty>
+            ) : (
+              <div className="grid gap-6 lg:gap-8">
+                {tierKeys.map((k) => {
+                  const row = tiers[k];
+                  const featured = k === 'influencer';
+                  return (
+                    <article
+                      key={k}
+                      className={[
+                        'relative overflow-hidden rounded-[2rem] border p-8 backdrop-blur-2xl transition duration-300 hover:-translate-y-1 lg:p-10',
+                        featured
+                          ? 'border-[#2F7BFF]/40 bg-[linear-gradient(135deg,rgba(47,123,255,0.12),rgba(17,17,17,0.72)_40%,rgba(5,5,5,0.86))] shadow-[0_0_90px_rgba(47,123,255,0.12)]'
+                          : 'border-white/10 bg-[#111111]/68 shadow-[0_30px_90px_rgba(0,0,0,0.42)] hover:border-[#2F7BFF]/35',
+                      ].join(' ')}
                     >
-                      <div>
-                        <p className="font-mono text-xs text-[#4D8FFF]/70">{tr(locale, 'labels.productId')}</p>
-                        <p className="mt-1 font-mono text-sm text-white/88">{p.productId}</p>
-                        {p.popular ? (
-                          <span className="mt-2 inline-block rounded-full border border-[#2F7BFF]/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#4D8FFF]">
-                            {tr(locale, 'labels.popular')}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="text-right sm:min-w-[220px]">
-                        <p className="text-lg font-black text-white">{fmtUsd(locale, p.priceUsd)}</p>
-                        <p className="mt-1 text-sm text-white/58">
-                          {p.equivalentCs.toLocaleString(intlLocaleTagForSuscripcion(locale))} {tr(locale, 'labels.cs')}
+                      {featured ? (
+                        <span className="absolute right-6 top-6 rounded-full border border-[#2F7BFF]/45 bg-[#2F7BFF]/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#4D8FFF]">
+                          {tr(locale, 'labels.popular')}
+                        </span>
+                      ) : null}
+                      <p className="text-xs font-black uppercase tracking-[0.26em] text-[#2F7BFF]/90">{k}</p>
+                      <h3 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">
+                        {tr(locale, tierTitleKey(k))}
+                      </h3>
+                      <p className="mt-4 max-w-prose text-sm leading-7 text-white/58">{tr(locale, tierBlurbKey(k))}</p>
+
+                      <div className="mt-8 space-y-2 border-t border-white/10 pt-8">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                          {tr(locale, 'limits.title')}
                         </p>
+                        <ul className="grid gap-2 text-sm text-white/72 sm:grid-cols-2">
+                          <li>
+                            <span className="text-white/45">{tr(locale, 'limits.iconData')}:</span>{' '}
+                            <span className="font-semibold text-white">{row.iconDataLimit}</span>
+                          </li>
+                          <li>
+                            <span className="text-white/45">{tr(locale, 'limits.smartCards')}:</span>{' '}
+                            <span className="font-semibold text-white">{row.smartCardsLimit}</span>
+                          </li>
+                          <li>
+                            <span className="text-white/45">{tr(locale, 'limits.businessCards')}:</span>{' '}
+                            <span className="font-semibold text-white">{row.businessCardsLimit}</span>
+                          </li>
+                          <li>
+                            <span className="text-white/45">{tr(locale, 'limits.voip')}:</span>{' '}
+                            <span className="font-semibold text-white">{row.voipMinutesIncluded}</span>
+                          </li>
+                          <li>
+                            <span className="text-white/45">{tr(locale, 'limits.themes')}:</span>{' '}
+                            <span className="font-semibold text-white">
+                              {row.premiumThemes ? tr(locale, 'labels.yes') : tr(locale, 'labels.no')}
+                            </span>
+                          </li>
+                          <li>
+                            <span className="text-white/45">{tr(locale, 'limits.giftAnnual')}:</span>{' '}
+                            <span className="font-semibold text-white">{row.annualWelcomeGiftCs}</span>
+                          </li>
+                        </ul>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
 
-            <Section title={tr(locale, 'section.radar')} lead={tr(locale, 'section.radarLead')}>
-              {radar.proPriceUsd <= 0 && radar.proEquivalentCs <= 0 ? (
-                <Empty>{tr(locale, 'labels.noPriceRow')}</Empty>
-              ) : (
-                <div className="rounded-[2rem] border border-white/10 bg-[#111111]/72 p-8 lg:p-10">
-                  <p className="text-2xl font-black text-white">{fmtUsd(locale, radar.proPriceUsd)}</p>
-                  {radar.proEquivalentCs > 0 ? (
-                    <p className="mt-2 text-sm text-white/62">
-                      {radar.proEquivalentCs.toLocaleString(intlLocaleTagForSuscripcion(locale))} {tr(locale, 'labels.cs')}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-            </Section>
-
-            {tiers ? (
-              <Section title={tr(locale, 'section.nfc')} lead={tr(locale, 'section.nfcLead')}>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <NfcCell title={tr(locale, 'nfc.extraSlot')} usd={tiers.addOns.singleBusinessCardExtraUsd} cs={tiers.addOns.singleBusinessCardExtraCs} locale={locale} />
-                  <NfcCell title={tr(locale, 'nfc.pvc')} usd={tiers.addOns.physicalPvcCardUsd} cs={tiers.addOns.physicalPvcCardCs} locale={locale} />
-                  <NfcCell title={tr(locale, 'nfc.metal')} usd={tiers.addOns.physicalMetalCardUsd} cs={tiers.addOns.physicalMetalCardCs} locale={locale} />
-                </div>
-                <ul className="mt-6 space-y-3 text-sm text-white/65">
-                  <li>
-                    <span className="text-white/40">{tr(locale, 'nfc.shipUs')}:</span>{' '}
-                    {fmtUsd(locale, tiers.addOns.shippingUsDomesticUsd)} ·{' '}
-                    {tiers.addOns.shippingUsDomesticCs.toLocaleString(intlLocaleTagForSuscripcion(locale))}{' '}
-                    {tr(locale, 'labels.cs')}
-                  </li>
-                  <li>
-                    <span className="text-white/40">{tr(locale, 'nfc.shipMxCa')}:</span>{' '}
-                    {fmtUsd(locale, tiers.addOns.shippingMxCaUsd)} · {tiers.addOns.shippingMxCaCs.toLocaleString(intlLocaleTagForSuscripcion(locale))}{' '}
-                    {tr(locale, 'labels.cs')}
-                  </li>
-                  <li>
-                    <span className="text-white/40">{tr(locale, 'nfc.shipIntl')}:</span>{' '}
-                    {fmtUsd(locale, tiers.addOns.shippingInternationalUsd)} ·{' '}
-                    {tiers.addOns.shippingInternationalCs.toLocaleString(intlLocaleTagForSuscripcion(locale))}{' '}
-                    {tr(locale, 'labels.cs')}
-                  </li>
-                </ul>
-              </Section>
-            ) : null}
-          </>
+                      {k !== 'free' ? (
+                        <div className="mt-8 space-y-3 rounded-2xl border border-white/10 bg-black/30 p-6">
+                          <PriceLine
+                            label={tr(locale, 'labels.monthly')}
+                            usd={row.monthlyPriceUsd}
+                            cs={row.monthlyEquivalentCs}
+                            locale={locale}
+                            suffix=""
+                          />
+                          <PriceLine
+                            label={tr(locale, 'labels.annual')}
+                            usd={row.annualPriceUsd}
+                            cs={row.annualEquivalentCs}
+                            locale={locale}
+                            suffix=""
+                          />
+                          {row.freeTrialDays > 0 ? (
+                            <p className="text-xs text-white/48">
+                              {tr(locale, 'labels.trial')}:{' '}
+                              <span className="font-semibold text-[#4D8FFF]">{row.freeTrialDays}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </Section>
         )}
 
         <footer className="border-t border-white/10 pt-16">
@@ -400,18 +289,6 @@ function PriceLine({
           {cs.toLocaleString(intlLocaleTagForSuscripcion(locale))} {tr(locale, 'labels.cs')}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function NfcCell({ title, usd, cs, locale }: { title: string; usd: number; cs: number; locale: SuscripcionLocale }) {
-  return (
-    <div className="rounded-[1.6rem] border border-white/10 bg-[#111111]/72 p-6">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4D8FFF]/80">{title}</p>
-      <p className="mt-3 text-lg font-black text-white">{fmtUsd(locale, usd)}</p>
-      <p className="mt-1 text-sm text-white/55">
-        {cs.toLocaleString(intlLocaleTagForSuscripcion(locale))} {tr(locale, 'labels.cs')}
-      </p>
     </div>
   );
 }

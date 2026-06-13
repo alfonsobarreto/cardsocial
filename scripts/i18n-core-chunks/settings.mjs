@@ -175,6 +175,14 @@ export const settings = {
     'Sécurité et confidentialité',
     'Sicherheit & Datenschutz',
   ),
+  settings_section_membership: L(
+    'Membresía y compras',
+    'Membership & purchases',
+    'Abbonamento e acquisti',
+    'Assinatura e compras',
+    'Abonnement et achats',
+    'Mitgliedschaft & Käufe',
+  ),
   settings_app_lock_label: L('Bloqueo de app', 'App lock', 'Blocco app', 'Bloqueio do app', 'Verrouillage de l’app', 'App-Sperre'),
   settings_active_sessions: L(
     'Sesiones activas',

@@ -2,7 +2,7 @@ import type { CardTheme as ChestCardTheme } from '@/constants/themeChest';
 import { useCoreT } from '@/services/coreI18n';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { WireframeEditSlot, WireframeVaultItem } from '@/components/smartCard/IsolatedWireframeCard';
 import {
   computeWireframeBubbleBorderRadius,
@@ -164,6 +164,7 @@ export function WireframeSlotTile({
             color: il.color,
             fontWeight: '300',
             fontStyle: il.fontStyle,
+            ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
           }}
           numberOfLines={3}
           ellipsizeMode="tail"
@@ -208,6 +209,7 @@ export function WireframeSlotTile({
             color: il.color,
             fontWeight: il.fontWeight,
             fontStyle: il.fontStyle,
+            ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
           },
         ]}
         numberOfLines={3}

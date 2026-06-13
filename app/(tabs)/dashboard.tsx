@@ -32,7 +32,7 @@ import {
 } from '@/services/marketRadarConfigService';
 import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { userHasMarketRadarProAccess } from '@/services/marketRadarEntitlement';
-import { requestSubscriptionMarketRadarSection, requestSubscriptionPanel } from '@/services/subscriptionNavigationIntent';
+import { requestMarketRadarProUpsell } from '@/services/subscriptionNavigationIntent';
 import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import {
@@ -1197,7 +1197,7 @@ export default function DashboardScreen() {
         tcx('dashboard_market_radar_pro_body', { priceLine }),
         [
           { text: tcx('common_close'), style: 'cancel' },
-          { text: tcx('dashboard_go_subscription'), onPress: () => requestSubscriptionPanel() },
+          { text: tcx('dashboard_go_subscription'), onPress: () => requestMarketRadarProUpsell() },
         ],
       );
       return;
@@ -1211,7 +1211,7 @@ export default function DashboardScreen() {
           (radarEmbed.issue.code === 'market_radar_pro_required' ||
             radarEmbed.issue.code === 'market_radar_requires_business_card');
         if (gate403) {
-          requestSubscriptionMarketRadarSection();
+          requestMarketRadarProUpsell();
           return;
         }
         Alert.alert(
