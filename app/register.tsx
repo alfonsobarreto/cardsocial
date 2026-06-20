@@ -26,7 +26,7 @@ import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { setPresidentialSecurityEnabled } from '@/services/biometricAuth';
 import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { optimizeProfilePhoto } from '@/services/imageOptimize';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -53,13 +53,13 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SCROLL_CONTENT_MIN_FILL, formKeyboardScrollViewProps } from '@/constants/scrollInteraction';
 import { auth, db } from '../services/firebaseConfig';
-import CircularPhotoCropper from './components/CircularPhotoCropper';
+import BasicPhotoEditorModal from '@/app/components/BasicPhotoEditorModal';
+import { PHOTO_PRESET_REGISTER, presetToEditorMode } from '@/services/photoEditorPresets';
 import LegalSignupReviewModal from './components/LegalSignupReviewModal';
 import LuxuryModerationModal from './components/LuxuryModerationModal';
 import PremiumSuccessTransition from './components/PremiumSuccessTransition';
 
-// ─── Photo optimization helpers (porta misma lógica que NewInfoForm/Vault) ────
-const MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+// ─── Photo optimization (shared service) ────
 
 const REGISTER_FIELD_ERROR_BORDER = '#E53935';
 const REGISTER_FIELD_ERROR_TEXT = '#E53935';
@@ -80,48 +80,6 @@ type RegisterFieldKey =
   | 'photo'
   | 'legal';
 
-async function getFileSizeForPhoto(uri: string): Promise<number> {
-  try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
-    if ((info as any)?.size) return Number((info as any).size);
-  } catch { /* fallback to fetch */ }
-  const blob = await fetch(uri).then((r) => r.blob());
-  return blob.size;
-}
-
-async function optimizePhotoForUpload(uri: string): Promise<string> {
-  const initialSize = await getFileSizeForPhoto(uri);
-  if (initialSize <= MAX_PROFILE_PHOTO_BYTES) return uri;
-
-  const attempts = [
-    { width: 1920, compress: 0.72 },
-    { width: 1440, compress: 0.62 },
-    { width: 1080, compress: 0.52 },
-    { width: 840, compress: 0.45 },
-    { width: 640, compress: 0.38 },
-  ];
-
-  let bestUri = uri;
-  for (const attempt of attempts) {
-    const result = await ImageManipulator.manipulateAsync(
-      bestUri,
-      [{ resize: { width: attempt.width } }],
-      { compress: attempt.compress, format: ImageManipulator.SaveFormat.JPEG }
-    );
-    const newSize = await getFileSizeForPhoto(result.uri);
-    bestUri = result.uri;
-    if (newSize <= MAX_PROFILE_PHOTO_BYTES) return bestUri;
-  }
-
-  // Modo emergencia: 480px calidad 0.2
-  const emergency = await ImageManipulator.manipulateAsync(
-    bestUri,
-    [{ resize: { width: 480 } }],
-    { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }
-  );
-  return emergency.uri;
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function RegisterScreen() {
   const langCtx = useLanguageOptional();
@@ -761,7 +719,7 @@ export default function RegisterScreen() {
     let activeUri = fileUri;
     if (mimeType.startsWith('image/')) {
       setUploadStageKey('register_upload_optimizing');
-      activeUri = await optimizePhotoForUpload(fileUri);
+      activeUri = await optimizeProfilePhoto(fileUri);
     }
 
     const allowModerationBypass = process.env.EXPO_PUBLIC_ALLOW_PHOTO_MODERATION_BYPASS === '1';
@@ -1353,11 +1311,12 @@ export default function RegisterScreen() {
           ) : null}
 
           {/* Circular photo cropper */}
-          <CircularPhotoCropper
+          <BasicPhotoEditorModal
             visible={cropperVisible}
             uri={rawPhotoUri}
             imageWidth={rawPhotoWidth}
             imageHeight={rawPhotoHeight}
+            mode={presetToEditorMode(PHOTO_PRESET_REGISTER)}
             onConfirm={(croppedUri) => {
               setPhotoUri(croppedUri);
               setCropperVisible(false);

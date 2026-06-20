@@ -20,6 +20,7 @@ const {
 } = require('../lib/mercadopagoClient');
 const { fulfillMercadoPagoTierSubscription } = require('../lib/mercadopagoTierFulfillment');
 const { buildUserFacingJson } = require('../lib/userFacingErrors');
+const { resolveAnnualPriceUsd } = require('../lib/tierAnnualPricing');
 
 const TIERS_REF_PATH = 'system_config/tiers';
 
@@ -68,8 +69,8 @@ function tierPriceUsd(tiersDoc, tierKey, billingPeriod) {
   const row = tiersDoc?.[tierKey];
   if (!row || typeof row !== 'object') return null;
   const monthly = Math.max(0, Number(row.monthlyPriceUsd) || 0);
-  const annual = Math.max(0, Number(row.annualPriceUsd) || 0);
   if (billingPeriod === 'annual') {
+    const annual = resolveAnnualPriceUsd(row);
     return annual > 0 ? annual : monthly * 12;
   }
   return monthly;

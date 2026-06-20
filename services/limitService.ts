@@ -231,7 +231,9 @@ export async function validateVaultItemCreation(userId: string): Promise<LimitVa
         message: 'Límites no disponibles. Configura system_config/tiers en el panel.',
       };
     }
-    const maxLimit = Math.max(0, tiers[tier].iconDataLimit);
+    const maxLimit =
+      Math.max(0, tiers[tier].iconDataLimit) +
+      Math.max(0, Math.floor(Number(userData?.iconDataBonusSlots) || 0));
     const canCreate = currentCount < maxLimit;
 
     return {

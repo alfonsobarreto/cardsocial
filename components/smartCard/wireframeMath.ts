@@ -133,12 +133,40 @@ export function getPreviewModalStackSize(screenH: number, iconSlotCount: number)
   };
 }
 
+/** Ancho del contenedor espejo (modal / preview). Una sola fuente de verdad iOS + Android. */
+export function wireframeMirrorContainerWidth(screenWidth: number): number {
+  return Math.round(Math.min(420, Math.max(280, screenWidth - 32)));
+}
+
+/** Altura de rejilla estimada en modo espejo antes de onLayout (evita salto Android). */
+export function wireframeMirrorGridHeightFallback(
+  containerWidth: number,
+  iconCount: number,
+  layout: 'vertical' | 'horizontal',
+): number {
+  const usableW = wireframeGridUsableWidthFallback(containerWidth, true);
+  const rowPlan = getWireframeIconRowPlan(iconCount);
+  const bubbleSide = computeStitchWireframeBubbleSide(
+    usableW,
+    480,
+    rowPlan,
+    WIREFRAME_STITCH_GAP,
+    WIREFRAME_STITCH_GAP,
+    12,
+  );
+  const slotBelow = wireframeSlotBelowBubbleHeight(Math.max(26, bubbleSide), 12);
+  const rowCount = Math.max(1, rowPlan.length);
+  const betweenRows = WIREFRAME_STITCH_GAP * Math.max(0, rowCount - 1);
+  const total = rowCount * (Math.max(26, bubbleSide) + slotBelow) + betweenRows;
+  return Math.max(layout === 'horizontal' ? 140 : 160, Math.round(total));
+}
+
 /** Ancho útil del grid cuando onLayout aún no midió (Android / contenedor sin transform). */
 export function wireframeGridUsableWidthFallback(
   screenOrContainerWidth: number,
   isPreview: boolean,
 ): number {
   const inset = isPreview ? WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW : WIREFRAME_STITCH_HORIZONTAL_INSET;
-  const cardW = Math.min(420, Math.max(240, screenOrContainerWidth - 32));
+  const cardW = wireframeMirrorContainerWidth(screenOrContainerWidth);
   return Math.max(0, cardW - inset);
 }

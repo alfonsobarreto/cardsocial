@@ -6,6 +6,7 @@ import {
   updateCsEconomyAdminConfig,
 } from '../services/csEconomyAdminService';
 import { useAuth } from '../auth/useAuth';
+import { CsPricingRulesInline } from '../components/CsPricingRulesBanner';
 
 const TX_ID = 'texas_longhorns';
 
@@ -153,12 +154,13 @@ export default function RulesCsEconomy() {
                 }
               />
             </label>
-            <label className="block">
+            <label className="block opacity-90">
               <span className="text-xs font-semibold text-slate-600">Precio en CS</span>
+              <CsPricingRulesInline />
               <input
                 type="number"
                 min={0}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2 text-sm"
                 value={config.studioIconCreditCs}
                 onChange={(ev) =>
                   setConfig((p) => ({
@@ -185,12 +187,13 @@ export default function RulesCsEconomy() {
                 onChange={(ev) => setTx({ priceUsd: Number.parseFloat(ev.target.value) || 0 })}
               />
             </label>
-            <label className="block">
+            <label className="block opacity-90">
               <span className="text-xs font-semibold text-slate-600">Precio en CS</span>
+              <CsPricingRulesInline />
               <input
                 type="number"
                 min={0}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2 text-sm"
                 value={txRow.creditsCs}
                 onChange={(ev) => setTx({ creditsCs: Number.parseInt(ev.target.value, 10) || 0 })}
               />

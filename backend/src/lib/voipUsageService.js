@@ -509,6 +509,31 @@ async function getVoipMinutesSummary(storage, uid) {
   );
 }
 
+async function grantPurchasedVoipMinutes(storage, uid, minutes) {
+  const id = String(uid || '').trim();
+  const add = Math.max(1, Math.floor(Number(minutes) || 0));
+  if (!id) return { ok: false, error: 'uid requerido' };
+  const merged = await readUserMergeFirestoreMongo(storage, id);
+  const month = utcMonthKey();
+  const { used, cycle, purchased } = ensureCycleResetFields(merged, month);
+  await persistVoipFields(storage, id, {
+    voipSubscriptionCycleKey: cycle,
+    voipSubscriptionMinutesUsed: used,
+    voipPurchasedMinutesRemaining: purchased + add,
+  });
+  return { ok: true, grantedMinutes: add };
+}
+
+async function grantIconDataBonusSlots(storage, uid, slots) {
+  const id = String(uid || '').trim();
+  const add = Math.max(1, Math.floor(Number(slots) || 0));
+  if (!id) return { ok: false, error: 'uid requerido' };
+  const merged = await readUserMergeFirestoreMongo(storage, id);
+  const current = Math.max(0, Math.floor(coerceNumber(merged.iconDataBonusSlots, 0)));
+  await persistVoipFields(storage, id, { iconDataBonusSlots: current + add });
+  return { ok: true, grantedSlots: add };
+}
+
 module.exports = {
   checkCallerVoipMinutes,
   checkVoipGateForGhostLink,
@@ -516,6 +541,8 @@ module.exports = {
   recordVoipUsageForOutgoingCall,
   recordVoipUsageForGhostOutgoingLog,
   getVoipMinutesSummary,
+  grantPurchasedVoipMinutes,
+  grantIconDataBonusSlots,
   utcMonthKey,
   computeGhostLinkAgoraExpireDurations,
 };

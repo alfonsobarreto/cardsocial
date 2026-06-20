@@ -24,6 +24,14 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+function canonicalUniversalCardWebUrl(headerList: Headers, token: string): string {
+  const host = headerList.get('x-forwarded-host')?.split(',')[0]?.trim() || headerList.get('host')?.trim();
+  const rawProto = headerList.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+  const proto = rawProto === 'http' || rawProto === 'https' ? rawProto : 'https';
+  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_SITE_ORIGIN?.replace(/\/+$/, '') || 'https://cardsocial.me');
+  return `${origin}/u/${encodeURIComponent(token)}`;
+}
+
 async function fetchCard(token: string): Promise<{ card: CardData } | null> {
   try {
     const res = await fetch(
@@ -77,6 +85,7 @@ export default async function UniversalCardPage({ params, searchParams }: Props)
 
   const { card } = result;
   const theme = getThemeById(card.themeId);
+  const canonicalWebUrl = canonicalUniversalCardWebUrl(headerList, token);
 
   return (
     <main style={{
@@ -95,6 +104,7 @@ export default async function UniversalCardPage({ params, searchParams }: Props)
         expiresAt={card.expiresAt}
         locale={locale}
         universalToken={token}
+        canonicalWebUrl={canonicalWebUrl}
       />
     </main>
   );

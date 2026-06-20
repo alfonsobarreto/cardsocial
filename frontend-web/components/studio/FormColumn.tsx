@@ -10,7 +10,9 @@ import {
   sanitizeNationalDigits,
 } from '@card-social/constants/countryDialCodes';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@card-social/services/vaultMimeGuards';
-import { optimizeVaultUploadFileForWeb } from '@/lib/studioFileOptimizer';
+import { isLikelyImage, optimizeVaultUploadFileForWeb } from '@/lib/studioFileOptimizer';
+import { PHOTO_PRESET_VAULT_IMAGE } from '@/lib/photoEditorPresets';
+import { useStudioPhotoPick } from '@/hooks/useStudioPhotoPick';
 import { uploadVaultDocumentWeb } from '@/lib/studioModerationClient';
 import { extractDomainFromLink, fetchStudioFavicon } from '@/lib/studioFaviconClient';
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
@@ -200,11 +202,38 @@ export default function FormColumn({
     }
   }, [dataType, markDirty, name, t, userId]);
 
+  const retryDocumentPick = useCallback(() => {
+    documentInputRef.current?.click();
+  }, []);
+
+  const {
+    editorNode: vaultPhotoEditor,
+    handleRawFile: openVaultPhotoEditor,
+    isEditing: vaultPhotoEditing,
+  } = useStudioPhotoPick({
+    locale,
+    preset: PHOTO_PRESET_VAULT_IMAGE,
+    onConfirm: handleDocumentFile,
+    onChooseAgain: retryDocumentPick,
+  });
+
+  const handleIncomingDocumentFile = useCallback(
+    async (file: File) => {
+      if (!file || dataType !== 'document') return;
+      if (isLikelyImage(file)) {
+        openVaultPhotoEditor(file, retryDocumentPick);
+        return;
+      }
+      await handleDocumentFile(file);
+    },
+    [dataType, handleDocumentFile, openVaultPhotoEditor, retryDocumentPick],
+  );
+
   const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (file) {
-      await handleDocumentFile(file);
+      await handleIncomingDocumentFile(file);
     }
   };
 
@@ -821,7 +850,7 @@ export default function FormColumn({
                 setDragActive(false);
                 const file = e.dataTransfer.files?.[0];
                 if (file) {
-                  void handleDocumentFile(file);
+                  void handleIncomingDocumentFile(file);
                 }
               }}
               onClick={() => documentInputRef.current?.click()}
@@ -962,6 +991,7 @@ export default function FormColumn({
         </div>
       </div>
 
+      {vaultPhotoEditor}
     </div>
   );
 }

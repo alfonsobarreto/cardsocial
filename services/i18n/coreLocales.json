@@ -407,6 +407,94 @@
     "fr": "Noter",
     "de": "Bewerten"
   },
+  "photo_editor_rotate_left": {
+    "es": "Girar izquierda",
+    "en": "Rotate left",
+    "it": "Ruota a sinistra",
+    "pt": "Girar à esquerda",
+    "fr": "Pivoter à gauche",
+    "de": "Nach links drehen"
+  },
+  "photo_editor_rotate_right": {
+    "es": "Girar derecha",
+    "en": "Rotate right",
+    "it": "Ruota a destra",
+    "pt": "Girar à direita",
+    "fr": "Pivoter à droite",
+    "de": "Nach rechts drehen"
+  },
+  "photo_editor_mirror_h": {
+    "es": "Espejo H",
+    "en": "Mirror H",
+    "it": "Specchio O",
+    "pt": "Espelho H",
+    "fr": "Miroir H",
+    "de": "Spiegel H"
+  },
+  "photo_editor_mirror_v": {
+    "es": "Espejo V",
+    "en": "Mirror V",
+    "it": "Specchio V",
+    "pt": "Espelho V",
+    "fr": "Miroir V",
+    "de": "Spiegel V"
+  },
+  "photo_editor_use_photo": {
+    "es": "Usar foto",
+    "en": "Use photo",
+    "it": "Usa foto",
+    "pt": "Usar foto",
+    "fr": "Utiliser la photo",
+    "de": "Foto verwenden"
+  },
+  "photo_editor_crop_confirm": {
+    "es": "Confirmar foto",
+    "en": "Confirm photo",
+    "it": "Conferma foto",
+    "pt": "Confirmar foto",
+    "fr": "Confirmer la photo",
+    "de": "Foto bestätigen"
+  },
+  "photo_editor_choose_again": {
+    "es": "Tomar / Elegir de nuevo",
+    "en": "Take / Choose again",
+    "it": "Scatta / Scegli di nuovo",
+    "pt": "Tirar / Escolher de novo",
+    "fr": "Prendre / Choisir à nouveau",
+    "de": "Neu wählen"
+  },
+  "photo_editor_crop_title": {
+    "es": "Ajusta tu foto",
+    "en": "Adjust your photo",
+    "it": "Regola la foto",
+    "pt": "Ajuste sua foto",
+    "fr": "Ajuster votre photo",
+    "de": "Foto anpassen"
+  },
+  "photo_editor_crop_hint": {
+    "es": "Arrastra para mover · Pellizca para zoom",
+    "en": "Drag to move · Pinch to zoom",
+    "it": "Trascina per spostare · Pizzica per zoomare",
+    "pt": "Arraste para mover · Belisque para ampliar",
+    "fr": "Glisser pour déplacer · Pincer pour zoomer",
+    "de": "Ziehen · Zoomen mit zwei Fingern"
+  },
+  "photo_editor_review_title": {
+    "es": "Revisar imagen",
+    "en": "Review image",
+    "it": "Rivedi immagine",
+    "pt": "Revisar imagem",
+    "fr": "Vérifier l’image",
+    "de": "Bild prüfen"
+  },
+  "photo_editor_review_hint": {
+    "es": "Gira o refleja si hace falta · Desliza para mover · Pellizca para zoom",
+    "en": "Rotate or mirror if needed · Scroll to pan · Pinch to zoom",
+    "it": "Ruota o rifletti se serve · Scorri per spostare · Pizzica per zoomare",
+    "pt": "Gire ou espelhe se precisar · Deslize para mover · Belisque para ampliar",
+    "fr": "Tournez ou miroitez si besoin · Faites défiler · Pincez pour zoomer",
+    "de": "Drehen oder spiegeln · Wischen · Zoomen mit zwei Fingern"
+  },
   "ghost_open_settings": {
     "es": "Abrir ajustes",
     "en": "Open Settings",
@@ -1294,6 +1382,38 @@
     "pt": "Aponte o QR dentro da moldura",
     "fr": "Visez le QR dans le cadre",
     "de": "Halte den QR im Rahmen"
+  },
+  "scan_use_image": {
+    "es": "Usar imagen",
+    "en": "Use image",
+    "it": "Usa immagine",
+    "pt": "Usar imagem",
+    "fr": "Utiliser une image",
+    "de": "Bild verwenden"
+  },
+  "scan_gallery_permission_title": {
+    "es": "Acceso a galería",
+    "en": "Gallery access",
+    "it": "Accesso galleria",
+    "pt": "Acesso à galeria",
+    "fr": "Accès à la galerie",
+    "de": "Galeriezugriff"
+  },
+  "scan_gallery_permission_body": {
+    "es": "Necesitamos acceso a tus fotos para leer el QR.",
+    "en": "We need access to your photos to read the QR code.",
+    "it": "Serve l’accesso alle foto per leggere il QR.",
+    "pt": "Precisamos de acesso às suas fotos para ler o QR.",
+    "fr": "Nous avons besoin d’accéder à vos photos pour lire le QR.",
+    "de": "Wir brauchen Zugriff auf deine Fotos, um den QR-Code zu lesen."
+  },
+  "scan_no_qr_in_image_body": {
+    "es": "No encontramos un QR en esa imagen.",
+    "en": "We couldn’t find a QR code in that image.",
+    "it": "Non abbiamo trovato un QR in quell’immagine.",
+    "pt": "Não encontramos um QR nessa imagem.",
+    "fr": "Aucun QR trouvé dans cette image.",
+    "de": "In diesem Bild wurde kein QR-Code gefunden."
   },
   "receptor_close_a11y": {
     "es": "Cerrar",
@@ -5694,6 +5814,94 @@
     "pt": "Moedas CS",
     "fr": "Pièces CS",
     "de": "CS-Münzen"
+  },
+  "sub_voip_minutes_section_title": {
+    "es": "Minutos AirTime",
+    "en": "AirTime minutes",
+    "it": "Minuti AirTime",
+    "pt": "Minutos AirTime",
+    "fr": "Minutes AirTime",
+    "de": "AirTime-Minuten"
+  },
+  "sub_voip_minutes_section_hint": {
+    "es": "Recarga minutos para llamadas Ghost-Link cuando se agote tu saldo.",
+    "en": "Top up minutes for Ghost-Link calls when your balance runs low.",
+    "it": "Ricarica minuti per le chiamate Ghost-Link quando il saldo si esaurisce.",
+    "pt": "Recarregue minutos para chamadas Ghost-Link quando o saldo acabar.",
+    "fr": "Rechargez des minutes pour les appels Ghost-Link lorsque le solde est épuisé.",
+    "de": "Laden Sie Minuten für Ghost-Link-Anrufe auf, wenn das Guthaben aufgebraucht ist."
+  },
+  "sub_voip_pack_success_title": {
+    "es": "AirTime recargado",
+    "en": "AirTime topped up",
+    "it": "AirTime ricaricato",
+    "pt": "AirTime recarregado",
+    "fr": "AirTime rechargé",
+    "de": "AirTime aufgeladen"
+  },
+  "sub_voip_pack_success_body": {
+    "es": "Se añadieron {{minutes}} minutos a tu saldo.",
+    "en": "{{minutes}} minutes were added to your balance.",
+    "it": "Aggiunti {{minutes}} minuti al saldo.",
+    "pt": "{{minutes}} minutos adicionados ao saldo.",
+    "fr": "{{minutes}} minutes ajoutées au solde.",
+    "de": "{{minutes}} Minuten zum Guthaben hinzugefügt."
+  },
+  "sub_voip_see_tier_plans": {
+    "es": "Ver planes con minutos incluidos",
+    "en": "See plans with included minutes",
+    "it": "Vedi piani con minuti inclusi",
+    "pt": "Ver planos com minutos incluídos",
+    "fr": "Voir les forfaits avec minutes incluses",
+    "de": "Tarife mit inkludierten Minuten"
+  },
+  "sub_icondata_slots_section_title": {
+    "es": "Ampliar IconData",
+    "en": "Expand IconData",
+    "it": "Espandi IconData",
+    "pt": "Ampliar IconData",
+    "fr": "Étendre IconData",
+    "de": "IconData erweitern"
+  },
+  "sub_icondata_slots_section_hint": {
+    "es": "Compra cupos extra para guardar más datos en tu Bóveda.",
+    "en": "Buy extra slots to store more data in your Vault.",
+    "it": "Acquista slot extra per più dati nella Cassaforte.",
+    "pt": "Compre vagas extras para mais dados no Cofre.",
+    "fr": "Achetez des emplacements pour plus de données dans le Coffre.",
+    "de": "Zusätzliche Speicherplätze für die Tresor kaufen."
+  },
+  "sub_icondata_pack_success_title": {
+    "es": "IconData ampliado",
+    "en": "IconData expanded",
+    "it": "IconData ampliato",
+    "pt": "IconData ampliado",
+    "fr": "IconData étendu",
+    "de": "IconData erweitert"
+  },
+  "sub_icondata_pack_success_body": {
+    "es": "Se añadieron {{slots}} cupos a tu Bóveda.",
+    "en": "{{slots}} slots were added to your Vault.",
+    "it": "Aggiunti {{slots}} slot alla Cassaforte.",
+    "pt": "{{slots}} vagas adicionadas ao Cofre.",
+    "fr": "{{slots}} emplacements ajoutés au Coffre.",
+    "de": "{{slots}} Plätze zum Tresor hinzugefügt."
+  },
+  "sub_icondata_see_tier_plans": {
+    "es": "Ver planes con más IconData",
+    "en": "See plans with more IconData",
+    "it": "Vedi piani con più IconData",
+    "pt": "Ver planos com mais IconData",
+    "fr": "Voir les forfaits avec plus d’IconData",
+    "de": "Tarife mit mehr IconData"
+  },
+  "sub_minutes_label": {
+    "es": "min",
+    "en": "min",
+    "it": "min",
+    "pt": "min",
+    "fr": "min",
+    "de": "Min."
   },
   "sub_cs_coins_section_hint": {
     "es": "Paquetes de créditos CS en dólares y monedas Card-Social.",

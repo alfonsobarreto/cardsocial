@@ -17,11 +17,15 @@ import { loadBrandFonts } from '@/services/brandFontService';
 import { BusinessAnnualLicenseModal } from '@/components/BusinessAnnualLicenseModal';
 import { NfcPhysicalCheckoutModal } from '@/components/NfcPhysicalCheckoutModal';
 import { MarketRadarProUpsellModal } from '@/components/MarketRadarProUpsellModal';
+import { VoipMinutesCheckoutModal } from '@/components/VoipMinutesCheckoutModal';
+import { IconDataSlotsCheckoutModal } from '@/components/IconDataSlotsCheckoutModal';
 import {
   subscribeBusinessAnnualLicenseOpen,
   subscribeCsCreditPacksOpen,
+  subscribeIconDataSlotsCheckoutOpen,
   subscribeMarketRadarProUpsellOpen,
   subscribeNfcPhysicalCheckoutOpen,
+  subscribeVoipMinutesCheckoutOpen,
   type BusinessAnnualLicensePayload,
 } from '@/services/subscriptionNavigationIntent';
 import { applyAndroidNavigationBarChrome, installAndroidNavigationBarImmersiveGuard } from '@/services/androidNavigationChrome';
@@ -180,6 +184,8 @@ function RootNavigator() {
   const [radarUpsellVisible, setRadarUpsellVisible] = useState(false);
   const [businessLicenseVisible, setBusinessLicenseVisible] = useState(false);
   const [businessLicenseBId, setBusinessLicenseBId] = useState('');
+  const [voipCheckoutVisible, setVoipCheckoutVisible] = useState(false);
+  const [iconDataCheckoutVisible, setIconDataCheckoutVisible] = useState(false);
 
   useEffect(() => {
     return subscribeNfcPhysicalCheckoutOpen(() => setNfcCheckoutVisible(true));
@@ -192,6 +198,14 @@ function RootNavigator() {
   useEffect(() => {
     return subscribeCsCreditPacksOpen(() => router.push('/vault_store'));
   }, [router]);
+
+  useEffect(() => {
+    return subscribeVoipMinutesCheckoutOpen(() => setVoipCheckoutVisible(true));
+  }, []);
+
+  useEffect(() => {
+    return subscribeIconDataSlotsCheckoutOpen(() => setIconDataCheckoutVisible(true));
+  }, []);
 
   useEffect(() => {
     return subscribeBusinessAnnualLicenseOpen((payload: BusinessAnnualLicensePayload) => {
@@ -253,6 +267,11 @@ function RootNavigator() {
             setBusinessLicenseVisible(false);
             setBusinessLicenseBId('');
           }}
+        />
+        <VoipMinutesCheckoutModal visible={voipCheckoutVisible} onClose={() => setVoipCheckoutVisible(false)} />
+        <IconDataSlotsCheckoutModal
+          visible={iconDataCheckoutVisible}
+          onClose={() => setIconDataCheckoutVisible(false)}
         />
         <Toast />
       </GhostLinkCallProvider>

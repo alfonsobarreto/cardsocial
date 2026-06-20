@@ -23,6 +23,8 @@ type Props =
       variant?: 'universal';
       /** Token del enlace universal (`/u/{token}`), para deep link. */
       universalToken: string;
+      /** URL absoluta de esta página (`/u/…`) para vCard / compartir. */
+      canonicalWebUrl: string;
     }
   | {
       card: CardData;
@@ -126,13 +128,12 @@ export default function CardPreview(props: Props) {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
-        {isBusiness ? (
-          <SaveBusinessContactButton
-            card={card}
-            canonicalWebUrl={props.canonicalWebUrl}
-            locale={locale}
-          />
-        ) : null}
+        <SaveBusinessContactButton
+          card={card}
+          canonicalWebUrl={props.canonicalWebUrl}
+          locale={locale}
+          universalToken={isBusiness ? undefined : props.universalToken}
+        />
         <a
           href={storeUrl}
           target="_blank"

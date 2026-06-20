@@ -9,6 +9,13 @@ import {
   type SuscripcionLocale,
 } from '@/lib/suscripcionesI18n';
 import { getTiersConfigForWeb, type TierKey, type TiersConfig } from '@/lib/tiersConfigWeb';
+import {
+  formatCsPaymentPriceLine,
+  formatUsdPriceLine,
+  joinPriceSegments,
+  normalizePricePair,
+  shouldShowPriceOption,
+} from '@/lib/subscriptionPriceVisibility';
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -214,13 +221,9 @@ export default function SuscripcionesClient({ locale }: { locale: SuscripcionLoc
                             cs={row.annualEquivalentCs}
                             locale={locale}
                             suffix=""
+                            discountPercent={row.annualDiscountPercent}
+                            trialDays={row.annualTrialDays}
                           />
-                          {row.freeTrialDays > 0 ? (
-                            <p className="text-xs text-white/48">
-                              {tr(locale, 'labels.trial')}:{' '}
-                              <span className="font-semibold text-[#4D8FFF]">{row.freeTrialDays}</span>
-                            </p>
-                          ) : null}
                         </div>
                       ) : null}
                     </article>
@@ -263,30 +266,53 @@ function PriceLine({
   cs,
   locale,
   suffix,
+  discountPercent,
+  trialDays,
 }: {
   label: string;
   usd: number;
   cs: number;
   locale: SuscripcionLocale;
   suffix: string;
+  discountPercent?: number;
+  trialDays?: 0 | 15;
 }) {
-  if (usd <= 0 && cs <= 0) {
+  const pair = normalizePricePair(usd, cs);
+  const userCsBalance = 0;
+  if (!shouldShowPriceOption(pair, userCsBalance)) {
     return (
       <p className="text-sm text-white/45">
         {label}: {tr(locale, 'labels.noPriceRow')}
       </p>
     );
   }
+  const usdLine = formatUsdPriceLine(pair, { formatUsd: (n) => fmtUsd(locale, n), suffix });
+  const csLine = formatCsPaymentPriceLine(pair, userCsBalance, {
+    locale: intlLocaleTagForSuscripcion(locale),
+    suffix: ` ${tr(locale, 'labels.cs')}`,
+  });
+  const saveBadge =
+    discountPercent && discountPercent > 0
+      ? locale === 'es'
+        ? `Ahorra ${discountPercent}%`
+        : `Save ${discountPercent}%`
+      : null;
   return (
     <div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{label}</p>
-      <p className="mt-1 text-xl font-black text-white">
-        {usd > 0 ? fmtUsd(locale, usd) : '—'}
-        {suffix}
-      </p>
-      {cs > 0 ? (
-        <p className="mt-1 text-sm text-white/60">
-          {cs.toLocaleString(intlLocaleTagForSuscripcion(locale))} {tr(locale, 'labels.cs')}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{label}</p>
+        {saveBadge ? (
+          <span className="rounded-full border border-[#2F7BFF]/45 bg-[#2F7BFF]/12 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4D8FFF]">
+            {saveBadge}
+          </span>
+        ) : null}
+      </div>
+      {usdLine ? <p className="mt-1 text-xl font-black text-white">{usdLine}</p> : null}
+      {csLine ? <p className="mt-1 text-sm text-white/60">{csLine}</p> : null}
+      {trialDays && trialDays > 0 ? (
+        <p className="mt-2 text-xs text-white/48">
+          {tr(locale, 'labels.trial')}:{' '}
+          <span className="font-semibold text-[#4D8FFF]">{trialDays}</span>
         </p>
       ) : null}
     </div>

@@ -2462,5 +2462,13 @@
     "pt": "3 themes + {{n}} icons · {{price}} CS",
     "fr": "3 themes + {{n}} icons · {{price}} CS",
     "de": "3 themes + {{n}} icons · {{price}} CS"
+  },
+  "studio_bundle_meta_no_price": {
+    "es": "3 temas + {{n}} iconos",
+    "en": "3 themes + {{n}} icons",
+    "it": "3 temas + {{n}} iconi",
+    "pt": "3 temas + {{n}} ícones",
+    "fr": "3 thèmes + {{n}} icônes",
+    "de": "3 Themes + {{n}} Icons"
   }
 }

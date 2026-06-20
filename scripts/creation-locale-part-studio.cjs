@@ -46,4 +46,5 @@ module.exports = s({
   studio_header_text: ['Texto', 'Text'],
   studio_header_document: ['Documento', 'Document'],
   studio_bundle_meta: ['3 temas + {{n}} iconos · {{price}} CS', '3 themes + {{n}} icons · {{price}} CS'],
+  studio_bundle_meta_no_price: ['3 temas + {{n}} iconos', '3 themes + {{n}} icons'],
 });

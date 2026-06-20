@@ -24,7 +24,7 @@ export default function AdminLayout() {
       { label: 'Growth & Afiliados', to: '/growth' },
       { label: 'Rules & Tiers', to: '/rules-tiers' },
       { label: 'Economía CS (bonos)', to: '/rules-cs-economy' },
-      { label: 'Monedas CS', to: '/rules-commerce' },
+      { label: 'Complementos app', to: '/rules-commerce' },
       { label: 'Campanas VIP', to: '/campanas-vip' },
       { label: t('admin_nav_media_manager'), to: '/medios' },
       { label: 'Studio', to: '/studio' },

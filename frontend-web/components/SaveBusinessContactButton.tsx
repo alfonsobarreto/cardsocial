@@ -4,17 +4,28 @@ import React from 'react';
 import type { CardData } from '@/lib/universalCardTypes';
 import type { PublicLocale } from '@/lib/resolvePublicLocale';
 import { CONTACT_SAVE_ANALYTICS_PHONE } from '@card-social/constants/contactSaveAnalyticsKeys';
-import { notifyPublicBusinessCardIconClick } from '@/lib/publicBusinessCardAnalytics';
+import {
+  notifyPublicBusinessCardIconClick,
+  notifyPublicSmartCardIconClick,
+} from '@/lib/publicBusinessCardAnalytics';
 import {
   buildBusinessCardVcardBody,
+  buildUniversalCardVcardBody,
   businessCardVcardFilename,
   CONTACTS_PHONE_GREEN,
+  universalCardVcardFilename,
 } from '@/lib/buildBusinessCardVcard';
+import {
+  resolveAndroidVcardServeUrl,
+  saveVcardToDeviceContacts,
+} from '@/lib/saveVcardToDeviceContacts';
 
 type Props = {
   card: CardData;
   canonicalWebUrl: string;
   locale: PublicLocale;
+  /** Si está presente, genera vCard de smart card (`/u/…`). */
+  universalToken?: string;
 };
 
 function PhoneOutlineIcon({ size = 22 }: { size?: number }) {
@@ -39,26 +50,38 @@ function PhoneOutlineIcon({ size = 22 }: { size?: number }) {
   );
 }
 
-export default function SaveBusinessContactButton({ card, canonicalWebUrl, locale }: Props) {
+export default function SaveBusinessContactButton({
+  card,
+  canonicalWebUrl,
+  locale,
+  universalToken,
+}: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const label = tr('Guardar en contactos', 'Save to Contacts');
+  const isUniversal = Boolean(String(universalToken || '').trim());
 
-  const download = () => {
+  const handleSave = () => {
     const ownerUid = String(card.uid || '').trim();
     const bId = String(card.bId || '').trim();
+    const sid = String(card.sid || '').trim();
+    const token = String(universalToken || '').trim();
+
     try {
-      const body = buildBusinessCardVcardBody(card, canonicalWebUrl);
-      const blob = new Blob([body], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = businessCardVcardFilename(card);
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      if (ownerUid && bId) {
+      const body = isUniversal
+        ? buildUniversalCardVcardBody(card, canonicalWebUrl)
+        : buildBusinessCardVcardBody(card, canonicalWebUrl);
+      const filename = isUniversal ? universalCardVcardFilename(card) : businessCardVcardFilename(card);
+      const serveUrl = resolveAndroidVcardServeUrl(
+        isUniversal
+          ? { variant: 'universal', token }
+          : { variant: 'business', bId, uid: ownerUid },
+      );
+
+      saveVcardToDeviceContacts({ body, filename, serveUrl });
+
+      if (isUniversal && ownerUid && sid) {
+        notifyPublicSmartCardIconClick(ownerUid, sid, { subType: CONTACT_SAVE_ANALYTICS_PHONE });
+      } else if (ownerUid && bId) {
         notifyPublicBusinessCardIconClick(ownerUid, bId, { subType: CONTACT_SAVE_ANALYTICS_PHONE });
       }
     } catch (e) {
@@ -69,7 +92,7 @@ export default function SaveBusinessContactButton({ card, canonicalWebUrl, local
   return (
     <button
       type="button"
-      onClick={download}
+      onClick={handleSave}
       aria-label={label}
       style={{
         display: 'flex',

@@ -1658,6 +1658,56 @@ export async function fetchVoipMinutesSummary(params: { uid: string }): Promise<
   };
 }
 
+export async function redeemVoipMinutePack(params: {
+  uid: string;
+  packId: string;
+  productId: string;
+}): Promise<{ ok: boolean; grantedMinutes?: number }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/voip/redeem-minute-pack`,
+    {
+      uid: params.uid,
+      packId: params.packId,
+      productId: params.productId,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 20000,
+    },
+  );
+  const d = response?.data || {};
+  return { ok: d.ok === true, grantedMinutes: Number(d.grantedMinutes ?? 0) || undefined };
+}
+
+export async function redeemIconDataSlotPack(params: {
+  uid: string;
+  packId: string;
+  productId: string;
+}): Promise<{ ok: boolean; grantedSlots?: number }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/commerce/redeem-icondata-slot-pack`,
+    {
+      uid: params.uid,
+      packId: params.packId,
+      productId: params.productId,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 20000,
+    },
+  );
+  const d = response?.data || {};
+  return { ok: d.ok === true, grantedSlots: Number(d.grantedSlots ?? 0) || undefined };
+}
+
 export async function patchCallLogMeta(params: {
   uid: string;
   callId: string;

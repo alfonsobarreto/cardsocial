@@ -27,6 +27,7 @@ import {
     THEME_BUNDLES,
     userOwnsThemeBundle,
 } from '@/services/themeBundleService';
+import { shouldShowCsPaymentPrice, normalizePricePair } from '@/services/subscriptionPriceVisibility';
 import {
     readRecentIconsJsonWithLegacyMigration,
     readVaultJsonWithLegacyMigration,
@@ -416,6 +417,15 @@ export default function CardStudioVault({
   const [cmsIconCreditCs, setCmsIconCreditCs] = useState(0);
   const [bundleCreditPrices, setBundleCreditPrices] = useState<Record<string, number>>({});
   const effectiveIconCreditPrice = iconCreditPriceProp ?? cmsIconCreditCs;
+  const showCsIconPrice = shouldShowCsPaymentPrice(
+    normalizePricePair(0, effectiveIconCreditPrice),
+    creditsBalance,
+  );
+  const bundleCsPriceVisible = useCallback(
+    (bundleId: string) =>
+      shouldShowCsPaymentPrice(normalizePricePair(0, bundleCreditPrices[bundleId] ?? 0), creditsBalance),
+    [bundleCreditPrices, creditsBalance],
+  );
   const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
   const [bundleOwnedFlags, setBundleOwnedFlags] = useState<Record<string, boolean>>({});
   const [bundlePurchasingId, setBundlePurchasingId] = useState<string | null>(null);
@@ -598,6 +608,7 @@ export default function CardStudioVault({
   };
 
   const promptPurchaseIcon = (item: IconItem) => {
+    if (!showCsIconPrice) return;
     void (async () => {
       const uid = await getActiveUserId();
       if (!uid) return;
@@ -773,7 +784,9 @@ export default function CardStudioVault({
                   <MaterialCommunityIcons name="lock" size={11} color="#0A1A2F" />
                 </View>
               )}
-              {!unlocked && <Text style={styles.priceBadge}>{effectiveIconCreditPrice}</Text>}
+              {!unlocked && showCsIconPrice ? (
+                <Text style={styles.priceBadge}>{effectiveIconCreditPrice}</Text>
+              ) : null}
               <MaterialCommunityIcons
                 name={sanitizeMaterialIconName(item.icon) as any}
                 color={iconColor}
@@ -1061,15 +1074,17 @@ export default function CardStudioVault({
                             {coreTrEsEn(b.nameEs, b.nameEn, language)}
                           </Text>
                           <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
-                            {tcx('studio_bundle_meta', {
-                              n: b.iconSeeds.length,
-                              price: bundleCreditPrices[b.id] ?? 0,
-                            })}
+                            {bundleCsPriceVisible(b.id)
+                              ? tcx('studio_bundle_meta', {
+                                  n: b.iconSeeds.length,
+                                  price: bundleCreditPrices[b.id] ?? 0,
+                                })
+                              : tcx('studio_bundle_meta_no_price', { n: b.iconSeeds.length })}
                           </Text>
                         </View>
                         {owned ? (
                           <Text style={styles.bundleOwned}>{tcx('studio_owned')}</Text>
-                        ) : (
+                        ) : bundleCsPriceVisible(b.id) ? (
                           <TouchableOpacity
                             style={styles.bundleBuyBtn}
                             disabled={busy}
@@ -1081,7 +1096,7 @@ export default function CardStudioVault({
                               <Text style={styles.bundleBuyText}>{tcx('studio_buy')}</Text>
                             )}
                           </TouchableOpacity>
-                        )}
+                        ) : null}
                       </View>
                     );
                   })}

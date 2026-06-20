@@ -29,6 +29,7 @@ import {
   OUTGOING_CALL_EMPTY_LINE,
 } from '@/services/outgoingCallUiMirror';
 import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
+import { requestVoipMinutesCheckout } from '@/services/subscriptionNavigationIntent';
 import { localGhostLinkTrialCapMinutes } from '@/services/ghostLinkVoip';
 
 /** Tras `sessionId`, congela nombre/foto peer + tarjeta para que re-renders no sustituyan identidad en mitad de llamada. */
@@ -989,6 +990,7 @@ function ActiveVideoView() {
 function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted' | 'airtime_exhausted' }) {
   const shell = useGhostLinkShell();
   const tcx = useCoreT();
+  const { endCall } = useGhostLinkCall();
   const msg =
     reason === 'rejected'
       ? tcx('ghost_ended_declined')
@@ -1021,6 +1023,20 @@ function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted
         color={shell.ghostLinkTextMuted}
       />
       <Text style={[styles.nameText, { marginTop: 20, color: shell.ghostLinkTextPrimary }]}>{msg}</Text>
+      {reason === 'airtime_exhausted' ? (
+        <TouchableOpacity
+          style={[styles.airtimeTopUpBtn, { backgroundColor: shell.ctaAccent, marginTop: 24 }]}
+          onPress={() => {
+            void endCall();
+            requestVoipMinutesCheckout({ delayMs: 300 });
+          }}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.airtimeTopUpBtnText, { color: shell.emptyCtaText }]}>
+            {tcx('sub_voip_minutes_section_title')}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -1150,6 +1166,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 4,
+  },
+  airtimeTopUpBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  airtimeTopUpBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   fullNameText: {
     fontSize: 15,

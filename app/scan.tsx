@@ -1,3 +1,4 @@
+import BasicPhotoEditorModal from '@/app/components/BasicPhotoEditorModal';
 import { BunkerClassificationModal } from '@/components/BunkerClassificationModal';
 import type { MyCardsPayload } from '@/components/MyCards';
 import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
@@ -34,11 +35,19 @@ import { doc, getDoc } from 'firebase/firestore';
 import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import { CameraView, scanFromURLAsync, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import ActivityIndicator from '@/components/BrandedSpinner';
+import { resolveImageDimensions } from '@/services/imageOptimize';
 import palette from './theme';
+
+type ScanImageEditorState = {
+  uri: string;
+  width: number;
+  height: number;
+} | null;
 
 function uidsEqual(a: string | null | undefined, b: string | null | undefined): boolean {
   const x = String(a ?? '').trim();
@@ -128,6 +137,17 @@ export default function ScanScreen() {
           color: shell.ctaPrimary,
           fontWeight: '700',
         },
+        useImageLinkCenter: {
+          marginTop: 10,
+          paddingVertical: 6,
+          paddingHorizontal: 12,
+        },
+        useImageLinkTextCenter: {
+          color: shell.ctaPrimary,
+          fontSize: 14,
+          fontWeight: '600',
+          textDecorationLine: 'underline',
+        },
         overlay: {
           ...StyleSheet.absoluteFillObject,
           justifyContent: 'space-between',
@@ -175,6 +195,16 @@ export default function ScanScreen() {
           color: shell.fabText,
           fontWeight: '700',
         },
+        useImageLink: {
+          paddingVertical: 6,
+          paddingHorizontal: 12,
+        },
+        useImageLinkText: {
+          color: 'rgba(255,255,255,0.92)',
+          fontSize: 14,
+          fontWeight: '600',
+          textDecorationLine: 'underline',
+        },
       }),
     [shell],
   );
@@ -194,6 +224,7 @@ export default function ScanScreen() {
   /** QR dinámico (smart): avatar del emisor desde `users/{uid}.userAvatarUrl`, no el snapshot del token. */
   const [issuerProfileAvatarUrl, setIssuerProfileAvatarUrl] = useState<string | null>(null);
   const [scanCooldownActive, setScanCooldownActive] = useState(false);
+  const [scanImageEditor, setScanImageEditor] = useState<ScanImageEditorState>(null);
   const resumeHandledRef = useRef(false);
   const scanCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -549,6 +580,74 @@ export default function ScanScreen() {
     await openClassification(dyn.token);
   };
 
+  const pickImageAndScan = useCallback(async () => {
+    if (processing || scanLocked || modalVisible || scanCooldownActive) {
+      return;
+    }
+
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(tcx('scan_gallery_permission_title'), tcx('scan_gallery_permission_body'), [
+        { text: tcx('scan_alert_ok') },
+      ]);
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 1,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    try {
+      const dims = await resolveImageDimensions(asset.uri, asset.width, asset.height);
+      setScanImageEditor({
+        uri: asset.uri,
+        width: dims.width,
+        height: dims.height,
+      });
+    } catch {
+      setScanImageEditor({ uri: asset.uri, width: 1080, height: 1080 });
+    }
+  }, [processing, scanLocked, modalVisible, scanCooldownActive, tcx]);
+
+  const processScanFromImageUri = useCallback(
+    async (imageUri: string) => {
+      setProcessing(true);
+      const okLabel = tcx('scan_alert_ok');
+      try {
+        const barcodes = await scanFromURLAsync(imageUri, ['qr']);
+        const data =
+          typeof barcodes[0]?.data === 'string'
+            ? barcodes[0].data
+            : barcodes[0]?.raw != null
+              ? String(barcodes[0].raw)
+              : '';
+        if (!data) {
+          Alert.alert(tcx('scan_invalid_qr_title'), tcx('scan_no_qr_in_image_body'), [
+            { text: okLabel, onPress: resetScanUi },
+          ]);
+          return;
+        }
+        setProcessing(false);
+        await handleScanned(data);
+      } catch (e: unknown) {
+        if (__DEV__) {
+          console.error('[Scan processScanFromImageUri]', e instanceof Error ? e.message : e);
+        }
+        const msg = userFacingAlertMessage(e, language, tcx('scan_network_error'));
+        Alert.alert(tcx('scan_could_not_scan_title'), msg, [{ text: okLabel, onPress: resetScanUi }]);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [tcx, language, resetScanUi],
+  );
+
   useEffect(() => {
     const rt = params.resumeToken != null ? String(params.resumeToken).trim() : '';
     const rb = params.resumeBId != null ? String(params.resumeBId).trim() : '';
@@ -660,6 +759,31 @@ export default function ScanScreen() {
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
           <Text style={styles.secondaryBtnText}>{tcx('scan_back')}</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.useImageLinkCenter}
+          onPress={() => void pickImageAndScan()}
+          accessibilityRole="button"
+        >
+          <Text style={styles.useImageLinkTextCenter}>{tcx('scan_use_image')}</Text>
+        </TouchableOpacity>
+        {scanImageEditor ? (
+          <BasicPhotoEditorModal
+            visible
+            uri={scanImageEditor.uri}
+            imageWidth={scanImageEditor.width}
+            imageHeight={scanImageEditor.height}
+            mode={{ cropShape: 'none' }}
+            onConfirm={(editedUri) => {
+              setScanImageEditor(null);
+              void processScanFromImageUri(editedUri);
+            }}
+            onChooseAgain={() => {
+              setScanImageEditor(null);
+              setTimeout(() => void pickImageAndScan(), 350);
+            }}
+            onClose={() => setScanImageEditor(null)}
+          />
+        ) : null}
       </LinearGradient>
     );
   }
@@ -698,6 +822,14 @@ export default function ScanScreen() {
 
         <View style={styles.bottomPanel}>
           {processing ? <ActivityIndicator size="small" color={shell.refreshAccent} /> : null}
+          <TouchableOpacity
+            style={styles.useImageLink}
+            onPress={() => void pickImageAndScan()}
+            disabled={!canScan}
+            accessibilityRole="button"
+          >
+            <Text style={styles.useImageLinkText}>{tcx('scan_use_image')}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtnGlass} onPress={() => router.back()}>
             <Text style={styles.secondaryBtnGlassText}>{tcx('common_cancel')}</Text>
           </TouchableOpacity>
@@ -736,6 +868,25 @@ export default function ScanScreen() {
             setIssuerProfileAvatarUrl(null);
             router.replace('/(tabs)/contacts');
           }}
+        />
+      ) : null}
+
+      {scanImageEditor ? (
+        <BasicPhotoEditorModal
+          visible
+          uri={scanImageEditor.uri}
+          imageWidth={scanImageEditor.width}
+          imageHeight={scanImageEditor.height}
+          mode={{ cropShape: 'none' }}
+          onConfirm={(editedUri) => {
+            setScanImageEditor(null);
+            void processScanFromImageUri(editedUri);
+          }}
+          onChooseAgain={() => {
+            setScanImageEditor(null);
+            setTimeout(() => void pickImageAndScan(), 350);
+          }}
+          onClose={() => setScanImageEditor(null)}
         />
       ) : null}
     </View>

@@ -1,20 +1,8 @@
 /**
  * Firma HTML de Business Card para correo (paridad con `services/businessCardEmailSignatureHtml.ts`).
- * Tema: fallback fijo (evita depender de themeChest TS en el backend).
  */
 
-const FALLBACK_CARD_ROW = {
-  gradient: ['#F2F2F7', '#F2F2F7', '#F2F2F7'],
-  borderColor: 'rgba(233,195,73,0.35)',
-  borderWidth: 1,
-  titleColor: '#1C1C1E',
-  titleFontWeight: '800',
-  titleFontStyle: 'normal',
-  metaColor: '#636366',
-  subtitleFontWeight: '600',
-  subtitleFontStyle: 'normal',
-  bubbleBackgroundColor: 'rgba(255,255,255,0.82)',
-};
+const { getCardRowTheme } = require('./cardRowTheme');
 
 function escapeHtmlForEmail(s) {
   return String(s)
@@ -79,7 +67,7 @@ function buildSignatureQrImageUrl(webBaseUrl, targetUrlForQr, pixelWidth = 240, 
 }
 
 function buildBusinessCardEmailSignatureHtml(p) {
-  const chest = FALLBACK_CARD_ROW;
+  const chest = getCardRowTheme(p.themeId);
   const cardBg = chest.gradient[2] ?? chest.gradient[1] ?? chest.gradient[0] ?? '#EAF7FF';
   const borderStyle = `${chest.borderWidth}px solid ${chest.borderColor}`;
 

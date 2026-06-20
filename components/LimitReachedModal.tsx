@@ -17,6 +17,13 @@ import { useLanguage, intlLocaleTagForAppLanguage } from '@/services/language';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
 import { getTiersConfig } from '@/services/tiersConfigService';
+import { useUserCsBalance } from '@/hooks/useUserCsBalance';
+import {
+  formatCsPaymentPriceLine,
+  formatUsdPriceLine,
+  joinPriceSegments,
+  normalizePricePair,
+} from '@/services/subscriptionPriceVisibility';
 
 export interface LimitReachedModalProps {
   visible: boolean;
@@ -43,6 +50,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   const [monthlyUsd, setMonthlyUsd] = useState(0);
   const [monthlyCs, setMonthlyCs] = useState(0);
   const [trialDays, setTrialDays] = useState(0);
+  const { balance: userCsBalance } = useUserCsBalance(visible);
 
   useEffect(() => {
     if (!visible) return;
@@ -54,7 +62,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
       if (tiers) {
         setMonthlyUsd(Math.max(0, tiers.influencer.monthlyPriceUsd));
         setMonthlyCs(Math.max(0, Math.floor(tiers.influencer.monthlyEquivalentCs)));
-        setTrialDays(Math.max(0, Math.floor(tiers.influencer.freeTrialDays)));
+        setTrialDays(Math.max(0, Math.floor(tiers.influencer.annualTrialDays)));
       } else {
         setMonthlyUsd(0);
         setMonthlyCs(0);
@@ -211,19 +219,24 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
               {/* Price Tag */}
               <View style={styles.priceContainer}>
                 <Text style={styles.priceText}>
-                  {monthlyUsd > 0 || monthlyCs > 0
-                    ? [
-                        monthlyUsd > 0
-                          ? new Intl.NumberFormat(intlLocaleTagForAppLanguage(language), {
-                              style: 'currency',
-                              currency: 'USD',
-                            }).format(monthlyUsd) + tr(' / mes', ' / mo')
-                          : null,
-                        monthlyCs > 0 ? `${monthlyCs.toLocaleString()} CS` : null,
-                      ]
-                          .filter(Boolean)
-                          .join(' · ')
-                    : tr('Consulta tarifas del plan Influencer en la app.', 'See Influencer plan rates in the app.')}
+                  {(() => {
+                    const pair = normalizePricePair(monthlyUsd, monthlyCs);
+                    const line = joinPriceSegments([
+                      formatUsdPriceLine(pair, {
+                        formatUsd: (n) =>
+                          new Intl.NumberFormat(intlLocaleTagForAppLanguage(language), {
+                            style: 'currency',
+                            currency: 'USD',
+                          }).format(n),
+                        suffix: tr(' / mes', ' / mo'),
+                      }),
+                      formatCsPaymentPriceLine(pair, userCsBalance),
+                    ]);
+                    return (
+                      line ||
+                      tr('Consulta tarifas del plan Influencer en la app.', 'See Influencer plan rates in the app.')
+                    );
+                  })()}
                 </Text>
                 <Text style={styles.subtext}>
                   {trialDays > 0

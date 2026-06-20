@@ -16,6 +16,7 @@ import {
     createPreviewWireframeSlotRenderer,
     type IconVaultLookup,
 } from '@/components/smartCard/wireframeMirrorRendering';
+import { wireframeMirrorContainerWidth } from '@/components/smartCard/wireframeMath';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
@@ -184,7 +185,7 @@ export function MyCardsPreviewModal({
   const { language } = useLanguage();
   const t = useCoreT();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const mirrorContainerWidth = Math.round(Math.min(420, Math.max(280, screenWidth - 32)));
+  const mirrorContainerWidth = wireframeMirrorContainerWidth(screenWidth);
 
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;

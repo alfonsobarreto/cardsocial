@@ -6,7 +6,7 @@ export const STUDIO_DOCUMENT_MAX_BYTES = 20 * MB;
 
 const SAFE_IMAGE_UPLOAD_MAX_BYTES = Math.floor(STUDIO_BACKEND_IMAGE_MAX_BYTES * 0.92);
 
-function isLikelyImage(file: File): boolean {
+export function isLikelyImage(file: File): boolean {
   if (file.type.toLowerCase().startsWith('image/')) return true;
   return /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name);
 }

@@ -6,6 +6,8 @@ const MARKET_RADAR_UPSELL_EVENT = 'cs_open_market_radar_upsell';
 const CS_CREDIT_PACKS_EVENT = 'cs_open_cs_credit_packs';
 const BUSINESS_ANNUAL_LICENSE_EVENT = 'cs_open_business_annual_license';
 const BUSINESS_LICENSE_ACTIVATED_EVENT = 'cs_business_license_activated';
+const VOIP_MINUTES_CHECKOUT_EVENT = 'cs_open_voip_minutes_checkout';
+const ICONDATA_SLOTS_CHECKOUT_EVENT = 'cs_open_icondata_slots_checkout';
 
 export type BusinessAnnualLicensePayload = { bId: string };
 export type BusinessLicenseActivatedPayload = { bId: string };
@@ -24,6 +26,14 @@ function emitMarketRadarUpsell(): void {
 
 function emitCsCreditPacks(): void {
   DeviceEventEmitter.emit(CS_CREDIT_PACKS_EVENT);
+}
+
+function emitIconDataSlotsCheckout(): void {
+  DeviceEventEmitter.emit(ICONDATA_SLOTS_CHECKOUT_EVENT);
+}
+
+function emitVoipMinutesCheckout(): void {
+  DeviceEventEmitter.emit(VOIP_MINUTES_CHECKOUT_EVENT);
 }
 
 function emitBusinessAnnualLicense(bId: string): void {
@@ -68,6 +78,16 @@ export function requestCsCreditPacksStore(options?: { delayMs?: number }): void 
   scheduleEmit(emitCsCreditPacks, options?.delayMs);
 }
 
+/** Modal contextual: comprar minutos AirTime (VoIP). */
+export function requestVoipMinutesCheckout(options?: { delayMs?: number }): void {
+  scheduleEmit(emitVoipMinutesCheckout, options?.delayMs);
+}
+
+/** Modal contextual: ampliar cupo IconData en Bóveda. */
+export function requestIconDataSlotsCheckout(options?: { delayMs?: number }): void {
+  scheduleEmit(emitIconDataSlotsCheckout, options?.delayMs);
+}
+
 /** Modal contextual: licencia anual Social Market para una tarjeta de negocio. */
 export function requestBusinessAnnualLicense(
   bId: string,
@@ -95,6 +115,16 @@ export function subscribeMarketRadarProUpsellOpen(listener: () => void): () => v
 
 export function subscribeCsCreditPacksOpen(listener: () => void): () => void {
   const sub = DeviceEventEmitter.addListener(CS_CREDIT_PACKS_EVENT, listener);
+  return () => sub.remove();
+}
+
+export function subscribeVoipMinutesCheckoutOpen(listener: () => void): () => void {
+  const sub = DeviceEventEmitter.addListener(VOIP_MINUTES_CHECKOUT_EVENT, listener);
+  return () => sub.remove();
+}
+
+export function subscribeIconDataSlotsCheckoutOpen(listener: () => void): () => void {
+  const sub = DeviceEventEmitter.addListener(ICONDATA_SLOTS_CHECKOUT_EVENT, listener);
   return () => sub.remove();
 }
 

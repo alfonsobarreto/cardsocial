@@ -5,6 +5,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
+import { resolveTierAnnualPricing } from '@/services/tierAnnualPricing';
 
 export type TierKey = 'free' | 'influencer' | 'business';
 
@@ -16,11 +17,16 @@ export type TierLimits = {
   monthlyPriceUsd: number;
   /** Equivalente publicado en CS (Regla de los dos casilleros; no derivado de USD en código). */
   monthlyEquivalentCs: number;
+  /** % de descuento sobre 12× mensual (plan anual). */
+  annualDiscountPercent: number;
+  /** Prueba gratis solo en checkout anual. */
+  annualTrialDays: 0 | 15;
   annualPriceUsd: number;
   annualEquivalentCs: number;
   voipMinutesIncluded: number;
   annualWelcomeGiftCs: number;
-  freeTrialDays: 0 | 14 | 30 | 90;
+  /** Legacy: espejo de `annualTrialDays` al guardar. */
+  freeTrialDays: 0 | 14 | 15 | 30 | 90;
 };
 
 export type AddOnsConfig = {
@@ -51,6 +57,8 @@ const ZERO_TIER: TierLimits = {
   premiumThemes: false,
   monthlyPriceUsd: 0,
   monthlyEquivalentCs: 0,
+  annualDiscountPercent: 0,
+  annualTrialDays: 0,
   annualPriceUsd: 0,
   annualEquivalentCs: 0,
   voipMinutesIncluded: 0,
@@ -83,6 +91,7 @@ export const DEFAULT_TIERS_CONFIG: TiersConfig = {
 
 function coerceTrialDays(value: unknown, fallback: TierLimits['freeTrialDays']): TierLimits['freeTrialDays'] {
   const numeric = Number(value);
+  if (numeric === 15) return 15;
   if (numeric === 14 || numeric === 30 || numeric === 90) return numeric;
   if (numeric === 0) return 0;
   return fallback;
@@ -98,15 +107,10 @@ function coerceTierLimits(raw: unknown, structuralFallback: TierLimits): TierLim
       ? Math.max(0, Math.floor(Number(monthlyEqRaw) || 0))
       : Math.max(0, Math.floor(structuralFallback.monthlyEquivalentCs));
   const annualRaw = o.annualPriceUsd;
-  const annualPriceUsd =
+  const storedAnnualUsd =
     annualRaw !== undefined && annualRaw !== null && String(annualRaw).trim() !== ''
       ? Math.max(0, Number(annualRaw) || 0)
       : 0;
-  const annualEqRaw = o.annualEquivalentCs;
-  const annualEquivalentCs =
-    annualEqRaw !== undefined && annualEqRaw !== null && String(annualEqRaw).trim() !== ''
-      ? Math.max(0, Math.floor(Number(annualEqRaw) || 0))
-      : Math.max(0, Math.floor(structuralFallback.annualEquivalentCs));
   const voipRaw = o.voipMinutesIncluded;
   const voipMinutesIncluded =
     voipRaw !== undefined && voipRaw !== null && String(voipRaw).trim() !== ''
@@ -117,6 +121,16 @@ function coerceTierLimits(raw: unknown, structuralFallback: TierLimits): TierLim
     giftRaw !== undefined && giftRaw !== null && String(giftRaw).trim() !== ''
       ? Math.max(0, Math.floor(Number(giftRaw) || 0))
       : Math.max(0, Math.floor(structuralFallback.annualWelcomeGiftCs));
+
+  const derived = resolveTierAnnualPricing({
+    monthlyPriceUsd,
+    monthlyEquivalentCs,
+    annualDiscountPercent: o.annualDiscountPercent,
+    annualTrialDays: o.annualTrialDays,
+    annualPriceUsd: storedAnnualUsd,
+    freeTrialDays: o.freeTrialDays,
+  });
+
   return {
     iconDataLimit: Math.max(0, Number(o.iconDataLimit ?? structuralFallback.iconDataLimit) || 0),
     smartCardsLimit: Math.max(0, Number(o.smartCardsLimit ?? structuralFallback.smartCardsLimit) || 0),
@@ -127,11 +141,13 @@ function coerceTierLimits(raw: unknown, structuralFallback: TierLimits): TierLim
     premiumThemes: Boolean(o.premiumThemes ?? structuralFallback.premiumThemes),
     monthlyPriceUsd,
     monthlyEquivalentCs,
-    annualPriceUsd,
-    annualEquivalentCs,
+    annualDiscountPercent: derived.annualDiscountPercent,
+    annualTrialDays: derived.annualTrialDays,
+    annualPriceUsd: derived.annualPriceUsd,
+    annualEquivalentCs: derived.annualEquivalentCs,
     voipMinutesIncluded,
     annualWelcomeGiftCs,
-    freeTrialDays: coerceTrialDays(o.freeTrialDays, structuralFallback.freeTrialDays),
+    freeTrialDays: coerceTrialDays(derived.freeTrialDays, structuralFallback.freeTrialDays),
   };
 }
 

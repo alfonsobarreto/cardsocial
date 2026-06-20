@@ -9,9 +9,10 @@ import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { useLookMode } from '@/services/lookMode';
+import { requestCsCreditPacksStore } from '@/services/subscriptionNavigationIntent';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-native';
+import { AppState, type AppStateStatus, Pressable, StyleSheet, Text, View } from 'react-native';
 import palette from '../app/theme';
 
 interface CreditsIndicatorProps {
@@ -71,7 +72,12 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
   return (
     <View style={[styles.wrap, { borderBottomColor: colors.hairline }]}>
       <View style={styles.topRow}>
-        <View style={[styles.row, styles.csSide]}>
+        <Pressable
+          style={[styles.row, styles.csSide]}
+          onPress={() => requestCsCreditPacksStore()}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Comprar créditos CS', 'Buy CS credits')}
+        >
           <MaterialCommunityIcons name="cash" size={22} color={colors.icon} style={styles.icon} />
           <View style={styles.textCol}>
             <Text style={[styles.label, { color: colors.label }]}>{tr('Créditos CS', 'CS Credits')}</Text>
@@ -79,7 +85,7 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
               {unlimitedAdmin ? tr('Ilimitado', 'Unlimited') : creditsBalance}
             </Text>
           </View>
-        </View>
+        </Pressable>
         <VoipAirTimeBadge userId={userId} refreshTrigger={refreshTrigger} layout="compact" />
       </View>
     </View>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ChangeEventHandler, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -15,6 +15,8 @@ import {
 } from '@/lib/studioUserIdentityFields';
 import { getStudioDb } from '@/lib/studioFirebase';
 import { optimizeProfilePhotoForWeb } from '@/lib/studioFileOptimizer';
+import { PHOTO_PRESET_PROFILE } from '@/lib/photoEditorPresets';
+import { useStudioPhotoPick } from '@/hooks/useStudioPhotoPick';
 import { uploadProfilePhotoWeb } from '@/lib/studioModerationClient';
 import {
   propagateUserIdentityAcrossSmartCardsWeb,
@@ -69,7 +71,6 @@ function splitFullName(next: string, firstName?: string, lastName?: string) {
 
 export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount, deletingAccount, user }: Props) {
   const t = (k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editName, setEditName] = useState('');
   const [editNickname, setEditNickname] = useState('');
   const [editBio, setEditBio] = useState('');
@@ -190,10 +191,10 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
     }
   };
 
-  const onPickPhoto: ChangeEventHandler<HTMLInputElement> = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file || !file.type.startsWith('image/')) return showMessage(t('profile.photoImageOnly'));
+  const uploadProfilePhoto = async (file: File) => {
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name)) {
+      return showMessage(t('profile.photoImageOnly'));
+    }
     setBusy('photo');
     try {
       const optimized = await optimizeProfilePhotoForWeb(file);
@@ -214,6 +215,17 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
       setBusy(null);
     }
   };
+
+  const {
+    hiddenInputs: profilePhotoInputs,
+    editorNode: profilePhotoEditor,
+    openGalleryPicker,
+    isEditing: profilePhotoEditing,
+  } = useStudioPhotoPick({
+    locale,
+    preset: PHOTO_PRESET_PROFILE,
+    onConfirm: uploadProfilePhoto,
+  });
 
   const changePassword = async () => {
     if (!user.email) return;
@@ -411,9 +423,9 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
             <div style={{ textAlign: 'center', padding: '8px 0 14px' }}>
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={busy === 'photo'}
-                style={{ border: 'none', background: 'transparent', padding: 0, cursor: busy === 'photo' ? 'not-allowed' : 'pointer' }}
+                onClick={() => openGalleryPicker()}
+                disabled={busy === 'photo' || profilePhotoEditing}
+                style={{ border: 'none', background: 'transparent', padding: 0, cursor: busy === 'photo' || profilePhotoEditing ? 'not-allowed' : 'pointer' }}
               >
                 {profile.userAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -447,13 +459,13 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
                   </div>
                 )}
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={onPickPhoto} style={{ display: 'none' }} />
+              {profilePhotoInputs}
               <div style={{ marginTop: 12, color: studioTheme.text, fontSize: 18, fontWeight: 900 }}>{profile.userFullName || t('profile.user')}</div>
               <div style={{ color: studioTheme.textMuted, fontSize: 13 }}>{profile.userNickName ? `@${profile.userNickName}` : ''}</div>
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={busy === 'photo'}
+                onClick={() => openGalleryPicker()}
+                disabled={busy === 'photo' || profilePhotoEditing}
                 style={{ marginTop: 10, border: `1px solid ${studioTheme.border}`, background: studioTheme.surface, color: studioTheme.gold, borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontWeight: 800 }}
               >
                 {busy === 'photo' ? t('profile.uploadingPhoto') : t('profile.changePhoto')}
@@ -603,6 +615,7 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
           </>
         )}
       </div>
+      {profilePhotoEditor}
     </div>
   );
 }

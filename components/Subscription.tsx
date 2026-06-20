@@ -14,7 +14,15 @@ import {
   type MercadoPagoPublicConfig,
 } from '@/services/mercadopagoCheckoutService';
 import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiersConfigService';
+import {
+  formatCsPaymentPriceLine,
+  formatUsdPriceLine,
+  joinPriceSegments,
+  normalizePricePair,
+  shouldShowUsdPrice,
+} from '@/services/subscriptionPriceVisibility';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
+import { useUserCsBalance } from '@/hooks/useUserCsBalance';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,12 +36,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Purchases from 'react-native-purchases';
 import {
   formatRevenueCatPurchaseError,
   presentCardSocialProPaywall,
   paywallResultIndicatesUnlock,
-  refreshCardSocialProActive,
   syncRevenueCatWithFirebaseUid,
 } from '@/services/revenueCatProSubscription';
 
@@ -41,10 +47,7 @@ interface SubscriptionProps {
   onClose?: () => void;
 }
 
-/**
- * Hub de membresía: solo tiers (Free / Influencer / Business).
- * Complementos (NFC, CS, Radar, licencia negocio) se muestran en contexto.
- */
+/** Hub de membresía: únicamente tiers (Free / Influencer / Business). */
 const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const t = useCoreT();
   const { language } = useLanguage();
@@ -65,6 +68,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const [mpCheckoutLoading, setMpCheckoutLoading] = useState(false);
   const [manageLoading, setManageLoading] = useState(false);
   const mpCheckoutAvailable = Boolean(mpConfig?.enabled);
+  const { balance: userCsBalance } = useUserCsBalance();
 
   const paidTierCtaLabel = language === 'es' ? 'Adquirir' : 'Acquire';
 
@@ -151,26 +155,6 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
           backgroundColor: shell.ctaAccent,
         },
         tierCtaText: { fontSize: 12, fontWeight: '700', color: shell.emptyCtaText },
-        legalTitle: { fontSize: 13, fontWeight: '700', color: shell.textPrimary, marginBottom: 6 },
-        legalText: { fontSize: 11, color: shell.textSecondary, lineHeight: 17 },
-        restoreBtn: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          paddingVertical: 12,
-          marginTop: 14,
-          backgroundColor: shell.ctaAccent,
-          borderRadius: 10,
-        },
-        restoreTxt: { fontSize: 13, fontWeight: '600', color: shell.emptyCtaText },
-        manageLink: {
-          marginTop: 12,
-          alignSelf: 'center',
-          paddingVertical: 8,
-          paddingHorizontal: 4,
-        },
-        manageLinkText: { fontSize: 12, fontWeight: '600', color: shell.ctaAccent, textDecorationLine: 'underline' },
         loadingRow: { paddingVertical: 20, alignItems: 'center' },
         emptyCallout: {
           borderRadius: 16,
@@ -189,6 +173,35 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
     if (key === 'influencer') return t('sub_tier_influencer');
     return t('sub_tier_business');
   };
+
+  const tierPriceLine = useCallback(
+    (key: TierKey, tiersCfg: TiersConfig) => {
+      if (key === 'free') return fmtUsd(0);
+      const lim = tiersCfg[key];
+      const monthly = normalizePricePair(lim.monthlyPriceUsd, lim.monthlyEquivalentCs);
+      const annual = normalizePricePair(lim.annualPriceUsd, lim.annualEquivalentCs);
+      const segments = [
+        formatUsdPriceLine(monthly, { formatUsd: fmtUsd, suffix: ` ${t('sub_per_month')}` }),
+        formatCsPaymentPriceLine(monthly, userCsBalance, { locale: intlLocale }),
+        formatUsdPriceLine(annual, { formatUsd: fmtUsd, suffix: ` ${t('sub_per_year')}` }),
+        formatCsPaymentPriceLine(annual, userCsBalance, { locale: intlLocale }),
+        lim.annualTrialDays > 0 ? `${lim.annualTrialDays} ${t('sub_trial_days_suffix')}` : null,
+      ];
+      const joined = joinPriceSegments(segments);
+      return joined || t('sub_rates_unavailable');
+    },
+    [fmtUsd, intlLocale, t, userCsBalance],
+  );
+
+  const mpTierUsdAvailable = useCallback(
+    (tierKey: Exclude<TierKey, 'free'>, billingPeriod: MercadoPagoBillingPeriod) => {
+      if (!tiers) return false;
+      const usd =
+        billingPeriod === 'annual' ? tiers[tierKey].annualPriceUsd : tiers[tierKey].monthlyPriceUsd;
+      return shouldShowUsdPrice(normalizePricePair(usd, 0));
+    },
+    [tiers],
+  );
 
   const tierSummary = useCallback(
     (key: TierKey, tiersCfg: TiersConfig) => {
@@ -254,27 +267,39 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
 
   const promptMercadoPagoAcquire = useCallback(
     (tierKey: Exclude<TierKey, 'free'>) => {
-      Alert.alert(t('sub_mp_checkout_title'), t('sub_mp_checkout_body'), [
-        {
+      const options: { text: string; onPress?: () => void; style?: 'cancel' }[] = [];
+      if (mpTierUsdAvailable(tierKey, 'monthly')) {
+        options.push({
           text: `${t('sub_mp_billing_monthly_pen')} · ${mpCheckoutAmountLabel(tierKey, 'monthly', 'PEN')}`,
           onPress: () => void startMercadoPagoCheckout(tierKey, 'monthly', 'PEN'),
-        },
-        {
+        });
+      }
+      if (mpTierUsdAvailable(tierKey, 'annual')) {
+        options.push({
           text: `${t('sub_mp_billing_annual_pen')} · ${mpCheckoutAmountLabel(tierKey, 'annual', 'PEN')}`,
           onPress: () => void startMercadoPagoCheckout(tierKey, 'annual', 'PEN'),
-        },
-        {
+        });
+      }
+      if (mpTierUsdAvailable(tierKey, 'monthly')) {
+        options.push({
           text: `${t('sub_mp_billing_monthly_usd')} · ${mpCheckoutAmountLabel(tierKey, 'monthly', 'USD')}`,
           onPress: () => void startMercadoPagoCheckout(tierKey, 'monthly', 'USD'),
-        },
-        {
+        });
+      }
+      if (mpTierUsdAvailable(tierKey, 'annual')) {
+        options.push({
           text: `${t('sub_mp_billing_annual_usd')} · ${mpCheckoutAmountLabel(tierKey, 'annual', 'USD')}`,
           onPress: () => void startMercadoPagoCheckout(tierKey, 'annual', 'USD'),
-        },
-        { text: t('common_cancel'), style: 'cancel' },
-      ]);
+        });
+      }
+      options.push({ text: t('common_cancel'), style: 'cancel' });
+      if (options.length === 1) {
+        Alert.alert(t('common_error'), t('sub_rates_unavailable'));
+        return;
+      }
+      Alert.alert(t('sub_mp_checkout_title'), t('sub_mp_checkout_body'), options);
     },
-    [mpCheckoutAmountLabel, startMercadoPagoCheckout, t],
+    [mpCheckoutAmountLabel, mpTierUsdAvailable, startMercadoPagoCheckout, t],
   );
 
   const runStorePaywall = useCallback(async () => {
@@ -317,17 +342,6 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
     [mpCheckoutAvailable, promptMercadoPagoAcquire, runStorePaywall, t],
   );
 
-  const handleRestorePurchases = async () => {
-    try {
-      await Purchases.restorePurchases();
-      await refreshCardSocialProActive();
-      Alert.alert(t('sub_restore_success_title'), t('sub_restore_success_body'));
-    } catch (error) {
-      console.error('Restore purchases error:', error);
-      Alert.alert(t('common_error'), t('sub_restore_failed'));
-    }
-  };
-
   const cfg = tiers ?? null;
 
   return (
@@ -361,9 +375,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
         <Text style={styles.sectionTitle}>{t('sub_subscriptions_section_title')}</Text>
         {mpCheckoutAvailable ? (
           <Text style={[styles.sectionHint, { color: shell.ctaAccent }]}>{t('sub_mp_peru_hint')}</Text>
-        ) : (
-          <Text style={styles.sectionHint}>{t('sub_subscriptions_section_hint')}</Text>
-        )}
+        ) : null}
         {tiersLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={shell.ctaAccent} />
@@ -376,23 +388,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
           (['free', 'influencer', 'business'] as TierKey[]).map((key) => (
             <View key={key} style={[styles.tierCard, key === 'influencer' && styles.tierCardHighlight]}>
               <Text style={styles.tierName}>{tierLabel(key)}</Text>
-              <Text style={styles.tierPrice}>
-                {key === 'free'
-                  ? fmtUsd(0)
-                  : `${fmtUsd(cfg[key].monthlyPriceUsd)} ${t('sub_per_month')}`}
-                {key !== 'free' && cfg[key].monthlyEquivalentCs > 0
-                  ? ` · ${cfg[key].monthlyEquivalentCs.toLocaleString()} CS`
-                  : ''}
-                {key !== 'free'
-                  ? ` · ${fmtUsd(cfg[key].annualPriceUsd)} ${t('sub_per_year')}`
-                  : ''}
-                {key !== 'free' && cfg[key].annualEquivalentCs > 0
-                  ? ` · ${cfg[key].annualEquivalentCs.toLocaleString()} CS`
-                  : ''}
-                {cfg[key].freeTrialDays > 0
-                  ? ` · ${cfg[key].freeTrialDays} ${t('sub_trial_days_suffix')}`
-                  : ''}
-              </Text>
+              <Text style={styles.tierPrice}>{tierPriceLine(key, cfg)}</Text>
               <Text style={styles.tierMeta}>{tierSummary(key, cfg)}</Text>
               <TouchableOpacity
                 style={[styles.tierCta, (mpCheckoutLoading || manageLoading) && key !== 'free' ? { opacity: 0.65 } : null]}
@@ -411,19 +407,6 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
             </View>
           ))
         )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.legalTitle}>{t('sub_commercial_terms_title')}</Text>
-        <Text style={styles.legalText}>
-          • {t('sub_terms_amounts_may_differ')}
-          {'\n'}• {t('sub_terms_accept_tac')}
-          {'\n'}• {t('sub_terms_restore_policy')}
-        </Text>
-        <TouchableOpacity style={styles.restoreBtn} onPress={handleRestorePurchases}>
-          <MaterialCommunityIcons name="history" size={18} color={shell.emptyCtaText} />
-          <Text style={styles.restoreTxt}>{t('sub_restore_purchases')}</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );

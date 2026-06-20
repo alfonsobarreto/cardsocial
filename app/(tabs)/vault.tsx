@@ -21,7 +21,7 @@ import { creationT } from '@/services/creationI18n';
 import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
-import { requestSubscriptionPanel, requestCsCreditPacksStore } from '@/services/subscriptionNavigationIntent';
+import { requestIconDataSlotsCheckout } from '@/services/subscriptionNavigationIntent';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -1652,7 +1652,7 @@ const VaultScreen = () => {
   const handleUpgradePress = async () => {
     try {
       setLimitReachedVisible(false);
-      requestSubscriptionPanel({ delayMs: 200 });
+      requestIconDataSlotsCheckout({ delayMs: 200 });
     } catch (error) {
       console.error('Error triggering purchase flow:', error);
       Alert.alert(t('common_error'), t('cards_purchase_failed'));
@@ -1705,17 +1705,6 @@ const VaultScreen = () => {
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: vaultTheme.headerDivider }]}>
-        <View style={styles.headerTopRow}>
-          <TouchableOpacity
-            style={styles.csStoreBtn}
-            onPress={() => requestCsCreditPacksStore()}
-            accessibilityRole="button"
-            accessibilityLabel={t('sub_cs_coins_section_title')}
-          >
-            <MaterialCommunityIcons name="circle-multiple" size={16} color={vaultTheme.ctaAccent} />
-            <Text style={styles.csStoreBtnText}>{t('sub_credits_label')}</Text>
-          </TouchableOpacity>
-        </View>
         <View style={styles.headerCenterBlock}>
           <View style={styles.headerUserRowCentered}>
             <BrandGradientText style={styles.headerSubtitle}>{headerProfileLabel}</BrandGradientText>

@@ -2,6 +2,31 @@ import { L } from './_util.mjs';
 
 /** Ghost-Link VoIP overlay + Dull Mode floating lock. */
 export const components = {
+  photo_editor_rotate_left: L('Girar izquierda', 'Rotate left', 'Ruota a sinistra', 'Girar à esquerda', 'Pivoter à gauche', 'Nach links drehen'),
+  photo_editor_rotate_right: L('Girar derecha', 'Rotate right', 'Ruota a destra', 'Girar à direita', 'Pivoter à droite', 'Nach rechts drehen'),
+  photo_editor_mirror_h: L('Espejo H', 'Mirror H', 'Specchio O', 'Espelho H', 'Miroir H', 'Spiegel H'),
+  photo_editor_mirror_v: L('Espejo V', 'Mirror V', 'Specchio V', 'Espelho V', 'Miroir V', 'Spiegel V'),
+  photo_editor_use_photo: L('Usar foto', 'Use photo', 'Usa foto', 'Usar foto', 'Utiliser la photo', 'Foto verwenden'),
+  photo_editor_crop_confirm: L('Confirmar foto', 'Confirm photo', 'Conferma foto', 'Confirmar foto', 'Confirmer la photo', 'Foto bestätigen'),
+  photo_editor_choose_again: L('Tomar / Elegir de nuevo', 'Take / Choose again', 'Scatta / Scegli di nuovo', 'Tirar / Escolher de novo', 'Prendre / Choisir à nouveau', 'Neu wählen'),
+  photo_editor_crop_title: L('Ajusta tu foto', 'Adjust your photo', 'Regola la foto', 'Ajuste sua foto', 'Ajuster votre photo', 'Foto anpassen'),
+  photo_editor_crop_hint: L(
+    'Arrastra para mover · Pellizca para zoom',
+    'Drag to move · Pinch to zoom',
+    'Trascina per spostare · Pizzica per zoomare',
+    'Arraste para mover · Belisque para ampliar',
+    'Glisser pour déplacer · Pincer pour zoomer',
+    'Ziehen · Zoomen mit zwei Fingern',
+  ),
+  photo_editor_review_title: L('Revisar imagen', 'Review image', 'Rivedi immagine', 'Revisar imagem', 'Vérifier l’image', 'Bild prüfen'),
+  photo_editor_review_hint: L(
+    'Gira o refleja si hace falta · Desliza para mover · Pellizca para zoom',
+    'Rotate or mirror if needed · Scroll to pan · Pinch to zoom',
+    'Ruota o rifletti se serve · Scorri per spostare · Pizzica per zoomare',
+    'Gire ou espelhe se precisar · Deslize para mover · Belisque para ampliar',
+    'Tournez ou miroitez si besoin · Faites défiler · Pincez pour zoomer',
+    'Drehen oder spiegeln · Wischen · Zoomen mit zwei Fingern',
+  ),
   ghost_open_settings: L('Abrir ajustes', 'Open Settings', 'Apri impostazioni', 'Abrir configurações', 'Ouvrir les réglages', 'Einstellungen öffnen'),
   ghost_got_it: L('Entendido', 'Got it', 'Ok', 'Entendi', 'Compris', 'Verstanden'),
   ghost_a11y_minimize_call: L('Minimizar llamada', 'Minimize call', 'Riduci chiamata', 'Minimizar chamada', 'Réduire l’appel', 'Anruf minimieren'),

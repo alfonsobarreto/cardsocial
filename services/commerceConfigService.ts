@@ -14,8 +14,26 @@ export type CommerceCreditPack = {
   popular?: boolean;
 };
 
+export type CommerceVoipMinutePack = {
+  id: string;
+  productId: string;
+  priceUsd: number;
+  minutes: number;
+  popular?: boolean;
+};
+
+export type CommerceIconDataSlotPack = {
+  id: string;
+  productId: string;
+  priceUsd: number;
+  slots: number;
+  popular?: boolean;
+};
+
 export type CommerceConfigLoaded = {
   creditPacks: CommerceCreditPack[];
+  voipMinutePacks: CommerceVoipMinutePack[];
+  iconDataSlotPacks: CommerceIconDataSlotPack[];
 };
 
 export type CommerceConfigResult =
@@ -45,12 +63,43 @@ function coerceCreditPack(raw: unknown, index: number): CommerceCreditPack | nul
   };
 }
 
-function packsFromSnapshot(data: Record<string, unknown>): CommerceCreditPack[] {
-  const packsRaw = data?.creditPacks;
-  if (!Array.isArray(packsRaw) || packsRaw.length === 0) {
-    return [];
-  }
-  return packsRaw.map((row, i) => coerceCreditPack(row, i)).filter((p): p is CommerceCreditPack => p != null);
+function coerceVoipMinutePack(raw: unknown, index: number): CommerceVoipMinutePack | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = String(o.id ?? `voip_${index}`).trim() || `voip_${index}`;
+  const productId = String(o.productId ?? '').trim();
+  const priceUsd = Number(o.priceUsd);
+  const minutes = Math.max(1, Math.floor(Number(o.minutes) || 0));
+  if (!productId || !Number.isFinite(priceUsd) || priceUsd <= 0) return null;
+  return { id, productId, priceUsd: Math.max(0, priceUsd), minutes, popular: Boolean(o.popular) };
+}
+
+function coerceIconDataSlotPack(raw: unknown, index: number): CommerceIconDataSlotPack | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = String(o.id ?? `icon_${index}`).trim() || `icon_${index}`;
+  const productId = String(o.productId ?? '').trim();
+  const priceUsd = Number(o.priceUsd);
+  const slots = Math.max(1, Math.floor(Number(o.slots) || 0));
+  if (!productId || !Number.isFinite(priceUsd) || priceUsd <= 0) return null;
+  return { id, productId, priceUsd: Math.max(0, priceUsd), slots, popular: Boolean(o.popular) };
+}
+
+function configFromSnapshot(data: Record<string, unknown>): CommerceConfigLoaded {
+  const creditRaw = data?.creditPacks;
+  const voipRaw = data?.voipMinutePacks;
+  const iconRaw = data?.iconDataSlotPacks;
+  return {
+    creditPacks: Array.isArray(creditRaw)
+      ? creditRaw.map((row, i) => coerceCreditPack(row, i)).filter((p): p is CommerceCreditPack => p != null)
+      : [],
+    voipMinutePacks: Array.isArray(voipRaw)
+      ? voipRaw.map((row, i) => coerceVoipMinutePack(row, i)).filter((p): p is CommerceVoipMinutePack => p != null)
+      : [],
+    iconDataSlotPacks: Array.isArray(iconRaw)
+      ? iconRaw.map((row, i) => coerceIconDataSlotPack(row, i)).filter((p): p is CommerceIconDataSlotPack => p != null)
+      : [],
+  };
 }
 
 export async function getCommerceConfig(): Promise<CommerceConfigResult> {
@@ -62,7 +111,7 @@ export async function getCommerceConfig(): Promise<CommerceConfigResult> {
     return {
       ok: true,
       source: 'firestore',
-      data: { creditPacks: packsFromSnapshot(snap.data() as Record<string, unknown>) },
+      data: configFromSnapshot(snap.data() as Record<string, unknown>),
     };
   } catch {
     return { ok: false, reason: 'read_error' };

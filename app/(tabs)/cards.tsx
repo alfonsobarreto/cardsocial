@@ -18,7 +18,7 @@ import {
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
-import { getPreviewModalStackSize, getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
+import { getPreviewModalStackSize, getWireframeIconRowPlan, wireframeMirrorContainerWidth } from '@/components/smartCard/wireframeMath';
 import {
   renderWireframeMiniIcon,
   renderWireframeMirrorMiniIcon,
@@ -2483,7 +2483,7 @@ export default function CardsFactoryScreen() {
       560,
       getPreviewModalStackSize(height, factoryResolvedDataCount).height - 96,
     );
-    const cardW = Math.round(Math.max(240, Math.min(width - 88, designW)));
+    const cardW = wireframeMirrorContainerWidth(width);
     const scale = cardW / designW;
     const cardH = Math.round(designH * scale);
     return { cardW, cardH };

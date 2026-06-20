@@ -1,3 +1,4 @@
+import BasicPhotoEditorModal from '@/app/components/BasicPhotoEditorModal';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BusinessCardKeywordTags } from '@/components/BusinessCardKeywordTags';
@@ -48,6 +49,7 @@ import { useCoreT } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
+import { optimizeBusinessLogo } from '@/services/imageOptimize';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -55,7 +57,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as ImagePicker from 'expo-image-picker';
+import { useAuthT } from '@/services/authI18n';
+import { usePhotoSourceSheet } from '@/hooks/usePhotoSourceSheet';
+import { PHOTO_PRESET_BUSINESS_LOGO, presetToEditorMode } from '@/services/photoEditorPresets';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -208,53 +212,6 @@ function toRenderableImageUri(value: string | null | undefined): string | null {
   return null;
 }
 
-async function getFileSize(uri: string): Promise<number> {
-  try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
-    if ((info as any)?.size) return Number((info as any).size);
-  } catch {
-    /* ignore */
-  }
-  const blob = await fetch(uri).then((r) => r.blob());
-  return blob.size;
-}
-
-/**
- * Siempre decodifica a JPEG (corrige HEIC / PNG pesado / data URI) y recorta el tamaño
- * antes de subir con mimeType image/jpeg — misma idea que el avatar en myprofile.
- */
-async function optimizePhoto(uri: string): Promise<string> {
-  const normalized = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width: 1024 } }],
-    { compress: 0.88, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  let best = normalized.uri;
-  let size = await getFileSize(best);
-  if (size <= MAX_LOGO_BYTES) return best;
-
-  const attempts = [
-    { width: 800, compress: 0.78 },
-    { width: 640, compress: 0.68 },
-    { width: 512, compress: 0.58 },
-  ];
-  for (const a of attempts) {
-    const r = await ImageManipulator.manipulateAsync(
-      best,
-      [{ resize: { width: a.width } }],
-      { compress: a.compress, format: ImageManipulator.SaveFormat.JPEG },
-    );
-    size = await getFileSize(r.uri);
-    best = r.uri;
-    if (size <= MAX_LOGO_BYTES) return best;
-  }
-  const emergency = await ImageManipulator.manipulateAsync(
-    best,
-    [{ resize: { width: 400 } }],
-    { compress: 0.45, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  return emergency.uri;
-}
 
 function formatReverseAddress(a?: Location.LocationGeocodedAddress | null): string {
   if (!a) return '';
@@ -284,25 +241,6 @@ function buildBusinessGeoMeta(a?: Location.LocationGeocodedAddress | null, fallb
   return { zipcode, city, region, country, geoLabel };
 }
 
-async function cropImageWithDims(uri: string, width: number, height: number): Promise<string> {
-  const size = Math.min(width, height);
-  const originX = Math.floor((width - size) / 2);
-  const originY = Math.floor((height - size) / 2);
-  const result = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ crop: { originX, originY, width: size, height: size } }],
-    { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  return result.uri;
-}
-
-async function cropImageToSquare(uri: string): Promise<string> {
-  const { width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-    Image.getSize(uri, (w, h) => resolve({ width: w, height: h }), reject);
-  });
-  return cropImageWithDims(uri, width, height);
-}
-
 export default function CreateBusinessCardScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ bId?: string; mode?: string; fresh?: string }>();
@@ -313,6 +251,8 @@ export default function CreateBusinessCardScreen() {
   const { language } = useLanguage();
   const tcx = useCreationT();
   const coreT = useCoreT();
+  const authT = useAuthT();
+  const { pickPhoto: pickPhotoFromSources } = usePhotoSourceSheet();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -357,6 +297,12 @@ export default function CreateBusinessCardScreen() {
   const [bcLogo, setBcLogo] = useState<string | null>(null);
   const [bcLogoUrl, setBcLogoUrl] = useState<string | null>(null);
   const [pickingLogo, setPickingLogo] = useState(false);
+  const [logoEditor, setLogoEditor] = useState<{
+    uri: string;
+    width: number;
+    height: number;
+  } | null>(null);
+  const logoPickerRetryRef = useRef<() => void>(() => {});
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [businessGeoMeta, setBusinessGeoMeta] = useState<BusinessGeoMeta>({
@@ -913,45 +859,30 @@ export default function CreateBusinessCardScreen() {
   const pickBusinessLogo = async () => {
     setPickingLogo(true);
     try {
-      // Evitar que un Modal RN quede encima del picker/recorte del sistema (Android).
       setVaultSelectorVisible(false);
       setThemesPickerVisible(false);
       await new Promise<void>((resolve) => {
         InteractionManager.runAfterInteractions(() => resolve());
       });
 
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(tcx('create_permission_title'), tcx('create_permission_photos_logo'));
-        return;
-      }
-
-      // Android: allowsEditing abre un crop nativo roto (botones fuera de pantalla / congelado).
-      // iOS: recorte nativo 1:1 + base64 para preview estable.
-      const skipNativeCrop = Platform.OS === 'android';
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: !skipNativeCrop,
-        ...(skipNativeCrop ? {} : { aspect: [1, 1] as [number, number] }),
-        quality: 0.85,
-        base64: !skipNativeCrop,
-      });
-      if (res.canceled || !res.assets?.[0]) return;
-      const asset = res.assets[0];
-
-      let nextUri: string;
-      if (skipNativeCrop) {
-        const w = typeof asset.width === 'number' ? asset.width : 0;
-        const h = typeof asset.height === 'number' ? asset.height : 0;
-        nextUri =
-          w > 0 && h > 0
-            ? await cropImageWithDims(asset.uri, w, h)
-            : await cropImageToSquare(asset.uri);
-      } else {
-        nextUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-      }
-      setBcLogo(nextUri);
-      setBcLogoUrl(null);
+      const retry = () => void pickBusinessLogo();
+      logoPickerRetryRef.current = retry;
+      const picked = await pickPhotoFromSources(
+        PHOTO_PRESET_BUSINESS_LOGO,
+        {
+          cancel: tcx('create_cancel'),
+          gallery: tcx('form_ios_pick_image'),
+          cameraFront: authT('register_photo_open_camera'),
+          cameraBack: tcx('form_ios_take_photo'),
+          permissionPhotos: tcx('create_permission_photos_logo'),
+          permissionCamera: tcx('form_camera_needed'),
+          permissionTitle: tcx('create_permission_title'),
+          pickTitle: tcx('create_logo_help'),
+        },
+        0.85,
+      );
+      if (!picked) return;
+      setLogoEditor({ uri: picked.uri, width: picked.width, height: picked.height });
     } catch (e: any) {
       Alert.alert(tcx('create_error'), userFacingAlertMessage(e, language, tcx('create_image_process_error')));
     } finally {
@@ -1061,7 +992,7 @@ export default function CreateBusinessCardScreen() {
     if (bcLogo) {
       try {
         console.log('[BusinessCard] optimizando logo antes de subir…');
-        const optimizedUri = await optimizePhoto(bcLogo);
+        const optimizedUri = await optimizeBusinessLogo(bcLogo);
         console.log('[BusinessCard] llamando uploadFileWithModeration (business_logo)…');
         const result = await uploadFileWithModeration({
           fileUri: optimizedUri,
@@ -2163,6 +2094,25 @@ export default function CreateBusinessCardScreen() {
             </View>
       </View>
     </Modal>
+    {logoEditor ? (
+      <BasicPhotoEditorModal
+        visible
+        uri={logoEditor.uri}
+        imageWidth={logoEditor.width}
+        imageHeight={logoEditor.height}
+        mode={presetToEditorMode(PHOTO_PRESET_BUSINESS_LOGO)}
+        onConfirm={(editedUri) => {
+          setLogoEditor(null);
+          setBcLogo(editedUri);
+          setBcLogoUrl(null);
+        }}
+        onChooseAgain={() => {
+          setLogoEditor(null);
+          setTimeout(() => logoPickerRetryRef.current?.(), 350);
+        }}
+        onClose={() => setLogoEditor(null)}
+      />
+    ) : null}
     </>
   );
 }

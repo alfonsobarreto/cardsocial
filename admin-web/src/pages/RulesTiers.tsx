@@ -11,6 +11,14 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { useAdminT } from '../i18n/useAdminT';
 import MarketRadarProPanel from './MarketRadarProPanel';
+import CsPricingRulesBanner, { CsPricingRulesInline } from '../components/CsPricingRulesBanner';
+import TierPriceVisibilityPreview from '../components/TierPriceVisibilityPreview';
+import {
+  computeAnnualCs,
+  computeAnnualUsd,
+  effectiveMonthlyFromAnnualUsd,
+  resolveTierAnnualPricing,
+} from '../lib/tierAnnualPricing';
 
 const TIER_META: { key: TierKey; title: string; subtitle: string; accent: string }[] = [
   {
@@ -43,6 +51,7 @@ export default function RulesTiers() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [simulatedCsBalance, setSimulatedCsBalance] = useState(0);
   const adminEmail = user?.email || 'unknown-admin';
 
   useEffect(() => {
@@ -146,6 +155,10 @@ export default function RulesTiers() {
         </div>
       ) : (
         <form className="space-y-6" onSubmit={handleSubmit}>
+          <CsPricingRulesBanner
+            simulatedBalance={simulatedCsBalance}
+            onSimulatedBalanceChange={setSimulatedCsBalance}
+          />
           <div className="grid gap-6 lg:grid-cols-3">
             {TIER_META.map(({ key, title, subtitle, accent }) => {
               const tier = config[key];
@@ -206,53 +219,130 @@ export default function RulesTiers() {
                         step="0.01"
                         className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
                         value={tier.monthlyPriceUsd}
-                        onChange={(e) =>
-                          updateTier(key, { monthlyPriceUsd: Number.parseFloat(e.target.value) || 0 })
-                        }
+                        onChange={(e) => {
+                          const monthlyPriceUsd = Number.parseFloat(e.target.value) || 0;
+                          updateTier(key, {
+                            monthlyPriceUsd,
+                            annualPriceUsd: computeAnnualUsd(monthlyPriceUsd, tier.annualDiscountPercent),
+                          });
+                        }}
                       />
                     </label>
 
-                    <label className="block">
+                    <label className="block opacity-90">
                       <span className="text-sm font-medium text-slate-700">Equivalente mensual (CS)</span>
+                      <CsPricingRulesInline />
                       <input
                         type="number"
                         min={0}
-                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                        className="mt-1.5 w-full rounded-xl border border-violet-200 bg-violet-50/40 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                         value={tier.monthlyEquivalentCs}
-                        onChange={(e) =>
-                          updateTier(key, { monthlyEquivalentCs: Number.parseInt(e.target.value, 10) || 0 })
-                        }
+                        onChange={(e) => {
+                          const monthlyEquivalentCs = Number.parseInt(e.target.value, 10) || 0;
+                          updateTier(key, {
+                            monthlyEquivalentCs,
+                            annualEquivalentCs: computeAnnualCs(
+                              monthlyEquivalentCs,
+                              tier.annualDiscountPercent,
+                            ),
+                          });
+                        }}
                       />
                     </label>
 
-                    <label className="block">
-                      <span className="text-sm font-medium text-slate-700">Precio anual (USD)</span>
+                    <div className="block rounded-2xl border border-amber-200/80 bg-amber-50/40 p-4">
+                      <span className="text-sm font-medium text-slate-700">Descuento plan anual (1 año)</span>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        Publicado en app · típico: 12 meses al costo de 9 × mensual (editable).
+                        Se calcula desde el precio mensual. El plan mensual no incluye descuento ni prueba.
                       </p>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
-                        value={tier.annualPriceUsd}
-                        onChange={(e) =>
-                          updateTier(key, { annualPriceUsd: Number.parseFloat(e.target.value) || 0 })
-                        }
-                      />
-                    </label>
+                      <div className="mt-3 flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={0}
+                          max={80}
+                          step={1}
+                          className="h-2 w-full cursor-pointer accent-amber-500"
+                          value={tier.annualDiscountPercent}
+                          onChange={(e) => {
+                            const annualDiscountPercent = Number.parseInt(e.target.value, 10) || 0;
+                            updateTier(key, {
+                              annualDiscountPercent,
+                              annualPriceUsd: computeAnnualUsd(tier.monthlyPriceUsd, annualDiscountPercent),
+                              annualEquivalentCs: computeAnnualCs(
+                                tier.monthlyEquivalentCs,
+                                annualDiscountPercent,
+                              ),
+                            });
+                          }}
+                        />
+                        <span className="w-12 shrink-0 text-right text-sm font-semibold text-amber-700">
+                          {tier.annualDiscountPercent}%
+                        </span>
+                      </div>
+                      {(() => {
+                        const derived = resolveTierAnnualPricing({
+                          monthlyPriceUsd: tier.monthlyPriceUsd,
+                          monthlyEquivalentCs: tier.monthlyEquivalentCs,
+                          annualDiscountPercent: tier.annualDiscountPercent,
+                          annualTrialDays: tier.annualTrialDays,
+                          annualPriceUsd: tier.annualPriceUsd,
+                          freeTrialDays: tier.freeTrialDays,
+                        });
+                        const effMonthly = effectiveMonthlyFromAnnualUsd(derived.annualPriceUsd);
+                        return (
+                          <div className="mt-3 space-y-1 text-xs text-slate-600">
+                            <p>
+                              Vista calculada:{' '}
+                              <strong>
+                                {new Intl.NumberFormat('es', {
+                                  style: 'currency',
+                                  currency: 'USD',
+                                  maximumFractionDigits: 2,
+                                }).format(derived.annualPriceUsd)}{' '}
+                                / año
+                              </strong>
+                              {derived.annualEquivalentCs > 0 ? (
+                                <>
+                                  {' '}
+                                  · <strong>{derived.annualEquivalentCs.toLocaleString()} CS / año</strong>
+                                </>
+                              ) : null}
+                            </p>
+                            {derived.annualPriceUsd > 0 ? (
+                              <p>
+                                Equivalente mensual con dto.:{' '}
+                                <strong>
+                                  {new Intl.NumberFormat('es', {
+                                    style: 'currency',
+                                    currency: 'USD',
+                                    maximumFractionDigits: 2,
+                                  }).format(effMonthly)}{' '}
+                                  / mes
+                                </strong>
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </div>
 
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-700">Equivalente anual (CS)</span>
-                      <input
-                        type="number"
-                        min={0}
+                      <span className="text-sm font-medium text-slate-700">Prueba contrato anual</span>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Solo aplica al checkout anual. El plan mensual no incluye prueba. Para paridad en App Store /
+                        Play, configura la prueba de 15 días en el producto anual de la tienda.
+                      </p>
+                      <select
                         className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
-                        value={tier.annualEquivalentCs}
-                        onChange={(e) =>
-                          updateTier(key, { annualEquivalentCs: Number.parseInt(e.target.value, 10) || 0 })
-                        }
-                      />
+                        value={tier.annualTrialDays}
+                        onChange={(e) => {
+                          const annualTrialDays = Number.parseInt(e.target.value, 10) as 0 | 15;
+                          updateTier(key, { annualTrialDays, freeTrialDays: annualTrialDays });
+                        }}
+                      >
+                        <option value={0}>0 días</option>
+                        <option value={15}>15 días</option>
+                      </select>
                     </label>
 
                     <label className="block">
@@ -288,24 +378,6 @@ export default function RulesTiers() {
                       />
                     </label>
 
-                    <label className="block">
-                      <span className="text-sm font-medium text-slate-700">Free Trial</span>
-                      <select
-                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
-                        value={tier.freeTrialDays}
-                        onChange={(e) =>
-                          updateTier(key, {
-                            freeTrialDays: Number.parseInt(e.target.value, 10) as TiersConfig[TierKey]['freeTrialDays'],
-                          })
-                        }
-                      >
-                        <option value={0}>0 días</option>
-                        <option value={14}>14 días</option>
-                        <option value={30}>30 días</option>
-                        <option value={90}>90 días</option>
-                      </select>
-                    </label>
-
                     <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <div>
                         <p className="text-sm font-medium text-slate-800">Premium themes</p>
@@ -329,6 +401,10 @@ export default function RulesTiers() {
                         />
                       </button>
                     </div>
+
+                    {key !== 'free' ? (
+                      <TierPriceVisibilityPreview tier={tier} simulatedBalance={simulatedCsBalance} />
+                    ) : null}
                   </div>
                 </article>
               );
@@ -344,7 +420,8 @@ export default function RulesTiers() {
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-950">Ventas individuales</h2>
               <p className="mt-2 text-sm text-slate-500">
-                Precios a-la-carte para upsells, hardware físico y tarjetas adicionales.
+                Precios a-la-carte para upsells, hardware físico y tarjetas adicionales. Los montos CS siguen la misma
+                regla: ocultos en app si CS=0 o saldo usuario=0.
               </p>
             </div>
 

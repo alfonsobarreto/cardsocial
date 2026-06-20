@@ -3,6 +3,7 @@ import {
     computeStitchWireframeBubbleSide,
     getWireframeIconRowPlan,
     wireframeGridUsableWidthFallback,
+    wireframeMirrorGridHeightFallback,
     WIREFRAME_STITCH_GAP,
     WIREFRAME_STITCH_HORIZONTAL_INSET,
     WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW,
@@ -112,10 +113,16 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const [horizInfoBoxLayout, setHorizInfoBoxLayout] = useState({ w: 0, h: 0 });
   const [horizIconGridLayout, setHorizIconGridLayout] = useState({ w: 0, h: 0 });
   const [stitchUsableW, setStitchUsableW] = useState(0);
+  const [gridLayoutReady, setGridLayoutReady] = useState(false);
+  const gridFadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     setStitchUsableW(0);
-  }, [layout]);
+    setGridLayoutReady(false);
+    if (!editable) {
+      gridFadeAnim.setValue(0);
+    }
+  }, [layout, editable, gridFadeAnim]);
 
   const gridWidthFallback = useMemo(
     () =>
@@ -126,9 +133,15 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     [containerWidth, windowWidth, editable],
   );
 
-  /** Android: un frame extra para que onLayout del grid no quede en 0 tras montar el modal. */
+  const mirrorContainerW = useMemo(
+    () => (containerWidth && containerWidth > 0 ? containerWidth : windowWidth),
+    [containerWidth, windowWidth],
+  );
+
+  /** Android/iOS espejo: sembrar ancho estable antes de onLayout para evitar salto de escala. */
   useEffect(() => {
-    if (Platform.OS !== 'android' || editable) return;
+    if (editable || gridWidthFallback <= 0) return;
+    setStitchUsableW((prev) => (prev > 0 ? prev : gridWidthFallback));
     const frame = requestAnimationFrame(() => {
       setStitchUsableW((prev) => (prev > 0 ? prev : gridWidthFallback));
     });
@@ -146,6 +159,16 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
 
   /** Modal / espejo: alineado con web (`BusinessCardWeb`): cabecera compacta, cápsula de rating, rejilla centrada. */
   const mirror = !editable;
+
+  useEffect(() => {
+    if (!mirror || !gridLayoutReady) return;
+    Animated.timing(gridFadeAnim, {
+      toValue: 1,
+      duration: 240,
+      useNativeDriver: true,
+    }).start();
+  }, [gridLayoutReady, gridFadeAnim, mirror]);
+
   const mStatsScale = mirror ? (mirrorStatsCapsuleScale ?? 1) : 1;
   const thin = mirror ? { fontWeight: '300' as const } : {};
   const iconsBoxMirror = mirror ? { marginTop: 12 } : {};
@@ -311,7 +334,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     horizIconGridLayout.h > 0
       ? horizIconGridLayout.h
       : mirror
-        ? 160
+        ? wireframeMirrorGridHeightFallback(mirrorContainerW, hFeed.length, 'horizontal')
         : 0;
   const hIconSize =
     hUsableW > 0
@@ -402,9 +425,17 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           </View>
         </View>
 
-        <View
-          style={[wf.horizIconsBox, iconsBoxMirror]}
-          onLayout={(e) => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        <Animated.View
+          style={[
+            wf.horizIconsBox,
+            iconsBoxMirror,
+            { opacity: mirror ? gridFadeAnim : 1 },
+          ]}
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            setHorizIconGridLayout({ w: width, h: height });
+            if (height > 0) setGridLayoutReady(true);
+          }}
         >
           <View
             style={[wf.wireIconGridRoot, !editable && { paddingHorizontal: hGridInset / 2 }]}
@@ -440,7 +471,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
               </View>
             ) : null}
           </View>
-        </View>
+        </Animated.View>
         </View>
       </LinearGradient>
     );
@@ -474,7 +505,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     vertIconGridLayout.h > 0
       ? vertIconGridLayout.h
       : mirror
-        ? 200
+        ? wireframeMirrorGridHeightFallback(mirrorContainerW, vFeed.length, 'vertical')
         : 0;
   const vertIconCellSize =
     vUsableW > 0
@@ -637,7 +668,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         </View>
       )}
 
-      <View
+      <Animated.View
         style={[
           wf.vertIconsBox,
           mirror
@@ -646,14 +677,18 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 flexGrow: 1,
                 minHeight: 200,
                 marginTop: 12,
-                /** `flex-start`: igual que edición; `center` + overflow:hidden recortaba la fila superior al centrar rejillas altas (3–4 filas). */
                 paddingTop: 10,
                 paddingBottom: 22,
                 justifyContent: 'flex-start',
+                opacity: gridFadeAnim,
               }
-            : iconsBoxMirror,
+            : { ...iconsBoxMirror, opacity: 1 },
         ]}
-        onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setVertIconGridLayout({ w: width, h: height });
+          if (height > 0) setGridLayoutReady(true);
+        }}
       >
         <View
           style={[
@@ -694,7 +729,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             </View>
           ) : null}
         </View>
-      </View>
+      </Animated.View>
       </View>
     </LinearGradient>
   );

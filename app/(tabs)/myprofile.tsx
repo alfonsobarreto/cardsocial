@@ -41,11 +41,11 @@ import { propagateUserIdentityAcrossSmartCards } from '@/services/smartCardsRepo
 import { tierMeetsSilver, parseLegacyTier } from '@/services/legacyPathEngine';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
+import { optimizeProfilePhoto } from '@/services/imageOptimize';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
-import * as ImageManipulator from 'expo-image-manipulator';
-import * as ImagePicker from 'expo-image-picker';
+import { usePhotoSourceSheet } from '@/hooks/usePhotoSourceSheet';
+import { PHOTO_PRESET_PROFILE, presetToEditorMode } from '@/services/photoEditorPresets';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
@@ -56,9 +56,8 @@ import {
     verifyBeforeUpdateEmail,
 } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActionSheetIOS,
     Alert,
     InteractionManager,
     Keyboard,
@@ -75,53 +74,15 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { formKeyboardScrollViewProps } from '@/constants/scrollInteraction';
 import palette from '../theme';
+import BasicPhotoEditorModal from '@/app/components/BasicPhotoEditorModal';
 import { PartnerBadge } from '@/components/PartnerBadge';
 import { VoipAirTimeBadge } from '@/components/VoipAirTimeBadge';
 
-// ─── Photo helpers ─────────────────────────────────────────────────────────────
-const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
-
-async function getFileSize(uri: string): Promise<number> {
-  try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
-    if ((info as any)?.size) return Number((info as any).size);
-  } catch { /* fallback */ }
-  const blob = await fetch(uri).then((r) => r.blob());
-  return blob.size;
-}
-
-async function optimizePhoto(uri: string): Promise<string> {
-  const initialSize = await getFileSize(uri);
-  if (initialSize <= MAX_PHOTO_BYTES) return uri;
-
-  const attempts = [
-    { width: 1920, compress: 0.72 },
-    { width: 1440, compress: 0.62 },
-    { width: 1080, compress: 0.52 },
-    { width: 840, compress: 0.45 },
-    { width: 640, compress: 0.38 },
-  ];
-
-  let best = uri;
-  for (const a of attempts) {
-    const r = await ImageManipulator.manipulateAsync(
-      best,
-      [{ resize: { width: a.width } }],
-      { compress: a.compress, format: ImageManipulator.SaveFormat.JPEG }
-    );
-    const size = await getFileSize(r.uri);
-    best = r.uri;
-    if (size <= MAX_PHOTO_BYTES) return best;
-  }
-
-  const emergency = await ImageManipulator.manipulateAsync(
-    best,
-    [{ resize: { width: 480 } }],
-    { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }
-  );
-  return emergency.uri;
-}
-// ───────────────────────────────────────────────────────────────────────────────
+type ProfilePhotoEditorState = {
+  uri: string;
+  width: number;
+  height: number;
+} | null;
 
 type UserProfile = {
   uid: string;
@@ -175,8 +136,22 @@ export default function MyProfileScreen() {
   // Photo upload
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
-  /** Android: vista previa antes de subir (evita recorte nativo roto + confirma con Aceptar). */
-  const [androidPhotoPreviewUri, setAndroidPhotoPreviewUri] = useState<string | null>(null);
+  const [profilePhotoEditor, setProfilePhotoEditor] = useState<ProfilePhotoEditorState>(null);
+  const profilePhotoRetryRef = useRef<() => void>(() => {});
+  const { pickPhoto: pickPhotoFromSources } = usePhotoSourceSheet();
+  const profilePhotoPickLabels = useMemo(
+    () => ({
+      cancel: t('common_cancel'),
+      gallery: t('profile_sec_gallery'),
+      cameraFront: t('profile_sec_camera_selfie'),
+      cameraBack: t('profile_sec_camera'),
+      permissionPhotos: t('profile_sec_permission_photos'),
+      permissionCamera: t('profile_sec_permission_camera'),
+      permissionTitle: t('profile_sec_permission_title'),
+      pickTitle: t('profile_sec_change_photo_title'),
+    }),
+    [t],
+  );
 
   // Password change
   const [pwSection, setPwSection] = useState(false);
@@ -386,101 +361,24 @@ export default function MyProfileScreen() {
   };
 
   // ── Photo picker ────────────────────────────────────────────────────────────
+  const openProfilePhotoEditorFromPick = async (
+    picked: { uri: string; width: number; height: number },
+    retry: () => void,
+  ) => {
+    profilePhotoRetryRef.current = retry;
+    setProfilePhotoEditor({
+      uri: picked.uri,
+      width: picked.width,
+      height: picked.height,
+    });
+  };
+
   const pickPhoto = async () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [
-            t('common_cancel'),
-            t('profile_sec_gallery'),
-            t('profile_sec_camera_selfie'),
-          ],
-          cancelButtonIndex: 0,
-        },
-        (idx) => {
-          if (idx === 1) pickFromGallery();
-          if (idx === 2) pickFromCamera();
-        }
-      );
-    } else {
-      Alert.alert(
-        t('profile_sec_change_photo_title'),
-        '',
-        [
-          { text: t('profile_sec_gallery'), onPress: pickFromGallery },
-          { text: t('profile_sec_camera'), onPress: pickFromCamera },
-          { text: t('common_cancel'), style: 'cancel' },
-        ]
-      );
+    const retry = () => void pickPhoto();
+    const picked = await pickPhotoFromSources(PHOTO_PRESET_PROFILE, profilePhotoPickLabels, 0.9);
+    if (picked) {
+      await openProfilePhotoEditorFromPick(picked, retry);
     }
-  };
-
-  const pickFromGallery = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(t('profile_sec_permission_title'), t('profile_sec_permission_photos'));
-      return;
-    }
-    if (Platform.OS === 'android') {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.9,
-      });
-      if (!result.canceled && result.assets[0]?.uri) {
-        setAndroidPhotoPreviewUri(result.assets[0].uri);
-      }
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await handlePhotoSelected(result.assets[0].uri);
-    }
-  };
-
-  const pickFromCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(t('profile_sec_permission_title'), t('profile_sec_permission_camera'));
-      return;
-    }
-    if (Platform.OS === 'android') {
-      const result = await ImagePicker.launchCameraAsync({
-        cameraType: ImagePicker.CameraType.front,
-        allowsEditing: false,
-        quality: 0.9,
-      });
-      if (!result.canceled && result.assets[0]?.uri) {
-        setAndroidPhotoPreviewUri(result.assets[0].uri);
-      }
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      cameraType: ImagePicker.CameraType.front,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await handlePhotoSelected(result.assets[0].uri);
-    }
-  };
-
-  const confirmAndroidPhotoPreview = () => {
-    const uri = androidPhotoPreviewUri;
-    setAndroidPhotoPreviewUri(null);
-    if (uri) {
-      void handlePhotoSelected(uri);
-    }
-  };
-
-  const cancelAndroidPhotoPreview = () => {
-    setAndroidPhotoPreviewUri(null);
   };
 
   const handlePhotoSelected = async (uri: string) => {
@@ -492,7 +390,7 @@ export default function MyProfileScreen() {
     // Defer heavy work (compress + upload) until UI animations settle
     InteractionManager.runAfterInteractions(async () => {
       try {
-        const optimized = await optimizePhoto(uri);
+        const optimized = await optimizeProfilePhoto(uri);
         const result = await uploadFileWithModeration({
           fileUri: optimized,
           uid: profile.uid,
@@ -854,7 +752,7 @@ export default function MyProfileScreen() {
   const unlock = nicknameUnlockDate(profile?.lastNicknameChange ?? null);
   const nicknameLocked = unlock !== null && unlock > new Date();
 
-  const photoPickerBusy = uploadingPhoto || Boolean(androidPhotoPreviewUri);
+  const photoPickerBusy = uploadingPhoto || Boolean(profilePhotoEditor);
 
   return (
     <>
@@ -1330,56 +1228,24 @@ export default function MyProfileScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-    {Platform.OS === 'android' && (
-      <Modal
-        visible={Boolean(androidPhotoPreviewUri)}
-        animationType="fade"
-        transparent
-        statusBarTranslucent
-        onRequestClose={cancelAndroidPhotoPreview}
-      >
-        <View style={[styles.photoPreviewBackdrop, { backgroundColor: shell.overlayScrim }]}>
-          <View style={[styles.photoPreviewCard, { backgroundColor: card, borderColor: border }]}>
-            <Text style={[styles.photoPreviewTitle, { color: textPrimary }]}>
-              {t('profile_sec_preview_title')}
-            </Text>
-            <Text style={[styles.photoPreviewSubtitle, { color: textSecondary }]}>
-              {t('profile_sec_preview_question')}
-            </Text>
-            {androidPhotoPreviewUri ? (
-              <ExpoImage
-                source={{ uri: androidPhotoPreviewUri }}
-                style={styles.photoPreviewImage}
-                contentFit="contain"
-                cachePolicy="none"
-              />
-            ) : null}
-            <View style={styles.photoPreviewActions}>
-              <TouchableOpacity
-                style={[styles.photoPreviewBtnSecondary, { borderColor: border }]}
-                onPress={cancelAndroidPhotoPreview}
-                disabled={uploadingPhoto}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.photoPreviewBtnSecondaryText, { color: textSecondary }]}>
-                  {t('common_cancel')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.photoPreviewBtnPrimary, { backgroundColor: accent }]}
-                onPress={confirmAndroidPhotoPreview}
-                disabled={uploadingPhoto}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.photoPreviewBtnPrimaryText, { color: shell.emptyCtaText }]}>
-                  {t('common_accept')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    )}
+    {profilePhotoEditor ? (
+      <BasicPhotoEditorModal
+        visible
+        uri={profilePhotoEditor.uri}
+        imageWidth={profilePhotoEditor.width}
+        imageHeight={profilePhotoEditor.height}
+        mode={presetToEditorMode(PHOTO_PRESET_PROFILE)}
+        onConfirm={(editedUri) => {
+          setProfilePhotoEditor(null);
+          void handlePhotoSelected(editedUri);
+        }}
+        onChooseAgain={() => {
+          setProfilePhotoEditor(null);
+          setTimeout(() => profilePhotoRetryRef.current?.(), 350);
+        }}
+        onClose={() => setProfilePhotoEditor(null)}
+      />
+    ) : null}
     </>
   );
 }

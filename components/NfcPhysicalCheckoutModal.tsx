@@ -17,6 +17,8 @@ import {
   sortNfcShippingCountryCodesForLocale,
 } from '@/services/nfcPhysicalCardShipping';
 import { getTiersConfig, type TiersConfig } from '@/services/tiersConfigService';
+import { shouldShowCsPaymentPrice, normalizePricePair } from '@/services/subscriptionPriceVisibility';
+import { useUserCsBalance } from '@/hooks/useUserCsBalance';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as Localization from 'expo-localization';
@@ -58,6 +60,7 @@ export function NfcPhysicalCheckoutModal({ visible, onClose }: Props) {
   const [tiersLoading, setTiersLoading] = useState(true);
   const [nfcMaterial, setNfcMaterial] = useState<'pvc' | 'metal'>('pvc');
   const [nfcShipCountry, setNfcShipCountry] = useState('US');
+  const { balance: userCsBalance } = useUserCsBalance(visible);
 
   useEffect(() => {
     if (!visible) return;
@@ -286,7 +289,8 @@ export function NfcPhysicalCheckoutModal({ visible, onClose }: Props) {
                     <Text style={styles.breakdownTotalLabel}>{t('sub_total')}</Text>
                     <Text style={styles.breakdownTotalValue}>{fmtUsd(nfcCheckout.totalUsd)}</Text>
                   </View>
-                  {nfcCheckout.totalCs > 0 ? (
+                  {nfcCheckout.totalCs > 0 &&
+                  shouldShowCsPaymentPrice(normalizePricePair(0, nfcCheckout.totalCs), userCsBalance) ? (
                     <View style={[styles.breakdownLine, { marginTop: 6 }]}>
                       <Text style={styles.breakdownLabel}>{t('sub_equivalent_cs_short')}</Text>
                       <Text style={styles.breakdownValue}>{nfcCheckout.totalCs.toLocaleString()} CS</Text>

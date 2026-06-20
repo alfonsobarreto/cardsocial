@@ -12,7 +12,8 @@ const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 const DEFAULT_BUNKER_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
 const { buildGhostLinkAgoraInviteWithVoipGate } = require('../lib/agoraGhostLink');
-const { recordVoipUsageForGhostOutgoingLog, getVoipMinutesSummary } = require('../lib/voipUsageService');
+const { recordVoipUsageForGhostOutgoingLog, getVoipMinutesSummary, grantPurchasedVoipMinutes, grantIconDataBonusSlots } = require('../lib/voipUsageService');
+const { loadCommerceCatalog, findVoipPack, findIconDataPack } = require('../lib/commerceRedeemService');
 const { sendPushToUser } = require('../lib/pushNotifications');
 const { mergeContactProfileFromCard, enrichSubscriberProfileFromCard } = require('../lib/contactIdentityMerge');
 const { buildMongoExtendedProfileFields, mergeUsersAndProfilesDocuments } = require('../lib/extendedUserIdentity');
@@ -1053,6 +1054,70 @@ function createQrRoutes({ storage }) {
       });
     } catch (error) {
       console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
+    }
+  });
+
+  router.post('/voip/redeem-minute-pack', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
+      const packId = String(req.body?.packId || '').trim();
+      const productId = String(req.body?.productId || '').trim();
+      if (!userUid || !packId || !productId) {
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
+      }
+      if (authUid && authUid !== userUid) {
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
+      }
+      const catalog = await loadCommerceCatalog();
+      const pack = findVoipPack(catalog, packId, productId);
+      if (!pack) {
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'PACK_NOT_FOUND'));
+      }
+      const result = await grantPurchasedVoipMinutes(storage, userUid, pack.minutes);
+      if (!result.ok) {
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REDEEM_FAILED'));
+      }
+      const summary = await getVoipMinutesSummary(storage, userUid);
+      return res.status(200).json({
+        ok: true,
+        grantedMinutes: result.grantedMinutes,
+        summary,
+      });
+    } catch (error) {
+      console.error('[qrRoutes] voip redeem', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
+    }
+  });
+
+  router.post('/commerce/redeem-icondata-slot-pack', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
+      const packId = String(req.body?.packId || '').trim();
+      const productId = String(req.body?.productId || '').trim();
+      if (!userUid || !packId || !productId) {
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
+      }
+      if (authUid && authUid !== userUid) {
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
+      }
+      const catalog = await loadCommerceCatalog();
+      const pack = findIconDataPack(catalog, packId, productId);
+      if (!pack) {
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'PACK_NOT_FOUND'));
+      }
+      const result = await grantIconDataBonusSlots(storage, userUid, pack.slots);
+      if (!result.ok) {
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REDEEM_FAILED'));
+      }
+      return res.status(200).json({
+        ok: true,
+        grantedSlots: result.grantedSlots,
+      });
+    } catch (error) {
+      console.error('[qrRoutes] icondata redeem', error);
       return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });

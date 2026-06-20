@@ -28,6 +28,9 @@ import {
 } from 'react-native';
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
+import BasicPhotoEditorModal from '@/app/components/BasicPhotoEditorModal';
+import { resolveImageDimensions } from '@/services/imageOptimize';
+import { PHOTO_PRESET_VAULT_IMAGE, presetToEditorMode } from '@/services/photoEditorPresets';
 import CountryDialPickerModal from '@/components/CountryDialPickerModal';
 import {
   buildE164,
@@ -340,6 +343,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     mimeType: string;
     source: 'camera' | 'gallery' | 'document';
   } | null>(null);
+  const [vaultImageEditor, setVaultImageEditor] = useState<{
+    uri: string;
+    width: number;
+    height: number;
+    name: string;
+    mimeType: string;
+    source: 'camera' | 'gallery';
+  } | null>(null);
+  const vaultImageRetryRef = useRef<() => void>(() => {});
+  const vaultImageEditorSessionRef = useRef(0);
   /** Tras confirmar el preview se pierde `pendingAsset`; guardamos nombre/MIME reales para el POST multipart. */
   const documentUploadMetaRef = useRef<{ fileName: string; mimeType: string } | null>(null);
 
@@ -1005,6 +1018,73 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFileTypeModalVisible(false);
   };
 
+  const openVaultImageEditor = async (
+    file: ImagePicker.ImagePickerAsset,
+    meta: { name: string; mimeType: string; source: 'camera' | 'gallery' },
+    retry: () => void,
+  ) => {
+    vaultImageRetryRef.current = retry;
+    try {
+      const dims = await resolveImageDimensions(file.uri, file.width, file.height);
+      setVaultImageEditor({
+        uri: file.uri,
+        width: dims.width,
+        height: dims.height,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        source: meta.source,
+      });
+    } catch {
+      setVaultImageEditor({
+        uri: file.uri,
+        width: 1080,
+        height: 1080,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        source: meta.source,
+      });
+    }
+  };
+
+  const applyVaultImageAsset = (
+    uri: string,
+    meta: { name: string; mimeType: string; source: 'camera' | 'gallery' },
+  ) => {
+    documentUploadMetaRef.current = {
+      fileName: meta.name.trim() || inferFileName(uri),
+      mimeType: meta.mimeType.trim() || inferMimeType(uri),
+    };
+    setDataValue(uri);
+    if (!dataName.trim()) {
+      const baseName = meta.name.replace(/\.[^/.]+$/, '');
+      setDataName(baseName || tcx('form_document_default'));
+    }
+  };
+
+  const finalizeVaultImageAfterEditor = async (
+    editedUri: string,
+    meta: { name: string; mimeType: string; source: 'camera' | 'gallery' },
+    sessionToken: number,
+  ) => {
+    if (isSessionClosed(sessionToken)) return;
+    const maxImageBytes = dataType === 'Documento' ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
+    const optimized = await optimizeImageForLimit(editedUri, maxImageBytes);
+    if (isSessionClosed(sessionToken)) return;
+    if (optimized.size > maxImageBytes) {
+      alertVaultImageTooLarge();
+      return;
+    }
+    logAssetAudit('PICK_EDITOR_COMPRESSED', {
+      dataType,
+      dataName,
+      uri: optimized.uri,
+      fileName: meta.name,
+      mimeType: 'image/jpeg',
+      sizeBytes: optimized.size,
+    });
+    applyVaultImageAsset(optimized.uri, meta);
+  };
+
   const confirmAssetPreview = () => {
     if (!pendingAsset?.uri) return;
     documentUploadMetaRef.current = {
@@ -1410,28 +1490,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           sizeBytes: file.fileSize || null,
         });
 
-        const maxImageBytes = dataType === 'Documento' ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
-        const optimized = await optimizeImageForLimit(file.uri, maxImageBytes);
-        if (isSessionClosed(sessionToken)) return;
-        console.log('--- COMPRESIÓN REAL ---', optimized.size);
-        if (optimized.size > maxImageBytes) {
-          alertVaultImageTooLarge();
-          return;
-        }
-        logAssetAudit('PICK_GALLERY_COMPRESSED', {
-          dataType,
-          dataName,
-          uri: optimized.uri,
-          fileName: file.fileName || 'gallery-image.jpg',
-          mimeType: 'image/jpeg',
-          sizeBytes: optimized.size,
-        });
-        openAssetPreview({
-          uri: optimized.uri,
-          name: file.fileName || 'gallery-image.jpg',
-          mimeType: file.mimeType || 'image/jpeg',
-          source: 'gallery',
-        });
+        await openVaultImageEditor(
+          file,
+          {
+            name: file.fileName || 'gallery-image.jpg',
+            mimeType: file.mimeType || 'image/jpeg',
+            source: 'gallery',
+          },
+          () => void handlePickPhotos(),
+        );
+        vaultImageEditorSessionRef.current = sessionToken;
       }
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
@@ -1634,28 +1702,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           mimeType: file.mimeType || 'unknown',
           sizeBytes: file.fileSize || null,
         });
-        const maxImageBytes = dataType === 'Documento' ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
-        const optimized = await optimizeImageForLimit(file.uri, maxImageBytes);
-        if (isSessionClosed(sessionToken)) return;
-        console.log('--- COMPRESIÓN REAL ---', optimized.size);
-        if (optimized.size > maxImageBytes) {
-          alertVaultImageTooLarge();
-          return;
-        }
-        logAssetAudit('PICK_CAMERA_COMPRESSED', {
-          dataType,
-          dataName,
-          uri: optimized.uri,
-          fileName: 'camera-compressed.jpg',
-          mimeType: 'image/jpeg',
-          sizeBytes: optimized.size,
-        });
-        openAssetPreview({
-          uri: optimized.uri,
-          name: file.fileName || 'camera-image.jpg',
-          mimeType: 'image/jpeg',
-          source: 'camera',
-        });
+        await openVaultImageEditor(
+          file,
+          {
+            name: file.fileName || 'camera-image.jpg',
+            mimeType: file.mimeType || 'image/jpeg',
+            source: 'camera',
+          },
+          () => void handleTakePhoto(),
+        );
+        vaultImageEditorSessionRef.current = sessionToken;
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -3298,7 +3354,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         )}
 
         <FilePreviewModal
-          visible={assetPreviewVisible}
+          visible={assetPreviewVisible && Boolean(pendingAsset?.uri) && (
+            pendingAsset?.mimeType?.includes('pdf') ||
+            pendingAsset?.uri?.toLowerCase().endsWith('.pdf') ||
+            pendingAsset?.source === 'document'
+          )}
           asset={pendingAsset}
           onAccept={confirmAssetPreview}
           onChooseAgain={retryAssetSelection}
@@ -3307,6 +3367,31 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             setPendingAsset(null);
           }}
         />
+
+        {vaultImageEditor ? (
+          <BasicPhotoEditorModal
+            visible
+            uri={vaultImageEditor.uri}
+            imageWidth={vaultImageEditor.width}
+            imageHeight={vaultImageEditor.height}
+            mode={presetToEditorMode(PHOTO_PRESET_VAULT_IMAGE)}
+            onConfirm={(editedUri) => {
+              const meta = {
+                name: vaultImageEditor.name,
+                mimeType: vaultImageEditor.mimeType,
+                source: vaultImageEditor.source,
+              };
+              const token = vaultImageEditorSessionRef.current;
+              setVaultImageEditor(null);
+              void finalizeVaultImageAfterEditor(editedUri, meta, token);
+            }}
+            onChooseAgain={() => {
+              setVaultImageEditor(null);
+              setTimeout(() => vaultImageRetryRef.current?.(), 350);
+            }}
+            onClose={() => setVaultImageEditor(null)}
+          />
+        ) : null}
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}

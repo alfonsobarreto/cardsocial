@@ -9,9 +9,10 @@ import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { fetchVoipMinutesSummary, type VoipMinutesSummaryWire } from '@/services/qrApi';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
+import { requestVoipMinutesCheckout } from '@/services/subscriptionNavigationIntent';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-native';
+import { AppState, type AppStateStatus, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type VoipAirTimeBadgeLayout = 'compact' | 'profile';
 
@@ -143,7 +144,12 @@ export function VoipAirTimeBadge({
 
   if (layout === 'profile') {
     return (
-      <View style={styles.profileCol}>
+      <Pressable
+        onPress={() => requestVoipMinutesCheckout()}
+        accessibilityRole="button"
+        accessibilityLabel={tr('Recargar AirTime', 'Top up AirTime')}
+        style={styles.profileCol}
+      >
         <Text style={[styles.profileValue, { color: colors.value }]}>{available}</Text>
         <Text style={[styles.profileLabel, { color: colors.label }]}>{brandLabel}</Text>
         {extra ? (
@@ -151,12 +157,17 @@ export function VoipAirTimeBadge({
             {extra}
           </Text>
         ) : null}
-      </View>
+      </Pressable>
     );
   }
 
   return (
-    <View style={[styles.compactRow, styles.compactRowEnd]}>
+    <Pressable
+      onPress={() => requestVoipMinutesCheckout()}
+      accessibilityRole="button"
+      accessibilityLabel={tr('Recargar AirTime', 'Top up AirTime')}
+      style={[styles.compactRow, styles.compactRowEnd]}
+    >
       <MaterialCommunityIcons name="phone-in-talk" size={20} color={colors.icon} style={styles.icon} />
       <View style={styles.compactText}>
         <Text style={[styles.compactLabel, { color: colors.label }]}>{brandLabel}</Text>
@@ -169,7 +180,7 @@ export function VoipAirTimeBadge({
           </Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

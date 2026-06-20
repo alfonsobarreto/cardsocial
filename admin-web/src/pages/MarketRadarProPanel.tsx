@@ -8,6 +8,7 @@ import {
   type MarketRadarAuditRow,
 } from '../services/marketRadarAdminService';
 import { useAuth } from '../auth/useAuth';
+import { CsPricingRulesInline } from '../components/CsPricingRulesBanner';
 
 /**
  * Bloque de Market Radar dentro de Rules & Tiers (misma pantalla que pricing de planes).
@@ -103,13 +104,14 @@ export default function MarketRadarProPanel() {
             />
           </label>
 
-          <label className="block">
+          <label className="block opacity-90">
             <span className="text-sm font-medium text-slate-800">Equivalente Market Radar Pro (CS)</span>
+            <CsPricingRulesInline />
             <input
               type="number"
               min={0}
               step="1"
-              className="mt-2 w-full max-w-md rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+              className="mt-2 w-full max-w-md rounded-xl border border-violet-200 bg-violet-50/40 px-3 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
               value={config.proEquivalentCs}
               onChange={(ev) =>
                 setConfig((prev) => ({ ...prev, proEquivalentCs: Number.parseInt(ev.target.value, 10) || 0 }))

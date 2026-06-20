@@ -151,3 +151,99 @@ export function businessCardVcardFilename(card: CardData): string {
   );
   return `${base}.vcf`;
 }
+
+function slotTypeKey(type: string | null | undefined): string {
+  return String(type || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function isPhoneSlotType(type: string | null | undefined): boolean {
+  const k = slotTypeKey(type);
+  if (!k || k.includes('voip')) return false;
+  if (['telefono', 'telephone', 'phone', 'movil', 'mobile', 'cell', 'celular'].includes(k)) return true;
+  return k.includes('telefono') || k.includes('telephone') || k.includes('phone');
+}
+
+function isEmailSlotType(type: string | null | undefined): boolean {
+  const k = slotTypeKey(type);
+  if (!k) return false;
+  if (k === 'email' || k === 'correo' || k === 'mail') return true;
+  return k.includes('email') || k.includes('correo') || k.includes('mail');
+}
+
+function appendPublicSlotContactLines(logicalLines: string[], card: CardData): void {
+  const seen = new Set<string>();
+  for (const slot of card.slots || []) {
+    const value = String(slot.value || '').trim();
+    if (!value) continue;
+    const dedupe = `${String(slot.type || '')}:${value}`.toLowerCase();
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+    if (isPhoneSlotType(slot.type)) {
+      logicalLines.push(`TEL;TYPE=CELL:${escapeVcard3Text(value)}`);
+    } else if (isEmailSlotType(slot.type)) {
+      logicalLines.push(`EMAIL;TYPE=INTERNET:${escapeVcard3Text(value)}`);
+    }
+  }
+}
+
+/**
+ * vCard 3.0 para smart card universal (`/u/…`).
+ * FN = persona; N = tarjeta + persona; slots públicos → TEL/EMAIL.
+ */
+export function buildUniversalCardVcardBody(card: CardData, canonicalPageUrl: string): string {
+  const cardTitle = String(card.scName || '').trim();
+  const person =
+    String(card.userFullName || '').trim() ||
+    String(card.ownerDisplayName || '').trim() ||
+    String(card.ownerNickname || '').trim();
+  const fnRaw = [person, cardTitle].filter(Boolean).join(' — ').trim();
+  const fn = fnRaw || cardTitle || person || 'Card-Social';
+
+  const nFamily = cardTitle || person || '-';
+  const nGiven = person && person !== cardTitle ? person : '-';
+
+  const logicalLines: string[] = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `FN:${escapeVcard3Text(fn)}`,
+    `N:${escapeVcard3Text(nFamily)};${escapeVcard3Text(nGiven)};;;`,
+    `URL:${canonicalPageUrl.trim()}`,
+  ];
+
+  const occupation = String(card.ownerOccupation || '').trim();
+  if (occupation) {
+    logicalLines.push(`NOTE:${escapeVcard3Text(occupation)}`);
+  }
+
+  appendPublicSlotContactLines(logicalLines, card);
+
+  if (USE_REMOTE_LOGO_IN_VCARD) {
+    const rawPhoto = String(card.cardWireframeImageUrl || card.userAvatarUrl || '').trim();
+    const photoAbs = absolutizeHttpsUrl(rawPhoto, canonicalPageUrl.trim());
+    if (photoAbs) {
+      const t = photoTypeFromUrl(photoAbs);
+      logicalLines.push(`PHOTO;TYPE=${t};VALUE=URI:${photoAbs}`);
+    }
+  }
+
+  logicalLines.push('END:VCARD');
+
+  return logicalLines.map(foldVcardLine).join('\r\n');
+}
+
+export function universalCardVcardFilename(card: CardData): string {
+  const base = asciiFilenamePart(
+    [
+      String(card.userFullName || card.ownerDisplayName || '').trim(),
+      String(card.scName || '').trim(),
+    ]
+      .filter(Boolean)
+      .join('-'),
+  );
+  return `${base}.vcf`;
+}

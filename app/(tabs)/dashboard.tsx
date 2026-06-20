@@ -10,6 +10,13 @@ import {
   type MarketSeoSummary,
 } from '@/services/analyticsService';
 import { getActiveUserId } from '@/services/authSession';
+import { getUserCreditsBalance } from '@/services/creditsService';
+import {
+  formatCsPaymentPriceLine,
+  formatUsdPriceLine,
+  joinPriceSegments,
+  normalizePricePair,
+} from '@/services/subscriptionPriceVisibility';
 import { buildBusinessCardEmailSignatureHtml, buildBusinessCardEmailSignaturePlainText } from '@/services/businessCardEmailSignatureHtml';
 import { copyRichEmailSignatureToClipboard } from '@/services/copyRichEmailSignature';
 import {
@@ -1177,21 +1184,22 @@ export default function DashboardScreen() {
   const launchCommandCenter = useCallback(async () => {
     if (!studioWebBase || launchingRadar) return;
     if (!canOpenMarketRadar) {
+      const csBalance = sessionUid.trim() ? await getUserCreditsBalance(sessionUid.trim()) : 0;
+      const radarPair = normalizePricePair(marketRadarProPrice, marketRadarProCs);
       const priceLine =
-        marketRadarProPrice > 0 || marketRadarProCs > 0
-          ? [
-              marketRadarProPrice > 0
-                ? new Intl.NumberFormat(intlLocaleTagForAppLanguage(language), {
-                    style: 'currency',
-                    currency: 'USD',
-                    maximumFractionDigits: 0,
-                  }).format(marketRadarProPrice)
-                : null,
-              marketRadarProCs > 0 ? `${marketRadarProCs.toLocaleString()} CS` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')
-          : tcx('dashboard_radar_price_fallback');
+        joinPriceSegments([
+          formatUsdPriceLine(radarPair, {
+            formatUsd: (n) =>
+              new Intl.NumberFormat(intlLocaleTagForAppLanguage(language), {
+                style: 'currency',
+                currency: 'USD',
+                maximumFractionDigits: 0,
+              }).format(n),
+          }),
+          formatCsPaymentPriceLine(radarPair, csBalance, {
+            locale: intlLocaleTagForAppLanguage(language),
+          }),
+        ]) || tcx('dashboard_radar_price_fallback');
       Alert.alert(
         tcx('dashboard_market_radar_pro_title'),
         tcx('dashboard_market_radar_pro_body', { priceLine }),
@@ -1245,6 +1253,7 @@ export default function DashboardScreen() {
     canOpenMarketRadar,
     marketRadarProPrice,
     marketRadarProCs,
+    sessionUid,
   ]);
 
   const radarLaunchBlockedByPro = Boolean(studioWebBase && !canOpenMarketRadar);
