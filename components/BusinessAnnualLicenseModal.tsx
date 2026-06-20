@@ -6,6 +6,7 @@ import palette from '@/app/theme';
 import { SCROLL_CONTENT_MIN_FILL, verticalScrollInteractionProps } from '@/constants/scrollInteraction';
 import { getActiveUserId } from '@/services/authSession';
 import { useCoreT } from '@/services/coreI18n';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { intlLocaleTagForAppLanguage, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {

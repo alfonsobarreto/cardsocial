@@ -1127,6 +1127,38 @@
     "fr": "voir la carte depuis la recherche",
     "de": "Karte aus der Suche anzeigen"
   },
+  "biometric_reason_vault_delete_item": {
+    "es": "eliminar este elemento",
+    "en": "delete this item",
+    "it": "eliminare questo elemento",
+    "pt": "excluir este item",
+    "fr": "supprimer cet élément",
+    "de": "diesen Eintrag löschen"
+  },
+  "biometric_reason_receptors_manage": {
+    "es": "gestionar receptores",
+    "en": "manage receptors",
+    "it": "gestire i destinatari",
+    "pt": "gerenciar receptores",
+    "fr": "gérer les destinataires",
+    "de": "Empfänger verwalten"
+  },
+  "biometric_reason_card_silence": {
+    "es": "silenciar esta tarjeta",
+    "en": "silence this card",
+    "it": "silenziare questa carta",
+    "pt": "silenciar este cartão",
+    "fr": "couper cette carte",
+    "de": "diese Karte stummschalten"
+  },
+  "biometric_reason_contacts_swipe": {
+    "es": "gestionar contactos",
+    "en": "manage contacts",
+    "it": "gestire i contatti",
+    "pt": "gerenciar contatos",
+    "fr": "gérer les contacts",
+    "de": "Kontakte verwalten"
+  },
   "biometric_verify_identity_continue": {
     "es": "Verifica tu identidad para continuar",
     "en": "Verify your identity to continue",
@@ -4287,6 +4319,46 @@
     "fr": "Impossible de supprimer la carte entreprise.",
     "de": "Business-Karte konnte nicht gelöscht werden."
   },
+  "cards_untitled": {
+    "es": "Sin título",
+    "en": "Untitled",
+    "it": "Senza titolo",
+    "pt": "Sem título",
+    "fr": "Sans titre",
+    "de": "Ohne Titel"
+  },
+  "cards_confirm_delete_title": {
+    "es": "¿Eliminar tarjeta?",
+    "en": "Delete card?",
+    "it": "Eliminare la carta?",
+    "pt": "Excluir cartão?",
+    "fr": "Supprimer la carte ?",
+    "de": "Karte löschen?"
+  },
+  "cards_confirm_delete_body": {
+    "es": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
+    "en": "Delete \"{{name}}\"? This cannot be undone.",
+    "it": "Eliminare «{{name}}»? Questa azione non può essere annullata.",
+    "pt": "Excluir «{{name}}»? Esta ação não pode ser desfeita.",
+    "fr": "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "de": "„{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden."
+  },
+  "cards_confirm_delete_business_title": {
+    "es": "¿Eliminar tarjeta de negocio?",
+    "en": "Delete business card?",
+    "it": "Eliminare la carta business?",
+    "pt": "Excluir cartão de negócio?",
+    "fr": "Supprimer la carte pro ?",
+    "de": "Business-Karte löschen?"
+  },
+  "cards_confirm_delete_business_body": {
+    "es": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
+    "en": "Delete \"{{name}}\"? This cannot be undone.",
+    "it": "Eliminare «{{name}}»? Questa azione non può essere annullata.",
+    "pt": "Excluir «{{name}}»? Esta ação não pode ser desfeita.",
+    "fr": "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "de": "„{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden."
+  },
   "cards_model_updated_title": {
     "es": "Modelo actualizado",
     "en": "Model updated",
@@ -4310,6 +4382,22 @@
     "pt": "Compra não concluída.",
     "fr": "Achat incomplet.",
     "de": "Kauf konnte nicht abgeschlossen werden."
+  },
+  "create_license_required_publishing_title": {
+    "es": "Licencia requerida",
+    "en": "License required",
+    "it": "Licenza richiesta",
+    "pt": "Licença necessária",
+    "fr": "Licence requise",
+    "de": "Lizenz erforderlich"
+  },
+  "create_license_required_publishing_body": {
+    "es": "Activa la licencia (simulación) antes de publicar.",
+    "en": "Activate license (simulation) before publishing.",
+    "it": "Attiva la licenza (simulazione) prima di pubblicare.",
+    "pt": "Ative a licença (simulação) antes de publicar.",
+    "fr": "Activez la licence (simulation) avant de publier.",
+    "de": "Aktiviere die Lizenz (Simulation) vor der Veröffentlichung."
   },
   "cards_reorder_title": {
     "es": "Ordenar tarjetas",
@@ -4990,6 +5078,30 @@
     "pt": "Ícones mais usados",
     "fr": "Icônes les plus utilisées",
     "de": "Meistgenutzte Symbole"
+  },
+  "cards_stats_empty_icons": {
+    "es": "Aún no hay interacciones con iconos.",
+    "en": "No icon interactions yet.",
+    "it": "Ancora nessuna interazione con le icone.",
+    "pt": "Ainda não há interações com ícones.",
+    "fr": "Pas encore d’interactions avec les icônes.",
+    "de": "Noch keine Symbol-Interaktionen."
+  },
+  "cards_stats_see_more": {
+    "es": "Ver más",
+    "en": "See more",
+    "it": "Vedi altro",
+    "pt": "Ver mais",
+    "fr": "Voir plus",
+    "de": "Mehr anzeigen"
+  },
+  "cards_stats_see_less": {
+    "es": "Ver menos",
+    "en": "See less",
+    "it": "Vedi meno",
+    "pt": "Ver menos",
+    "fr": "Voir moins",
+    "de": "Weniger anzeigen"
   },
   "cards_stats_empty": {
     "es": "Aún no hay datos. Comparte tu tarjeta o espera interacciones.",
@@ -7542,5 +7654,573 @@
     "pt": "Domínio total! Com 1500 indicações você desbloqueia O Radar (keywords + mapa de calor).",
     "fr": "Domination totale ! À 1500 parrainages vous débloquez Le Radar (mots-clés + carte de chaleur).",
     "de": "Totale Dominanz! Bei 1500 Empfehlungen schaltest du The Radar (Keywords + Heatmap) frei."
+  },
+  "alert_delete_confirm_message": {
+    "es": "Esta acción no se puede deshacer.",
+    "en": "This action cannot be undone.",
+    "it": "Questa azione non può essere annullata.",
+    "pt": "Esta ação não pode ser desfeita.",
+    "fr": "Cette action est irréversible.",
+    "de": "Dies kann nicht rückgängig gemacht werden."
+  },
+  "alert_delete_confirm_title": {
+    "es": "¿Eliminar notificación?",
+    "en": "Delete notification?",
+    "it": "Eliminare la notifica?",
+    "pt": "Excluir notificação?",
+    "fr": "Supprimer la notification ?",
+    "de": "Benachrichtigung löschen?"
+  },
+  "biometric_reason_create_smart_card": {
+    "es": "crear una nueva tarjeta",
+    "en": "create a new card",
+    "it": "creare una nuova carta",
+    "pt": "criar um novo cartão",
+    "fr": "créer une nouvelle carte",
+    "de": "eine neue Karte erstellen"
+  },
+  "biometric_resume_app": {
+    "es": "continuar en Card-Social",
+    "en": "continue in Card-Social",
+    "it": "continuare in Card-Social",
+    "pt": "continuar no Card-Social",
+    "fr": "continuer dans Card-Social",
+    "de": "in Card-Social fortfahren"
+  },
+  "contacts_delete_confirm_body": {
+    "es": "Se quitará la tarjeta de {{name}} de tu lista. Esta acción no se puede deshacer.",
+    "en": "{{name}}'s card will be removed from your list. This cannot be undone.",
+    "it": "La carta di {{name}} verrà rimossa. Azione irreversibile.",
+    "pt": "O cartão de {{name}} será removido. Esta ação não pode ser desfeita.",
+    "fr": "La carte de {{name}} sera retirée. Action irréversible.",
+    "de": "Die Karte von {{name}} wird entfernt. Dies kann nicht rückgängig gemacht werden."
+  },
+  "contacts_delete_confirm_title": {
+    "es": "¿Quitar tarjeta de contactos?",
+    "en": "Remove card from contacts?",
+    "it": "Rimuovere la carta dai contatti?",
+    "pt": "Remover cartão dos contatos?",
+    "fr": "Retirer la carte des contacts ?",
+    "de": "Karte aus Kontakten entfernen?"
+  },
+  "contacts_mute_confirm_body": {
+    "es": "Dejarás de recibir notificaciones de {{name}} hasta que reactives el canal.",
+    "en": "You will stop receiving notifications from {{name}} until you unmute.",
+    "it": "Non riceverai notifiche da {{name}} finché non riattivi.",
+    "pt": "Você não receberá notificações de {{name}} até reativar.",
+    "fr": "Vous ne recevrez plus de notifications de {{name}} jusqu’à réactivation.",
+    "de": "Keine Benachrichtigungen von {{name}}, bis Sie wieder aktivieren."
+  },
+  "contacts_mute_confirm_title": {
+    "es": "¿Silenciar tarjeta?",
+    "en": "Mute this card?",
+    "it": "Silenziare questa carta?",
+    "pt": "Silenciar este cartão?",
+    "fr": "Mettre cette carte en sourdine ?",
+    "de": "Diese Karte stummschalten?"
+  },
+  "dashboard_analytics_load_error": {
+    "es": "No se pudieron cargar las métricas. Comprueba tu conexión e inténtalo de nuevo.",
+    "en": "Could not load metrics. Check your connection and try again.",
+    "it": "Impossibile caricare le metriche. Controlla la connessione e riprova.",
+    "pt": "Não foi possível carregar as métricas. Verifique a conexão e tente novamente.",
+    "fr": "Impossible de charger les métriques. Vérifiez votre connexion et réessayez.",
+    "de": "Metriken konnten nicht geladen werden. Verbindung prüfen und erneut versuchen."
+  },
+  "dashboard_analytics_retry": {
+    "es": "Reintentar",
+    "en": "Retry",
+    "it": "Riprova",
+    "pt": "Tentar de novo",
+    "fr": "Réessayer",
+    "de": "Erneut"
+  },
+  "dashboard_metric_calendar_year_scope": {
+    "es": "Período «Año»: totales desde el 1 de enero del año mostrado (usa las pestañas para día, semana o mes).",
+    "en": "“Year” view: totals from January 1 of the year shown through today (use the tabs for day, week, or month).",
+    "it": "Periodo Anno: totali dall’1° gennaio dell’anno mostrato fino ad oggi (usa le schede giorno/settimana/mese).",
+    "pt": "Período Ano: totais desde 1º de janeiro do ano exibido até hoje (use as guias dia/semana/mês).",
+    "fr": "Période « Année » : totaux depuis le 1ᵉʳ janvier de l’année affichée jusqu’à aujourd’hui (onglets jour/semaine/mois).",
+    "de": "„Jahr“: Summen vom 1. Januar des angezeigten Jahres bis heute (Register Tag/Woche/Monat)."
+  },
+  "dashboard_send_timeout_body": {
+    "es": "La solicitud tardó demasiado. Comprueba tu conexión e inténtalo de nuevo.",
+    "en": "The request took too long. Check your connection and try again.",
+    "it": "La richiesta ha impiegato troppo tempo. Controlla la connessione e riprova.",
+    "pt": "A solicitação demorou demais. Verifique a conexão e tente novamente.",
+    "fr": "La requête a pris trop de temps. Vérifiez votre connexion et réessayez.",
+    "de": "Die Anfrage dauerte zu lange. Verbindung prüfen und erneut versuchen."
+  },
+  "notif_hub_empty": {
+    "es": "No tienes notificaciones. Te avisaremos aquí cuando haya novedades importantes.",
+    "en": "You have no notifications. We’ll post important updates here.",
+    "it": "Non hai notifiche. Ti avviseremo qui in caso di aggiornamenti importanti.",
+    "pt": "Não há notificações. Avisaremos aqui quando houver novidades importantes.",
+    "fr": "Aucune notification. Les informations importantes apparaîtront ici.",
+    "de": "Keine Benachrichtigungen. Wichtige Neuigkeiten erscheinen hier."
+  },
+  "notif_hub_global_pill": {
+    "es": "ANUNCIO GLOBAL",
+    "en": "GLOBAL",
+    "it": "GLOBALE",
+    "pt": "GLOBAL",
+    "fr": "GLOBAL",
+    "de": "GLOBAL"
+  },
+  "notif_hub_title": {
+    "es": "Notificaciones",
+    "en": "Notifications",
+    "it": "Notifiche",
+    "pt": "Notificações",
+    "fr": "Notifications",
+    "de": "Benachrichtigungen"
+  },
+  "notif_swipe_delete": {
+    "es": "Eliminar",
+    "en": "Delete",
+    "it": "Elimina",
+    "pt": "Excluir",
+    "fr": "Supprimer",
+    "de": "Löschen"
+  },
+  "notif_swipe_mark_read": {
+    "es": "Leído",
+    "en": "Read",
+    "it": "Letto",
+    "pt": "Lido",
+    "fr": "Lu",
+    "de": "Gelesen"
+  },
+  "notif_tpl_MOD_REPORT_APPROVED_body": {
+    "es": "Gracias por tu reporte. Tras la revisión moderadora hemos tomado medidas conforme a nuestras normas. Tu colaboración ayuda a mantener la comunidad segura y profesional.",
+    "en": "Thank you for your report. After moderator review we took action in line with our policies. Your help keeps the community safe and professional.",
+    "it": "Grazie per la segnalazione. Dopo la moderazione abbiamo agito in linea con le regole. Il tuo contributo mantiene la community sicura e professionale.",
+    "pt": "Obrigado pela denúncia. Após análise da moderação, adotamos medidas conforme nossas normas. Sua ajuda mantém a comunidade segura e profissional.",
+    "fr": "Merci pour votre signalement. Après modération, nous avons pris des mesures conformément à nos règles. Votre collaboration protège la communauté.",
+    "de": "Vielen Dank für Ihre Meldung. Nach Prüfung durch die Moderation haben wir gemäß unseren Richtlinien gehandelt. Ihr Beitrag hält die Community sicher und professionell."
+  },
+  "notif_tpl_MOD_REPORT_APPROVED_title": {
+    "es": "Reporte atendido",
+    "en": "Report resolved",
+    "it": "Segnalazione gestita",
+    "pt": "Denúncia atendida",
+    "fr": "Signalement traité",
+    "de": "Meldung bearbeitet"
+  },
+  "notif_tpl_MOD_REPORT_REJECTED_body": {
+    "es": "Gracias por tu reporte. Tras revisar la evidencia disponible, no aplicamos medidas adicionales en este caso. Si detectas otra conducta que incumpla las normas, puedes volver a informarnos.",
+    "en": "Thank you for your report. After reviewing the available evidence we did not apply further action in this case. If you see other policy violations, you can report again.",
+    "it": "Grazie per la segnalazione. Dopo aver esaminato le prove disponibili non abbiamo applicato ulteriori provvedimenti in questo caso. Puoi segnalarci altre violazioni se necessario.",
+    "pt": "Obrigado pela denúncia. Após analisar as evidências disponíveis, não aplicamos medidas adicionais neste caso. Se notar outras infrações, envie um novo relatório.",
+    "fr": "Merci pour votre signalement. Après examen des éléments disponibles, aucune mesure supplémentaire n’a été prise dans ce cas. Vous pouvez signaler d’autres manquements si besoin.",
+    "de": "Vielen Dank für Ihre Meldung. Nach Prüfung der vorliegenden Hinweise haben wir in diesem Fall keine weiteren Maßnahmen ergriffen. Bei weiteren Verstößen können Sie erneut melden."
+  },
+  "notif_tpl_MOD_REPORT_REJECTED_title": {
+    "es": "Reporte cerrado",
+    "en": "Report closed",
+    "it": "Segnalazione chiusa",
+    "pt": "Denúncia encerrada",
+    "fr": "Signalement clos",
+    "de": "Meldung geschlossen"
+  },
+  "notif_tpl_SYS_ACCOUNT_EXPIRING_body": {
+    "es": "Quedan {{days}} días antes de que tu cuenta pierda beneficios o caduque. Abre la app para revisar suscripción, renovación o datos de facturación.",
+    "en": "{{days}} days remain before your account may lose benefits or expire. Open the app to review subscription, renewal, or billing.",
+    "it": "Restano {{days}} giorni prima che il tuo account possa perdere vantaggi o scadere. Apri l’app per abbonamento, rinnovo o fatturazione.",
+    "pt": "Faltam {{days}} dias antes que sua conta perca benefícios ou expire. Abra o app para assinatura, renovação ou faturamento.",
+    "fr": "Il reste {{days}} jours avant que votre compte ne perde des avantages ou n’expire. Ouvrez l’app pour l’abonnement, le renouvellement ou la facturation.",
+    "de": "Noch {{days}} Tage, bevor Ihr Konto Vorteile verlieren oder ablaufen könnte. Öffnen Sie die App für Abo, Verlängerung oder Abrechnung."
+  },
+  "notif_tpl_SYS_ACCOUNT_EXPIRING_body_general": {
+    "es": "Tu cuenta está próxima a perder beneficios o a caducar. Abre la app para revisar suscripción, renovación o datos de facturación.",
+    "en": "Your account may soon lose benefits or expire. Open the app to check subscription, renewal, or billing.",
+    "it": "Il tuo account potrebbe presto perdere vantaggi o scadere. Apri l’app per abbonamento, rinnovo o fatturazione.",
+    "pt": "Sua conta pode perder benefícios ou expirar em breve. Abra o app para revisar assinatura, renovação ou faturamento.",
+    "fr": "Votre compte risque bientôt de perdre des avantages ou d’expirer. Ouvrez l’app pour l’abonnement ou la facturation.",
+    "de": "Ihr Konto könnte bald Vorteile verlieren oder ablaufen. Öffnen Sie die App für Abo oder Abrechnung."
+  },
+  "notif_tpl_SYS_ACCOUNT_EXPIRING_title": {
+    "es": "Tu cuenta requiere atención",
+    "en": "Your account needs attention",
+    "it": "Il tuo account richiede attenzione",
+    "pt": "Sua conta precisa de atenção",
+    "fr": "Votre compte nécessite une action",
+    "de": "Ihr Konto erfordert Aufmerksamkeit"
+  },
+  "notif_tpl_SYS_GLOBAL_MAINTENANCE_body": {
+    "es": "Realizaremos mejoras en la plataforma. Puede haber cortes breves. Gracias por tu paciencia.",
+    "en": "We’re improving the platform. There may be brief interruptions. Thank you for your patience.",
+    "it": "Stiamo migliorando la piattaforma. Possibili brevi interruzioni. Grazie per la pazienza.",
+    "pt": "Estamos melhorando a plataforma. Pode haver interrupções breves. Obrigado pela paciência.",
+    "fr": "Nous améliorons la plateforme. De courtes interruptions sont possibles. Merci de votre patience.",
+    "de": "Wir verbessern die Plattform. Kurze Unterbrechungen sind möglich. Vielen Dank für Ihre Geduld."
+  },
+  "notif_tpl_SYS_GLOBAL_MAINTENANCE_title": {
+    "es": "Mantenimiento programado",
+    "en": "Scheduled maintenance",
+    "it": "Manutenzione programmata",
+    "pt": "Manutenção programada",
+    "fr": "Maintenance planifiée",
+    "de": "Geplante Wartung"
+  },
+  "notif_tpl_SYS_GLOBAL_PROMO_body": {
+    "es": "Descubre ventajas y recursos exclusivos para miembros activos de Card-Social.",
+    "en": "Discover perks and resources for active Card-Social members.",
+    "it": "Scopri vantaggi e risorse per i membri attivi di Card-Social.",
+    "pt": "Descubra benefícios e recursos para membros ativos da Card-Social.",
+    "fr": "Découvrez des avantages et ressources pour les membres actifs de Card-Social.",
+    "de": "Entdecken Sie Vorteile und Ressourcen für aktive Card-Social-Mitglieder."
+  },
+  "notif_tpl_SYS_GLOBAL_PROMO_title": {
+    "es": "Oferta y novedades",
+    "en": "Offer & news",
+    "it": "Offerte e novità",
+    "pt": "Oferta e novidades",
+    "fr": "Offre et nouveautés",
+    "de": "Angebot & Neuigkeiten"
+  },
+  "notif_tpl_SYS_ONBOARDING_TOUR_body": {
+    "es": "Repasa en cualquier momento las funciones clave de la app: bóveda, tarjetas, mercado local y más. Toca para abrir el tour.",
+    "en": "Review the app’s key features anytime: vault, cards, local market, and more. Tap to open the tour.",
+    "it": "Rivedi quando vuoi le funzioni principali: vault, schede, mercato locale e altro. Tocca per aprire il tour.",
+    "pt": "Revise os recursos principais quando quiser: cofre, cartões, mercado local e mais. Toque para abrir o tour.",
+    "fr": "Retrouvez à tout moment les fonctions clés : coffre, cartes, marché local, etc. Touchez pour ouvrir le parcours.",
+    "de": "Sehen Sie sich jederzeit die wichtigsten Funktionen an: Tresor, Karten, lokaler Markt und mehr. Tippen Sie für die Tour."
+  },
+  "notif_tpl_SYS_ONBOARDING_TOUR_title": {
+    "es": "Tour de Card-Social",
+    "en": "Card-Social tour",
+    "it": "Tour di Card-Social",
+    "pt": "Tour do Card-Social",
+    "fr": "Parcours Card-Social",
+    "de": "Card-Social-Tour"
+  },
+  "notif_tpl_SYS_WELCOME_MISSING_CARD_body": {
+    "es": "Aún no tienes una tarjeta en tu bóveda. Crea una para compartir tu perfil profesional con clientes y contactos.",
+    "en": "You don’t have a card in your vault yet. Create one to share your professional profile with clients and contacts.",
+    "it": "Non hai ancora una scheda nel tuo archivio. Creane una per condividere il tuo profilo professionale.",
+    "pt": "Você ainda não tem um cartão na sua cofre. Crie um para compartilhar seu perfil profissional.",
+    "fr": "Vous n’avez pas encore de carte dans votre coffre. Créez-en une pour partager votre profil professionnel.",
+    "de": "Sie haben noch keine Karte in Ihrem Tresor. Erstellen Sie eine, um Ihr Profil zu teilen."
+  },
+  "notif_tpl_SYS_WELCOME_MISSING_CARD_title": {
+    "es": "Crea tu primera tarjeta",
+    "en": "Create your first card",
+    "it": "Crea la tua prima scheda",
+    "pt": "Crie seu primeiro cartão",
+    "fr": "Créez votre première carte",
+    "de": "Erstellen Sie Ihre erste Karte"
+  },
+  "onboarding_a11y_close": {
+    "es": "Cerrar introducción",
+    "en": "Close onboarding",
+    "it": "Chiudi introduzione",
+    "pt": "Fechar introdução",
+    "fr": "Fermer l'introduction",
+    "de": "Einführung schließen"
+  },
+  "onboarding_cta_next": {
+    "es": "Siguiente",
+    "en": "Next",
+    "it": "Avanti",
+    "pt": "Seguinte",
+    "fr": "Suivant",
+    "de": "Weiter"
+  },
+  "onboarding_cta_remind_later": {
+    "es": "Recordar más tarde",
+    "en": "Remind me later",
+    "it": "Ricordamelo dopo",
+    "pt": "Lembrar mais tarde",
+    "fr": "Me rappeler plus tard",
+    "de": "Später erinnern"
+  },
+  "onboarding_cta_skip": {
+    "es": "Saltar",
+    "en": "Skip",
+    "it": "Salta",
+    "pt": "Pular",
+    "fr": "Passer",
+    "de": "Überspringen"
+  },
+  "onboarding_cta_start": {
+    "es": "Comenzar",
+    "en": "Get started",
+    "it": "Inizia",
+    "pt": "Começar",
+    "fr": "Commencer",
+    "de": "Loslegen"
+  },
+  "onboarding_slide_0_body": {
+    "es": "LA EVOLUCIÓN DEL NETWORKING Y LA INTELIGENCIA LOCAL.\n\nMás que una tarjeta de presentación digital. Card-Social es un ecosistema de gobernanza de datos. Protege tu privacidad en una bóveda cifrada, controla qué compartes y descubre exactamente dónde está la demanda de tu negocio en tiempo real.",
+    "en": "THE EVOLUTION OF NETWORKING AND LOCAL INTELLIGENCE.\n\nMore than a digital business card. Card-Social is a data-governance ecosystem. Protect your privacy in an encrypted vault, control what you share, and see exactly where demand for your business is—in real time.",
+    "it": "L'EVOLUZIONE DEL NETWORKING E DELL'INTELLIGENZA LOCALE.\n\nPiù di un semplice biglietto da visita digitale. Card-Social è un ecosistema di governance dei dati. Proteggi la tua privacy in una bóveda cifrata, controlla cosa condividi e scopri esattamente dove si trova la domanda della tua attività in tempo reale.",
+    "pt": "A EVOLUÇÃO DO NETWORKING E DA INTELIGÊNCIA LOCAL.\n\nMais do que um cartão de visita digital. Card-Social é um ecossistema de governança de dados. Proteja sua privacidade em uma bóveda cifrada, controle o que compartilha e descubra exatamente onde está a demanda do seu negócio em tempo real.",
+    "fr": "L'ÉVOLUTION DU NETWORKING ET DE L'INTELLIGENCE LOCALE.\n\nBien plus qu'une simple carte de visite numérique. Card-Social est un écosystème de gouvernance des données. Protégez votre vie privée dans une bóveda cifrée, contrôlez ce que vous partagez et découvrez exactement où se trouve la demande de votre entreprise en temps réel.",
+    "de": "DIE EVOLUTION DES NETWORKING UND LOKALER INTELLIGENZ.\n\nMehr als nur eine digitale Visitenkarte. Card-Social ist ein Ökosystem für Daten-Governance. Schütze deine Privatsphäre in einer verschlüsselten Bóveda, kontrolliere, was du teilst, und entdecke in Echtzeit genau, wo die Nachfrage für dein Geschäft liegt."
+  },
+  "onboarding_slide_0_title": {
+    "es": "Bienvenido a Card-Social",
+    "en": "Welcome to Card-Social",
+    "it": "Benvenuto in Card-Social",
+    "pt": "Bem-vindo ao Card-Social",
+    "fr": "Bienvenue sur Card-Social",
+    "de": "Willkommen bei Card-Social"
+  },
+  "onboarding_slide_1_body": {
+    "es": "AHORA QUE YA SABES QUIÉNES SOMOS, TE PRESENTAMOS LA BÓVEDA.\n\nRecupera tu soberanía digital. No compartes tus datos; compartes accesos enmascarados donde tú decides quién tiene la llave.\n\nProtege tu información creando tu primer Icondata:\n1. Elige qué guardar: Enlace, Texto, Email, Teléfono, Foto o PDF.\n2. Ingresa la data: Escribe el texto, sube un archivo o abre la cámara.\n3. Personaliza: Escoge un ícono de nuestra galería o extrae el favicon exacto de cualquier sitio web.\n4. Guarda y toca el ícono para ver la magia en acción.",
+    "en": "NOW THAT YOU KNOW WHO WE ARE, HERE IS THE VAULT.\n\nReclaim your digital sovereignty. You don't share your raw data—you share masked access, and you decide who holds the key.\n\nProtect your information by creating your first Icondata:\n1. Choose what to save: Link, Text, Email, Phone, Photo, or PDF.\n2. Enter the data: Type the text, upload a file, or open the camera.\n3. Personalize: Pick an icon from our gallery or extract the exact favicon from any website.\n4. Save and tap the icon to see the magic in action.",
+    "it": "ORA CHE SAI CHI SIAMO, TI PRESENTIAMO LA BÓVEDA.\n\nRiprendi la tua sovranità digitale. Non condividi i tuoi dati; condividi accessi mascherati dove sei tu a decidere chi ha la chiave.\n\nProteggi le tue informazioni creando il tuo primo Icondata:\n1. Scegli cosa salvare: Link, Testo, Email, Telefono, Foto o PDF.\n2. Inserisci i dati: Scrivi il testo, carica un file o apri la fotocamera.\n3. Personalizza: Scegli un'icona dalla nostra galleria o estrai la favicon esatta da qualsiasi sito web.\n4. Salva e tocca l'icona per vedere la magia in azione.",
+    "pt": "AGORA QUE VOCÊ JÁ SABE QUEM SOMOS, APRESENTAMOS A BÓVEDA.\n\nRecupere sua soberania digital. Você não compartilha seus dados; você compartilha acessos mascarados onde você decide quem tem a chave.\n\nProteja suas informações criando seu primeiro Icondata:\n1. Escolha o que salvar: Link, Texto, Email, Telefone, Foto ou PDF.\n2. Insira os dados: Escreva o texto, carregue um arquivo ou abra a câmera.\n3. Personalize: Escolha um ícone da nossa galeria ou extraia o favicon exato de qualquer site.\n4. Salve e toque no ícone para ver a mágica acontecer.",
+    "fr": "MAINTENANT QUE VOUS SAVEZ QUI NOUS SOMMES, NOUS VOUS PRÉSENTONS LA BÓVEDA.\n\nReprenez votre souveraineté numérique. Vous ne partagez pas vos données ; vous partagez des accès masqués où c'est vous qui décidez qui possède la clé.\n\nProtégez vos informations en créant votre premier Icondata :\n1. Choisissez ce que vous souhaitez enregistrer : Lien, Texte, Email, Téléphone, Photo ou PDF.\n2. Saisissez les données : Écrivez le texte, téléchargez un fichier ou ouvrez l'appareil photo.\n3. Personnalisez : Choisissez une icône dans notre galerie ou extrayez la favicon exacte de n'importe quel site web.\n4. Enregistrez et appuyez sur l'icône pour voir la magie opérer.",
+    "de": "JETZT, DA DU WEISST, WER WIR SIND, STELLEN WIR DIR DIE BÓVEDA VOR.\n\nGewinne deine digitale Souveränität zurück. Du teilst nicht deine Daten; du teilst maskierte Zugriffe, bei denen du entscheidest, wer den Schlüssel hat.\n\nSchütze deine Informationen, indem du deinen ersten Icondata erstellst:\n1. Wähle, was du speichern möchtest: Link, Text, E-Mail, Telefon, Foto oder PDF.\n2. Gib die Daten ein: Schreibe den Text, lade eine Datei hoch oder öffne die Kamera.\n3. Personalisiere: Wähle ein Icon aus unserer Galerie oder extrahiere das exakte Favicon von jeder beliebigen Website.\n4. Speichere und tippe auf das Icon, um die Magie in Aktion zu erleben."
+  },
+  "onboarding_slide_1_title": {
+    "es": "Tu Bóveda, Tu Control",
+    "en": "Your Vault, Your Control",
+    "it": "La tua Bóveda, il tuo controllo",
+    "pt": "Sua Bóveda, seu controle",
+    "fr": "Votre Bóveda, votre contrôle",
+    "de": "Deine Bóveda, deine Kontrolle"
+  },
+  "onboarding_slide_2_body": {
+    "es": "UNA VIDA, MÚLTIPLES FACETAS.\n\nCrea perfiles únicos para cada versión de ti. Tu tarjeta se comparte mediante un QR seguro que caduca en 2 minutos (o 24 horas para eventos). Tu nombre y foto son inamovibles para blindar tu identidad.\n\nToca el botón (+) para crear tu primera Smart Card:\n1. Nombra tu personalidad.\n2. Abre tu Bóveda y selecciona hasta 12 Icondatas.\n3. Abre el Locker y elige un Theme para darle color a tu tarjeta.",
+    "en": "ONE LIFE, MANY FACETS.\n\nCreate unique profiles for each version of you. Your card is shared via a secure QR that expires in 2 minutes (or 24 hours for events). Your name and photo are fixed to protect your identity.\n\nTap the (+) button to create your first Smart Card:\n1. Name your persona.\n2. Open your Vault and select up to 12 Icondatas.\n3. Open the Locker and pick a Theme to give your card its look.",
+    "it": "UNA VITA, MOLTEPLICI SFACCETTATURE.\n\nCrea profili unici per ogni versione di te. La tua scheda si condivide tramite un QR sicuro che scade in 2 minuti (o 24 ore per eventi). Il tuo nome e la tua foto sono inamovibili per blindare la tua identità.\n\nTocca il pulsante (+) per creare la tua prima Smart Card:\n1. Dai un nome alla tua personalità.\n2. Apri la tua Bóveda e seleziona fino a 12 Icondatas.\n3. Apri il Locker e scegli un Theme per dare colore alla tua scheda.",
+    "pt": "UMA VIDA, MÚLTIPLAS FACETAS.\n\nCrie perfis únicos para cada versão de você. Seu cartão é compartilhado através de um QR seguro que expira em 2 minutos (ou 24 horas para eventos). Seu nome e foto são imutáveis para blindar sua identidade.\n\nToque no botão (+) para criar seu primeiro Smart Card:\n1. Nomeie sua personalidade.\n2. Abra sua Bóveda e selecione até 12 Icondatas.\n3. Abra o Locker e escolha um Theme para dar cor ao seu cartão.",
+    "fr": "UNE VIE, DE MULTIPLES FACETTES.\n\nCréez des profils uniques pour chaque version de vous-même. Votre carte est partagée via un QR sécurisé qui expire en 2 minutes (ou 24 heures pour des événements). Votre nom et votre photo sont inamovibles pour blinder votre identité.\n\nAppuyez sur le bouton (+) pour créer votre première Smart Card :\n1. Nommez votre personnalité.\n2. Ouvrez votre Bóveda et sélectionnez jusqu'à 12 Icondatas.\n3. Ouvrez le Locker et choisissez un Theme pour ajouter de la couleur à votre carte.",
+    "de": "EIN LEBEN, VIELE FACETTEN.\n\nErstelle einzigartige Profile für jede Version von dir. Deine Karte wird über einen sicheren QR geteilt, der nach 2 Minuten (oder 24 Stunden bei Events) abläuft. Dein Name und dein Foto sind unveränderlich, um deine Identität zu schützen.\n\nTippe auf den (+)-Button, um deine erste Smart Card zu erstellen:\n1. Gib deiner Persönlichkeit einen Namen.\n2. Öffne deine Bóveda und wähle bis zu 12 Icondatas aus.\n3. Öffne den Locker und wähle ein Theme, um deiner Karte Farbe zu verleihen."
+  },
+  "onboarding_slide_2_title": {
+    "es": "Tu Identidad Dinámica",
+    "en": "Your Dynamic Identity",
+    "it": "La tua Identità Dinamica",
+    "pt": "Sua Identidade Dinâmica",
+    "fr": "Votre Identité Dynamique",
+    "de": "Deine Dynamische Identität"
+  },
+  "onboarding_slide_3_body": {
+    "es": "EL ESCÁNER Y EL PODER DEL TIEMPO.\n\nDesliza a la derecha y acepta para abrir tu código QR de 2 minutos por defecto. Conectividad instantánea sin rastro permanente.\n\n¿Necesitas mayor alcance? Activa el 24HrQR:\n1. Genera un temporizador de 24 horas.\n2. Copia la URL única generada automáticamente.\n3. Compártela por mensaje, grupos o a tu discreción.\n\nDespreocúpate: el acceso se destruye por completo al cumplir el tiempo o puedes eliminarlo manualmente en el momento que decidas.",
+    "en": "THE SCANNER AND THE POWER OF TIME.\n\nSwipe right and accept to open your 2-minute QR code by default. Instant connectivity without a permanent trail.\n\nNeed more reach? Turn on 24HrQR:\n1. Generate a 24-hour timer.\n2. Copy the unique URL generated automatically.\n3. Share it by message, groups, or at your discretion.\n\nRest easy: access is fully destroyed when time runs out, or you can delete it manually whenever you decide.",
+    "it": "LO SCANNER E IL POTERE DEL TEMPO.\n\nScorri a destra e accetta per aprire il tuo codice QR di 2 minuti di default. Connettività istantanea senza traccia permanente.\n\nHai bisogno di maggiore portata? Attiva il 24HrQR:\n1. Genera un timer di 24 ore.\n2. Copia l'URL univoco generato automaticamente.\n3. Condividilo tramite messaggio, gruppi o a tua discrezione.\n\nNon preoccuparti: l'accesso si distrugge completamente allo scadere del tempo oppure puoi eliminarlo manualmente nel momento che decidi.",
+    "pt": "O SCANNER E O PODER DO TEMPO.\n\nDeslize para a direita e aceite para abrir seu código QR de 2 minutos por padrão. Conectividade instantânea sem rastro permanente.\n\nPrecisa de maior alcance? Ative o 24HrQR:\n1. Gere um temporizador de 24 horas.\n2. Copie a URL única gerada automaticamente.\n3. Compartilhe por mensagem, grupos ou à sua discrição.\n\nNão se preocupe: o acesso é destruído completamente ao cumprir o tempo ou você pode eliminá-lo manualmente no momento que decidir.",
+    "fr": "LE SCANNER ET LE POUVOIR DU TEMPS.\n\nFaites glisser vers la droite et acceptez pour ouvrir votre code QR de 2 minutes par défaut. Connectivité instantanée sans trace permanente.\n\nBesoin d'une plus grande portée ? Activez le 24HrQR :\n1. Générez un minuteur de 24 heures.\n2. Copiez l'URL unique générée automatiquement.\n3. Partagez-la par message, dans des groupes ou à votre convenance.\n\nSoyez tranquille : l'accès est complètement détruit une fois le délai écoulé ou vous pouvez le supprimer manuellement au moment que vous décidez.",
+    "de": "DER SCANNER UND DIE MACHT DER ZEIT.\n\nWische nach rechts und akzeptiere, um deinen 2-Minuten-QR-Code standardmäßig zu öffnen. Sofortige Konnektivität ohne bleibende Spuren.\n\nBenötigst du mehr Reichweite? Aktiviere den 24HrQR:\n1. Generiere einen 24-Stunden-Timer.\n2. Kopiere die automatisch generierte, eindeutige URL.\n3. Teile sie per Nachricht, in Gruppen oder nach eigenem Ermessen.\n\nKeine Sorge: Der Zugriff wird nach Ablauf der Zeit vollständig zerstört, oder du kannst ihn manuell löschen, wann immer du es entscheidest."
+  },
+  "onboarding_slide_3_title": {
+    "es": "Conexión y Control Temporal",
+    "en": "Connection and Temporal Control",
+    "it": "Connessione e controllo temporale",
+    "pt": "Conexão e controle temporal",
+    "fr": "Connexion et contrôle temporel",
+    "de": "Verbindung und zeitliche Kontrolle"
+  },
+  "onboarding_slide_4_body": {
+    "es": "VISIBILIDAD ABSOLUTA PARA TU MARCA.\n\nA diferencia de la Smart Card, la Business Card pone a tu negocio como protagonista. Está diseñada para ser encontrada y escalar sin límites.\n\nDomina tu nicho en 4 pilares:\n1. Identidad Corporativa: Usa tu logotipo, avatar y nombre comercial.\n2. QR Permanente: Un código definitivo, ideal para imprimir y viralizar.\n3. Geolocalización Dinámica: Coloca tu tarjeta digital exactamente donde está tu demanda, sin importar dónde vivas.\n4. SEO Letal: Configura 20 palabras clave para liderar las búsquedas en el Socialmarket.",
+    "en": "ABSOLUTE VISIBILITY FOR YOUR BRAND.\n\nUnlike the Smart Card, the Business Card puts your business center stage. It is built to be discovered and to scale without limits.\n\nOwn your niche across four pillars:\n1. Corporate identity: Use your logo, avatar, and trade name.\n2. Permanent QR: A definitive code—ideal to print and share widely.\n3. Dynamic geolocation: Place your digital card exactly where demand is, no matter where you live.\n4. Sharp SEO: Configure 20 keywords to lead searches in the Socialmarket.",
+    "it": "VISIBILITÀ ASSOLUTA PER IL TUO BRAND.\n\nA differenza della Smart Card, la Business Card mette la tua attività al centro. È progettata per essere trovata e scalare senza limiti.\n\nDomina la tua nicchia su 4 pilastri:\n1. Identità Aziendale: Usa il tuo logo, avatar e nome commerciale.\n2. QR Permanente: Un codice definitivo, ideale da stampare e viralizzare.\n3. Geolocalizzazione Dinamica: Posiziona la tua scheda digitale esattamente dove si trova la tua domanda, indipendentemente da dove vivi.\n4. SEO Letale: Configura 20 parole chiave per guidare le ricerche nel Socialmarket.",
+    "pt": "VISIBILIDADE ABSOLUTA PARA SUA MARCA.\n\nDiferente do Smart Card, o Business Card coloca seu negócio como protagonista. Está desenhado para ser encontrado e escalar sem limites.\n\nDomine seu nicho em 4 pilares:\n1. Identidade Corporativa: Use seu logotipo, avatar e nome comercial.\n2. QR Permanente: Um código definitivo, ideal para imprimir e viralizar.\n3. Geolocalização Dinâmica: Posicione seu cartão digital exatamente onde está sua demanda, não importa onde você viva.\n4. SEO Letal: Configure 20 palavras-chave para liderar as buscas no Socialmarket.",
+    "fr": "VISIBILITÉ ABSOLUE POUR VOTRE MARQUE.\n\nContrairement à la Smart Card, la Business Card place votre entreprise au premier plan. Elle est conçue pour être trouvée et pour évoluer sans limites.\n\nDominez votre niche sur 4 piliers :\n1. Identité d'entreprise : Utilisez votre logo, avatar et nom commercial.\n2. QR Permanent : Un code définitif, idéal pour l'impression et la viralité.\n3. Géolocalisation dynamique : Placez votre carte numérique exactement là où se trouve votre demande, peu importe où vous vivez.\n4. SEO Létal : Configurez 20 mots-clés pour dominer les recherches sur le Socialmarket.",
+    "de": "ABSOLUTE SICHTBARKEIT FÜR DEINE MARKE.\n\nIm Gegensatz zur Smart Card stellt die Business Card dein Unternehmen in den Mittelpunkt. Sie ist darauf ausgelegt, gefunden zu werden und grenzenlos zu skalieren.\n\nDominiere deine Nische in 4 Säulen:\n1. Unternehmensidentität: Nutze dein Logo, Avatar und Geschäftsnamen.\n2. Permanenter QR: Ein definitiver Code, ideal zum Ausdrucken und Viralgehen.\n3. Dynamische Geolokalisierung: Platziere deine digitale Karte genau dort, wo deine Nachfrage ist, egal wo du lebst.\n4. Lethales SEO: Konfiguriere 20 Keywords, um die Suchen im Socialmarket anzuführen."
+  },
+  "onboarding_slide_4_title": {
+    "es": "Expansión Comercial",
+    "en": "Commercial Expansion",
+    "it": "Espansione Commerciale",
+    "pt": "Expansão Comercial",
+    "fr": "Expansion Commerciale",
+    "de": "Geschäftliche Expansion"
+  },
+  "onboarding_slide_5_body": {
+    "es": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "en": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "it": "IL DENARO DEL QUARTIERE RESTA NEL QUARTIERE.\n\nSmetti di pagare commissioni abusive alle grandi corporazioni. Trova il meccanico di fiducia, l'estetista della tua zona o cibo fatto in casa senza intermediari. Risparmia tempo e carburante sostenendo i tuoi vicini.\n\nIl nostro algoritmo dà priorità al tuo circolo di fiducia:\n1. Contatti prima: I tuoi amici e familiari guidano la tua lista.\n2. Radar intelligente: Ricerca esatta a {{distance}} di raggio.",
+    "pt": "O DINHEIRO DO BAIRRO FICA NO BAIRRO.\n\nPare de pagar comissões abusivas a corporações. Encontre o mecânico de confiança, a esteticista da sua região ou comida caseira sem intermediários. Economize tempo e gasolina apoiando seus vizinhos.\n\nNosso algoritmo prioriza seu círculo de confiança:\n1. Contatos primeiro: Seus amigos e familiares lideram sua lista.\n2. Radar inteligente: Busca exata a {{distance}} de raio.",
+    "fr": "L'ARGENT DU QUARTIER RESTE DANS LE QUARTIER.\n\nArrêtez de payer des commissions abusives aux grandes entreprises. Trouvez le mécanicien de confiance, l'esthéticienne de votre quartier ou des plats faits maison sans intermédiaires. Économisez du temps et du carburant en soutenant vos voisins.\n\nNotre algorithme donne la priorité à votre cercle de confiance :\n1. Contacts d'abord : Vos amis et votre famille sont en tête de votre liste.\n2. Radar intelligent : Recherche exacte dans un rayon de {{distance}}.",
+    "de": "DAS GELD DES VIERTELS BLEIBT IM VIERTEL.\n\nSchluss mit ausbeuterischen Provisionen für Großkonzerne. Finde den Mechaniker deines Vertrauens, die Kosmetikerin in deiner Nähe oder hausgemachtes Essen ohne Zwischenhändler. Spare Zeit und Benzin, indem du deine Nachbarn unterstützt.\n\nUnser Algorithmus priorisiert deinen Vertrauenskreis:\n1. Kontakte zuerst: Deine Freunde und Familie führen deine Liste an.\n2. Intelligenter Radar: Genaue Suche im Umkreis von {{distance}}."
+  },
+  "onboarding_slide_5_title": {
+    "es": "El Socialmarket",
+    "en": "El Socialmarket",
+    "it": "Il Socialmarket",
+    "pt": "O Socialmarket",
+    "fr": "Le Socialmarket",
+    "de": "Der Socialmarket"
+  },
+  "onboarding_slide_6_body": {
+    "es": "SÉ CREATIVO, CONFIGURA TU ENTORNO.\n\nEsta no es una aplicación rígida; es tu lienzo de soberanía digital. Modifica tu estética en tiempo real y experimenta una conectividad sin precedentes.\n\nRompe el molde con tus herramientas avanzadas:\n1. Forja de Skins: Intercambia wallpapers, paletas de colores y estilos visuales únicos.\n2. Bóveda de Iconos: Diseña colecciones de impacto que reflejen tu verdadera marca.\n3. Conectividad Ghost-Link: Prueba nuestro sistema VoIP efímero. Activa transmisiones de audio a video con consentimiento cifrado, sin dejar rastro de metadatos.",
+    "en": "BE CREATIVE, SHAPE YOUR ENVIRONMENT.\n\nThis isn’t a rigid app—it’s your canvas for digital sovereignty. Change your look in real time and experience connectivity like never before.\n\nBreak the mold with your advanced tools:\n1. Skin Forge: Swap wallpapers, color palettes, and unique visual styles.\n2. Icon Vault: Build striking collections that reflect your true brand.\n3. Ghost-Link connectivity: Try our ephemeral VoIP. Enable audio-to-video streams with encrypted consent, leaving no metadata trail.",
+    "it": "SII CREATIVO, CONFIGURA IL TUO AMBIENTE.\n\nQuesta non è un'applicazione rigida; è la tua tela di sovranità digitale. Modifica la tua estetica in tempo reale e sperimenta una connettività senza precedenti.\n\nRompi gli schemi con i tuoi strumenti avanzati:\n1. Forja de Skins: Scambia sfondi, palette di colori e stili visivi unici.\n2. Bóveda di Icone: Progetta collezioni d'impatto che riflettano la tua vera marca.\n3. Connettività Ghost-Link: Prova il nostro sistema VoIP effimero. Attiva trasmissioni audio e video con consenso cifrato, senza lasciare traccia di metadati.",
+    "pt": "SEJA CRIATIVO, CONFIGURE SEU AMBIENTE.\n\nEsta não é uma aplicação rígida; é sua tela de soberania digital. Modifique sua estética em tempo real e experimente uma conectividade sem precedentes.\n\nQuebre o molde com suas ferramentas avançadas:\n1. Forja de Skins: Troque papéis de parede, paletas de cores e estilos visuais únicos.\n2. Bóveda de Ícones: Projete coleções de impacto que reflitam sua verdadeira marca.\n3. Conectividade Ghost-Link: Teste nosso sistema VoIP efêmero. Ative transmissões de áudio e vídeo com consentimento cifrado, sem deixar rastro de metadados.",
+    "fr": "SOYEZ CRÉATIF, CONFIGUREZ VOTRE ENVIRONNEMENT.\n\nCe n'est pas une application rigide ; c'est votre toile de souveraineté numérique. Modifiez votre esthétique en temps réel et expérimentez une connectivité sans précédent.\n\nBrisez le moule avec vos outils avancés :\n1. Forja de Skins : Échangez des fonds d'écran, des palettes de couleurs et des styles visuels uniques.\n2. Bóveda d'Icônes : Concevez des collections percutantes qui reflètent votre véritable marque.\n3. Connectivité Ghost-Link : Testez notre système VoIP éphémère. Activez des transmissions audio et vidéo avec consentement chiffré, sans laisser de traces de métadonnées.",
+    "de": "SEI KREATIV, KONFIGURIERE DEIN UMFELD.\n\nDies ist keine starre Anwendung; es ist deine Leinwand für digitale Souveränität. Passe deine Ästhetik in Echtzeit an und erlebe eine beispiellose Konnektivität.\n\nBrich aus dem Rahmen mit deinen fortschrittlichen Tools:\n1. Forja de Skins: Tausche Hintergrundbilder, Farbpaletten und einzigartige visuelle Stile aus.\n2. Bóveda-Icons: Entwirf eindrucksvolle Sammlungen, die deine wahre Marke widerspiegeln.\n3. Ghost-Link-Konnektivität: Probiere unser flüchtiges VoIP-System aus. Aktiviere Audio- und Videoübertragungen mit verschlüsselter Zustimmung, ohne Metadaten zu hinterlassen."
+  },
+  "onboarding_slide_6_title": {
+    "es": "Tu Personalidad Sin Límites",
+    "en": "Your Personality Without Limits",
+    "it": "La tua Personalità senza limiti",
+    "pt": "Sua Personalidade sem limites",
+    "fr": "Votre Personnalité sans limites",
+    "de": "Deine Persönlichkeit ohne Grenzen"
+  },
+  "onboarding_slide_7_body": {
+    "es": "MOLDEA EL MERCADO A TU ANTOJO.\n\nNo te adaptes al sistema, haz que el sistema trabaje para ti. Diseña menús inteligentes adaptados a las necesidades exactas de tus clientes y muéstraselos tal cual lo requieran.\n\nEl control es tuyo, el impacto es local:\n1. Crea mercados nuevos desde cero y lidera la demanda de tu barrio.\n2. Disfruta de tu creatividad sin candados, sin intermediarios y sin límites corporativos.\n\nBienvenido a Card-Social. Disfruta tu aplicación.",
+    "en": "MOLD THE MARKET YOUR WAY.\n\nDon’t adapt to the system—make the system work for you. Design smart menus tailored to your customers’ exact needs and show them exactly as required.\n\nThe control is yours, the impact is local:\n1. Build new markets from scratch and lead demand in your neighborhood.\n2. Enjoy your creativity without locks, middlemen, or corporate limits.\n\nWelcome to Card-Social. Enjoy your app.",
+    "it": "MODELLA IL MERCATO A TUO PIACIMENTO.\n\nNon adattarti al sistema, fai in modo che il sistema lavori per te. Progetta menu intelligenti adattati alle esigenze esatte dei tuoi clienti e mostrali esattamente come richiesto.\n\nIl controllo è tuo, l'impatto è locale:\n1. Crea nuovi mercati da zero e guida la domanda del tuo quartiere.\n2. Goditi la tua creatività senza lucchetti, senza intermediari e senza limiti corporativi.\n\nBenvenuto in Card-Social. Goditi la tua applicazione.",
+    "pt": "MODELE O MERCADO COMO QUISER.\n\nNão se adapte ao sistema, faça com que o sistema trabalhe para você. Projete menus inteligentes adaptados às necessidades exatas de seus clientes e mostre-os conforme a necessidade.\n\nO controle é seu, o impacto é local:\n1. Crie novos mercados do zero e lidere a demanda do seu bairro.\n2. Desfrute da sua criatividade sem cadeados, sem intermediários e sem limites corporativos.\n\nBem-vindo ao Card-Social. Desfrute da sua aplicação.",
+    "fr": "MODELEZ LE MARCHÉ À VOTRE GUISE.\n\nNe vous adaptez pas au système, faites en sorte que le système travaille pour vous. Concevez des menus intelligents adaptés aux besoins exacts de vos clients et montrez-les comme ils le souhaitent.\n\nLe contrôle est entre vos mains, l'impact est local :\n1. Créez de nouveaux marchés à partir de zéro et dirigez la demande de votre quartier.\n2. Profitez de votre créativité sans verrous, sans intermédiaires et sans limites d'entreprise.\n\nBienvenue sur Card-Social. Profitez de votre application.",
+    "de": "FORME DEN MARKT NACH DEINEN WÜNSCHEN.\n\nPass dich nicht dem System an, lass das System für dich arbeiten. Entwirf intelligente Menüs, die genau auf die Bedürfnisse deiner Kunden zugeschnitten sind, und zeige sie genau so, wie sie es benötigen.\n\nDie Kontrolle liegt bei dir, der Einfluss ist lokal:\n1. Erstelle neue Märkte von Grund auf und führe die Nachfrage in deinem Viertel an.\n2. Genieße deine Kreativität ohne Schlösser, ohne Zwischenhändler und ohne unternehmerische Grenzen.\n\nWillkommen bei Card-Social. Genieße deine App."
+  },
+  "onboarding_slide_7_title": {
+    "es": "La Nueva Era Empieza Aquí",
+    "en": "The New Era Starts Here",
+    "it": "La Nuova Era inizia qui",
+    "pt": "A Nova Era começa aqui",
+    "fr": "La Nouvelle Ère commence ici",
+    "de": "Die neue Ära beginnt hier"
+  },
+  "onboarding_slide_8_body": {
+    "es": "BIENVENIDO A LA EXPERIENCIA DEFINITIVA.\n\nDisfruta de estas funciones exclusivas diseñadas para elevar tu presencia digital al siguiente nivel.\n\nUn universo de posibilidades te espera:\n• Radar Hiperlocal: Encuentra amigos y negocios a {{distance}} a la redonda.\n• Studio & Forge: Diseña tarjetas y cambia iconos con libertad absoluta.\n• Dual Mode: Estética impecable tanto en Modo Día como en Modo Noche.\n• VoIP Segura: Minutos Airtime para llamadas que respetan tu privacidad.\n• Sync Pro: Tus contactos de siempre, ahora más inteligentes que nunca.\n• Métricas Vivas: Entiende las necesidades de tus clientes con el Dashboard.\n\nEl límite es tu imaginación. ¡A darle con todo!",
+    "en": "WELCOME TO THE ULTIMATE EXPERIENCE.\n\nEnjoy these exclusive features designed to take your digital presence to the next level.\n\nA universe of possibilities awaits you:\n• Hyperlocal Radar: Find friends and businesses within {{distance}}.\n• Studio & Forge: Design cards and change icons with total freedom.\n• Dual Mode: Flawless aesthetics in both Day Mode and Night Mode.\n• Secure VoIP: Airtime minutes for calls that respect your privacy.\n• Sync Pro: Your longstanding contacts, now smarter than ever.\n• Live Metrics: Understand your customers’ needs with the Dashboard.\n\nThe only limit is your imagination. Give it everything you’ve got!",
+    "it": "BENVENUTO NELL'ESPERIENZA DEFINITIVA.\n\nGoditi queste funzioni esclusive progettate per elevare la tua presenza digitale al livello successivo.\n\nUn universo di possibilità ti attende:\n• Radar Iperlocale: Trova amici e attività nel raggio di {{distance}}.\n• Studio & Forge: Progetta schede e cambia icone con libertà assoluta.\n• Dual Mode: Estetica impeccabile sia in modalità Giorno che Notte.\n• VoIP Sicura: Minuti Airtime per chiamate che rispettano la tua privacy.\n• Sync Pro: I tuoi contatti di sempre, ora più intelligenti che mai.\n• Metriche Vive: Comprendi le esigenze dei tuoi clienti con il Dashboard.\n\nIl limite è la tua immaginazione. Daci dentro!",
+    "pt": "BEM-VINDO À EXPERIÊNCIA DEFINITIVA.\n\nDesfrute destas funções exclusivas projetadas para elevar sua presença digital ao próximo nível.\n\nUm universo de possibilidades aguarda por você:\n• Radar Hiperlocal: Encontre amigos e negócios no raio de {{distance}}.\n• Studio & Forge: Projete cartões e troque ícones com liberdade absoluta.\n• Dual Mode: Estética impecável tanto em modo Dia quanto em modo Noite.\n• VoIP Segura: Minutos Airtime para chamadas que respeitam sua privacidade.\n• Sync Pro: Seus contatos de sempre, agora mais inteligentes do que nunca.\n• Métricas Vivas: Entenda as necessidades de seus clientes com o Dashboard.\n\nO limite é sua imaginação. Vamos com tudo!",
+    "fr": "BIENVENUE DANS L'EXPÉRIENCE DÉFINITIVE.\n\nProfitez de ces fonctionnalités exclusives conçues pour élever votre présence numérique au niveau supérieur.\n\nUn univers de possibilités vous attend :\n• Radar Hyperlocal : Trouvez des amis et des entreprises dans un rayon de {{distance}}.\n• Studio & Forge : Concevez des cartes et changez d'icônes avec une liberté absolue.\n• Dual Mode : Esthétique impeccable en mode Jour comme en mode Nuit.\n• VoIP Sécurisée : Minutes Airtime pour des appels qui respectent votre vie privée.\n• Sync Pro : Vos contacts habituels, désormais plus intelligents que jamais.\n• Métriques Vivantes : Comprenez les besoins de vos clients avec le Dashboard.\n\nLa seule limite est votre imagination. On y va !",
+    "de": "WILLKOMMEN BEIM DEFINITIVEN ERLEBNIS.\n\nGenieße diese exklusiven Funktionen, die entwickelt wurden, um deine digitale Präsenz auf das nächste Level zu heben.\n\nEin Universum an Möglichkeiten erwartet dich:\n• Hyperlokaler Radar: Finde Freunde und Unternehmen im Umkreis von {{distance}}.\n• Studio & Forge: Entwirf Karten und wechsle Icons mit absoluter Freiheit.\n• Dual Mode: Makellose Ästhetik sowohl im Tag- als auch im Nachtmodus.\n• Sichere VoIP: Airtime-Minuten für Anrufe, die deine Privatsphäre respektieren.\n• Sync Pro: Deine gewohnten Kontakte, jetzt intelligenter als je zuvor.\n• Live-Metriken: Verstehe die Bedürfnisse deiner Kunden mit dem Dashboard.\n\nDas Limit ist deine Vorstellungskraft. Gib alles!"
+  },
+  "onboarding_slide_8_title": {
+    "es": "La Nueva Era Digital",
+    "en": "The New Digital Era",
+    "it": "La Nuova Era Digitale",
+    "pt": "A Nova Era Digital",
+    "fr": "La Nouvelle Ère Numérique",
+    "de": "Das neue digitale Zeitalter"
+  },
+  "profile_presidential_body": {
+    "es": "Si está activada, al sacar Card-Social a segundo plano y volver a abrirla te pedimos Face ID, huella o PIN del equipo. Además, otras acciones sensibles (p. ej. generar/compartir un QR desde Mis Tarjetas o eliminar ciertas tarjetas/contactos) pueden pedir biometric en cualquier momento, con el interruptor ON u OFF.",
+    "en": "When enabled, after you leave Card-Social in the background and open it again we ask for Face ID, fingerprint or device PIN. Separately, some sensitive actions (e.g. generating/sharing a QR from My Cards or removing certain cards/contacts) can ask for biometric whether this is on or off.",
+    "it": "Se attiva, dopo aver mandato Card-Social in background e tornare all’app chiediamo Face ID, impronta o PIN del dispositivo. Alcune azioni sensibili (es. QR da Le mie carte o elimina tarjette/contatti) possono richiedere biometric con l’interruttore ON o OFF.",
+    "pt": "Se ativar, ao deixar o Card-Social em segundo plano e voltar, pedimos Face ID, impressão digital ou PIN. Ações sensíveis (ex.: QR em Minhas cartões ou remover cartões/contactos) podem pedir biometria com o toggle ligado ou desligado.",
+    "fr": "Si activée, après mise en arrière-plan et retour sur Card-Social, nous demandons Face ID, empreinte ou code appareil. D’autres actions sensibles (ex. QR depuis Mes cartes, suppression cartes/contacts) peuvent demander la biométrie avec l’interrupteur ON ou OFF.",
+    "de": "Wenn aktiv, nach Zurücklegen in den Hintergrund fordern wir Face ID, Fingerabdruck oder Geräte-PIN. Daneben können sensible Schritte (z. B. QR in „Meine Karten“ oder Löschen) biometrisch sein — unabhängig vom Schalter."
+  },
+  "profile_presidential_enabled_toast": {
+    "es": "Seguridad presidencial activada: al salir de la app y volver te pediremos desbloqueo.",
+    "en": "Presidential security on: when you leave the app and return we’ll ask you to unlock.",
+    "it": "Sicurezza presidenziale attiva: uscendo e tornando all’app chiederemo lo sblocco.",
+    "pt": "Segurança presidencial ativada: ao sair da app e voltar, pediremos desbloqueio.",
+    "fr": "Sécurité présidentielle activée : après sortie puis retour, déverrouillage demandé.",
+    "de": "Presidential Security aktiv: nach Verlassen und erneutem Öffnen wird entsperrt."
+  },
+  "profile_presidential_title": {
+    "es": "Seguridad presidencial",
+    "en": "Presidential security",
+    "it": "Sicurezza presidenziale",
+    "pt": "Segurança presidencial",
+    "fr": "Sécurité présidentielle",
+    "de": "Presidential Security"
+  },
+  "sub_mp_billing_annual_pen": {
+    "es": "Anual · PEN (S/)",
+    "en": "Annual · PEN (S/)",
+    "it": "Annuale · PEN (S/)",
+    "pt": "Anual · PEN (S/)",
+    "fr": "Annuel · PEN (S/)",
+    "de": "Jährlich · PEN (S/)"
+  },
+  "sub_mp_billing_annual_usd": {
+    "es": "Anual · USD ($)",
+    "en": "Annual · USD ($)",
+    "it": "Annuale · USD ($)",
+    "pt": "Anual · USD ($)",
+    "fr": "Annuel · USD ($)",
+    "de": "Jährlich · USD ($)"
+  },
+  "sub_mp_billing_monthly_pen": {
+    "es": "Mensual · PEN (S/)",
+    "en": "Monthly · PEN (S/)",
+    "it": "Mensile · PEN (S/)",
+    "pt": "Mensal · PEN (S/)",
+    "fr": "Mensuel · PEN (S/)",
+    "de": "Monatlich · PEN (S/)"
+  },
+  "sub_mp_billing_monthly_usd": {
+    "es": "Mensual · USD ($)",
+    "en": "Monthly · USD ($)",
+    "it": "Mensile · USD ($)",
+    "pt": "Mensal · USD ($)",
+    "fr": "Mensuel · USD ($)",
+    "de": "Monatlich · USD ($)"
+  },
+  "sub_mp_checkout_body": {
+    "es": "Elige periodo y moneda. Te llevamos al checkout seguro de Mercado Pago (soles o dólares).",
+    "en": "Choose billing period and currency. We’ll open Mercado Pago’s secure checkout (soles or US dollars).",
+    "it": "Scegli periodo e valuta. Apriremo il checkout sicuro di Mercado Pago (soles o dollari).",
+    "pt": "Escolha período e moeda. Abriremos o checkout seguro do Mercado Pago (soles ou dólares).",
+    "fr": "Choisissez la période et la devise. Nous ouvrirons le checkout sécurisé Mercado Pago (soles ou dollars).",
+    "de": "Wählen Sie Laufzeit und Währung. Wir öffnen den sicheren Mercado-Pago-Checkout (Soles oder USD)."
+  },
+  "sub_mp_checkout_title": {
+    "es": "Checkout Mercado Pago",
+    "en": "Mercado Pago checkout",
+    "it": "Checkout Mercado Pago",
+    "pt": "Checkout Mercado Pago",
+    "fr": "Paiement Mercado Pago",
+    "de": "Mercado-Pago-Checkout"
+  },
+  "sub_mp_not_configured": {
+    "es": "Mercado Pago aún no está configurado en el servidor. Contacta a soporte.",
+    "en": "Mercado Pago is not configured on the server yet. Contact support.",
+    "it": "Mercado Pago non è ancora configurato sul server. Contatta il supporto.",
+    "pt": "Mercado Pago ainda não está configurado no servidor. Contacte o suporte.",
+    "fr": "Mercado Pago n’est pas encore configuré sur le serveur. Contactez le support.",
+    "de": "Mercado Pago ist auf dem Server noch nicht konfiguriert. Support kontaktieren."
+  },
+  "sub_mp_opening_checkout": {
+    "es": "Abriendo checkout…",
+    "en": "Opening checkout…",
+    "it": "Apertura checkout…",
+    "pt": "Abrindo checkout…",
+    "fr": "Ouverture du checkout…",
+    "de": "Checkout wird geöffnet…"
+  },
+  "sub_mp_peru_hint": {
+    "es": "En Perú puedes pagar con Mercado Pago en soles (PEN) o dólares (USD).",
+    "en": "In Peru you can pay with Mercado Pago in soles (PEN) or US dollars (USD).",
+    "it": "In Perù puoi pagare con Mercado Pago in soles (PEN) o dollari (USD).",
+    "pt": "No Peru você pode pagar com Mercado Pago em soles (PEN) ou dólares (USD).",
+    "fr": "Au Pérou, payez avec Mercado Pago en soles (PEN) ou dollars (USD).",
+    "de": "In Peru können Sie mit Mercado Pago in Soles (PEN) oder USD bezahlen."
+  },
+  "sub_mp_return_body": {
+    "es": "Si completaste el pago en Mercado Pago, tu plan se activará en unos segundos. Cierra y vuelve a abrir Suscripciones si no ves el cambio.",
+    "en": "If you completed payment in Mercado Pago, your plan activates within seconds. Close and reopen Subscriptions if you don’t see it yet.",
+    "it": "Se hai completato il pagamento su Mercado Pago, il piano si attiva in pochi secondi. Chiudi e riapri Abbonamenti se non lo vedi.",
+    "pt": "Se concluiu o pagamento no Mercado Pago, seu plano ativa em segundos. Feche e abra Assinaturas se ainda não aparecer.",
+    "fr": "Si vous avez payé sur Mercado Pago, votre formule s’active en quelques secondes. Fermez et rouvrez Abonnements si besoin.",
+    "de": "Nach erfolgreicher Zahlung bei Mercado Pago wird Ihr Plan in Sekunden aktiv. Schließen und Abonnements erneut öffnen, falls nötig."
+  },
+  "sub_mp_return_title": {
+    "es": "Pago en proceso",
+    "en": "Payment in progress",
+    "it": "Pagamento in corso",
+    "pt": "Pagamento em andamento",
+    "fr": "Paiement en cours",
+    "de": "Zahlung läuft"
+  },
+  "sub_pay_mercadopago": {
+    "es": "Pagar con Mercado Pago",
+    "en": "Pay with Mercado Pago",
+    "it": "Paga con Mercado Pago",
+    "pt": "Pagar com Mercado Pago",
+    "fr": "Payer avec Mercado Pago",
+    "de": "Mit Mercado Pago bezahlen"
+  },
+  "sub_tier_market_radar_pro_included": {
+    "es": "Market Radar Pro incluido (modo prueba global)",
+    "en": "Market Radar Pro included (global trial mode)",
+    "it": "Market Radar Pro incluso (prova globale)",
+    "pt": "Market Radar Pro incluído (modo de teste global)",
+    "fr": "Market Radar Pro inclus (essai global)",
+    "de": "Market Radar Pro inkl. (globale Testphase)"
   }
 }

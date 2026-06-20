@@ -19,6 +19,7 @@ import { qr } from './i18n-core-chunks/qr.mjs';
 import { receptor } from './i18n-core-chunks/receptor.mjs';
 import { search } from './i18n-core-chunks/search.mjs';
 import { settings } from './i18n-core-chunks/settings.mjs';
+import { restored } from './i18n-core-chunks/restored.mjs';
 import { subscription } from './i18n-core-chunks/subscription.mjs';
 import { vault } from './i18n-core-chunks/vault.mjs';
 
@@ -42,6 +43,7 @@ const dict = {
   ...subscription,
   ...profile,
   ...dashboard,
+  ...restored,
 };
 
 const keys = Object.keys(dict);
