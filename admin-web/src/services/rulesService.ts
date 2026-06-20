@@ -138,10 +138,17 @@ function coerceTierLimits(raw: unknown, structuralFallback: TierLimits): TierLim
   const derived = resolveTierAnnualPricing({
     monthlyPriceUsd,
     monthlyEquivalentCs,
-    annualDiscountPercent: o.annualDiscountPercent,
-    annualTrialDays: o.annualTrialDays,
+    annualDiscountPercent:
+      o.annualDiscountPercent !== undefined && o.annualDiscountPercent !== null
+        ? Number(o.annualDiscountPercent)
+        : undefined,
+    annualTrialDays:
+      o.annualTrialDays !== undefined && o.annualTrialDays !== null
+        ? Number(o.annualTrialDays)
+        : undefined,
     annualPriceUsd: storedAnnualUsd,
-    freeTrialDays: o.freeTrialDays,
+    freeTrialDays:
+      o.freeTrialDays !== undefined && o.freeTrialDays !== null ? Number(o.freeTrialDays) : undefined,
   });
 
   return {
